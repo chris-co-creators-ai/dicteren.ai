@@ -27,6 +27,10 @@
 # knowledge graph (regenerated locally, not source-of-truth)
 /graphify-out/
 
+# AI agent instructions (local only, not source-of-truth)
+CLAUDE.md
+AGENTS.md
+
 # debug
 npm-debug.log*
 yarn-debug.log*
