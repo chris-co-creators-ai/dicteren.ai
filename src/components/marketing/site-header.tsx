@@ -63,8 +63,8 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[color:var(--border-soft)] bg-white/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
-        <Logo height={32} />
+      <div className="mx-auto flex h-24 max-w-7xl items-center justify-between px-6 lg:px-8">
+        <Logo height={66} />
 
         <nav
           aria-label="Hoofdnavigatie"
@@ -83,11 +83,8 @@ export function SiteHeader() {
 
         <div className="hidden items-center gap-2 md:flex">
           {desktopAuthCta}
-          <Link
-            href="/auth/sign-up?next=/trial/start"
-            className="btn btn-primary btn-sm"
-          >
-            Start gratis trial
+          <Link href="/download" className="btn btn-primary btn-sm">
+            Download gratis beta
           </Link>
         </div>
 
@@ -122,11 +119,11 @@ export function SiteHeader() {
           <div className="mt-3 flex flex-col gap-2 border-t border-[color:var(--border-soft)] pt-4">
             {mobileAuthCta}
             <Link
-              href="/auth/sign-up?next=/trial/start"
+              href="/download"
               onClick={() => setOpen(false)}
               className="btn btn-primary w-full"
             >
-              Start gratis trial
+              Download gratis beta
             </Link>
           </div>
         </div>

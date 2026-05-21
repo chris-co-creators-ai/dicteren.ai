@@ -49,7 +49,7 @@ export function HeroSection() {
               className="inline-block size-1.5 rounded-full"
               style={{ background: "var(--green)" }}
             />
-            14 dagen gratis · Mac &amp; Windows
+            Gratis beta · Mac &amp; Windows
           </span>
           <h1 className="text-balance text-4xl font-bold leading-[1.05] tracking-tight text-[color:var(--navy)] sm:text-5xl lg:text-6xl">
             Betere AI-resultaten beginnen met{" "}
@@ -78,12 +78,9 @@ export function HeroSection() {
             Copilot of Gemini.
           </p>
           <div className="mt-7 flex flex-col items-stretch gap-3 sm:mt-8 sm:flex-row sm:items-center sm:flex-wrap">
-            <Link
-              href="/auth/sign-up?next=/trial/start"
-              className="btn btn-primary btn-lg"
-            >
+            <Link href="/download" className="btn btn-primary btn-lg">
               <Download className="size-4" />
-              Start 14 dagen gratis
+              Download gratis beta
             </Link>
             <Link href="/product/ai-tools" className="btn btn-secondary btn-lg">
               Bekijk hoe het werkt
