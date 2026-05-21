@@ -3,7 +3,11 @@
 // Domain logic (activation limits, expiry checks) stays in API route actions
 
 import { createHash, randomBytes } from "crypto";
-import { LICENSE_CODE_PREFIXES, BETA_DEFAULTS } from "@/lib/config/plans";
+import {
+  BETA_DEFAULTS,
+  LICENSE_CODE_PREFIXES,
+  TRIAL_DEFAULTS,
+} from "@/lib/config/plans";
 import type { LicenseType, ServiceResult } from "@/lib/types";
 
 /**
@@ -50,8 +54,8 @@ export function normalizeLicenseCode(code: string): string {
 export function validateLicenseCodeFormat(code: string): ServiceResult<{ normalized: string }> {
   const normalized = normalizeLicenseCode(code);
 
-  // Expected format after normalization: DICBETA2026XXXXXXXX or DICPRO2026XXXXXXXX or DICTEAM2026XXXXXXXX
-  const pattern = /^DIC(BETA|PRO|TEAM)\d{4}[A-Z0-9]{8}$/;
+  // Expected after normalization: DICBETA / DICPRO / DICTEAM / DICTRIAL + year + 8 chars.
+  const pattern = /^DIC(BETA|TRIAL|PRO|TEAM)\d{4}[A-Z0-9]{8}$/;
 
   if (!pattern.test(normalized)) {
     return {
@@ -64,12 +68,24 @@ export function validateLicenseCodeFormat(code: string): ServiceResult<{ normali
   return { success: true, data: { normalized } };
 }
 
-/**
- * Calculate beta license expiry date
- */
+/** Generate a self-service trial code (stored with DB-type "beta"). */
+export function generateTrialCode(): string {
+  const prefix = LICENSE_CODE_PREFIXES.trial;
+  const year = new Date().getFullYear();
+  const segment1 = randomBytes(2).toString("hex").toUpperCase().slice(0, 4);
+  const segment2 = randomBytes(2).toString("hex").toUpperCase().slice(0, 4);
+  return `${prefix}-${year}-${segment1}-${segment2}`;
+}
+
 export function calculateBetaExpiry(): Date {
   const expiry = new Date();
   expiry.setDate(expiry.getDate() + BETA_DEFAULTS.validityDays);
+  return expiry;
+}
+
+export function calculateTrialExpiry(): Date {
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + TRIAL_DEFAULTS.validityDays);
   return expiry;
 }
 

@@ -5,10 +5,12 @@
 export {
   generateLicenseCode,
   generateLicenseCodes,
+  generateTrialCode,
   hashLicenseCode,
   normalizeLicenseCode,
   validateLicenseCodeFormat,
   calculateBetaExpiry,
+  calculateTrialExpiry,
   isExpired,
 } from "./license";
 
