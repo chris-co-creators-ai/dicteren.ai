@@ -80,7 +80,7 @@ export function AudienceLanding({ audience }: { audience: Audience }) {
         </div>
       </section>
 
-      {/* Quote */}
+      {/* Voorbeeld-scenario (geen echte testimonial — vervangen wanneer beta-feedback binnen is) */}
       <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-14">
         <div
           className="brand-card mx-auto max-w-3xl p-7 sm:p-10"
@@ -89,31 +89,21 @@ export function AudienceLanding({ audience }: { audience: Audience }) {
               "linear-gradient(135deg, white, var(--aqua-50))",
           }}
         >
-          <Quote
-            className="size-8 -scale-x-100"
-            strokeWidth={1.6}
-            style={{ color: "var(--orange)" }}
-          />
+          <div className="flex items-center gap-2">
+            <Quote
+              className="size-7 -scale-x-100"
+              strokeWidth={1.6}
+              style={{ color: "var(--orange)" }}
+            />
+            <span className="chip chip-orange text-[0.625rem]">
+              Voorbeeld · echte ervaringen volgen na beta
+            </span>
+          </div>
           <p className="mt-3 text-balance text-xl font-medium leading-snug tracking-tight sm:text-2xl">
             &ldquo;{audience.quote.text}&rdquo;
           </p>
-          <div className="mt-5 flex items-center gap-3">
-            <div
-              className="grid size-10 place-items-center rounded-full text-sm font-bold"
-              style={{ background: "var(--aqua-200)", color: "var(--navy)" }}
-            >
-              {audience.quote.name
-                .split(" ")
-                .map((p) => p[0])
-                .join("")
-                .slice(0, 2)}
-            </div>
-            <div>
-              <div className="text-sm font-semibold">{audience.quote.name}</div>
-              <div className="text-xs text-[color:var(--text-muted)]">
-                {audience.quote.role}
-              </div>
-            </div>
+          <div className="mt-5 text-xs text-[color:var(--text-muted)]">
+            Hoe iemand in deze rol Dicteren.ai zou kunnen ervaren.
           </div>
         </div>
       </section>

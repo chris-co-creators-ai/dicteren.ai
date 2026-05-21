@@ -88,10 +88,10 @@ export function HeroSection() {
           </div>
           <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[color:var(--text-muted)] sm:mt-7 sm:text-sm">
             {[
-              { icon: Shield, label: "Blijft op je computer" },
+              { icon: Shield, label: "Spraak blijft lokaal" },
               { icon: Globe, label: "Nederlands taalmodel" },
               { icon: Apple, label: "Mac en Windows" },
-              { icon: Lock, label: "Geen cloud nodig" },
+              { icon: Lock, label: "Eenmalige koop" },
             ].map(({ icon: Icon, label }) => (
               <li key={label} className="inline-flex items-center gap-1.5">
                 <Icon className="size-3.5" style={{ color: "var(--navy-500)" }} />

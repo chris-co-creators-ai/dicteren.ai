@@ -38,7 +38,7 @@ const STEPS: { n: Step; title: string; desc: string }[] = [
   {
     n: 3,
     title: "Het taalmodel komt erbij",
-    desc: "Dicteren.ai V3 installeert vanzelf, ongeveer 280 MB. Eenmalig.",
+    desc: "Dicteren.ai V3 installeert vanzelf, ongeveer 450 MB. Eenmalig.",
   },
   {
     n: 4,
@@ -82,8 +82,8 @@ export default function DownloadPage() {
           Download Dicteren.ai
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base text-[color:var(--text-muted)] sm:text-lg">
-          Werkt op Mac en Windows. Het taalmodel komt vanzelf mee. In drie
-          minuten kun je je eerste zin dicteren.
+          Werkt op Mac en Windows. Het taalmodel komt vanzelf mee. Daarna ben
+          je klaar om te dicteren.
         </p>
 
         {/* OS toggle */}
@@ -141,7 +141,7 @@ export default function DownloadPage() {
               Zo zet je het op
             </h2>
             <p className="mt-2 text-sm text-[color:var(--text-muted)] sm:text-base">
-              In ongeveer 3 minuten ben je klaar om te dicteren.
+              In vier stappen ben je klaar. De duur hangt af van je internet.
             </p>
 
             <div className="mt-7 flex flex-col gap-1">

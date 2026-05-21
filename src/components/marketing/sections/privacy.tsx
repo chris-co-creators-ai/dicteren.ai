@@ -13,10 +13,10 @@ import {
 
 export function PrivacySection() {
   const features = [
-    { icon: Shield, title: "Geen uploads", desc: "Je spraak wordt op je eigen apparaat verwerkt." },
-    { icon: Settings, title: "Jij kiest", desc: "Beheer zelf je modellen en geluiden." },
+    { icon: Shield, title: "Spraak blijft lokaal", desc: "Je audio wordt op je eigen apparaat verwerkt, niet in de cloud." },
+    { icon: Settings, title: "Jij kiest", desc: "Beheer zelf je modellen, geluiden en sneltoetsen." },
     { icon: Eye, title: "Niemand luistert mee", desc: "We trainen niet op jouw stem." },
-    { icon: RefreshCw, title: "Werkt offline", desc: "Internet is nergens voor nodig." },
+    { icon: RefreshCw, title: "Dicteren werkt offline", desc: "Voor het transcriberen heb je geen internet nodig." },
   ];
 
   const flow: { label: string; icon: typeof Mic }[] = [
@@ -47,9 +47,9 @@ export function PrivacySection() {
             <span style={{ color: "var(--aqua)" }}>jouw computer.</span>
           </h2>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-[#bccbed] lg:text-lg">
-            Dicteren.ai werkt met een lokaal taalmodel. Audio en tekst gaan
-            niet naar een server. Wat je daarna met de tekst doet, bepaal jij
-            zelf.
+            Dicteren.ai werkt met een lokaal taalmodel. Je audio wordt op je
+            eigen apparaat omgezet naar tekst, niet in de cloud. Wat je daarna
+            met de tekst doet, bepaal jij zelf.
           </p>
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
