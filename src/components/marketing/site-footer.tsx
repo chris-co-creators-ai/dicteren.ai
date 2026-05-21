@@ -10,13 +10,9 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Product",
     links: [
-      { label: "AI-tools", href: "/product/ai-tools" },
-      { label: "Lokaal dicteren", href: "/product/lokaal-dicteren" },
-      { label: "Privacy", href: "/product/privacy" },
-      { label: "Voor Mac", href: "/product/mac" },
-      { label: "Voor Windows", href: "/product/windows" },
-      { label: "Nederlands dicteren", href: "/product/nederlands-dicteren" },
-      { label: "Toetsenbord-stickers", href: "/product/toetsenbord-stickers" },
+      { label: "Voor AI-tools", href: "/product/ai-tools" },
+      { label: "Prijzen", href: "/prijzen" },
+      { label: "Download", href: "/download" },
     ],
   },
   {
@@ -26,28 +22,21 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Advocaten", href: "/voor-wie/advocaten" },
       { label: "Zorgprofessionals", href: "/voor-wie/zorgprofessionals" },
       { label: "Coaches & therapeuten", href: "/voor-wie/coaches-therapeuten" },
-      { label: "Accountants & admin", href: "/voor-wie/accountants-administratie" },
+      { label: "Accountants", href: "/voor-wie/accountants-administratie" },
       { label: "Makelaars", href: "/voor-wie/makelaars" },
       { label: "Recruiters & HR", href: "/voor-wie/recruiters-hr" },
-      { label: "Studenten & onderzoekers", href: "/voor-wie/studenten-onderzoekers" },
-      { label: "Schrijvers", href: "/voor-wie/schrijvers-contentmakers" },
-      { label: "Dyslexie", href: "/voor-wie/dyslexie" },
+      { label: "Studenten", href: "/voor-wie/studenten-onderzoekers" },
     ],
   },
   {
     title: "Zakelijk",
     links: [
       { label: "Overzicht", href: "/zakelijk" },
-      { label: "Teams", href: "/zakelijk/teams" },
-      { label: "Organisaties", href: "/zakelijk/organisaties" },
-      { label: "Licenties", href: "/zakelijk/licenties" },
-      { label: "Privacy & security", href: "/zakelijk/privacy-security" },
-      { label: "Facturatie", href: "/zakelijk/facturatie" },
       { label: "Affiliate partners", href: "/zakelijk/affiliate-partners" },
     ],
   },
   {
-    title: "Support & meer",
+    title: "Support",
     links: [
       { label: "Help", href: "/help" },
       { label: "Veelgestelde vragen", href: "/veelgestelde-vragen" },
