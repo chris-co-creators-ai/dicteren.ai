@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, X, LayoutDashboard, LogIn } from "lucide-react";
-import { Logo } from "@/components/shared/logo";
 import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +64,26 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[color:var(--border-soft)] bg-white/85 backdrop-blur">
       <div className="mx-auto flex h-24 max-w-7xl items-center justify-between px-6 lg:px-8">
-        <Logo height={66} />
+        <Link
+          href="/"
+          aria-label="Dicteren.ai — naar homepage"
+          className="flex items-center gap-3"
+        >
+          <Image
+            src="/branding/app-icon-512.png"
+            alt=""
+            width={56}
+            height={56}
+            priority
+            className="size-14 rounded-xl"
+          />
+          <span
+            className="text-3xl font-extrabold tracking-tight"
+            style={{ color: "var(--navy)" }}
+          >
+            Dicteren<span style={{ color: "var(--orange)" }}>.ai</span>
+          </span>
+        </Link>
 
         <nav
           aria-label="Hoofdnavigatie"

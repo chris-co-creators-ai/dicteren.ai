@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Inter_Tight, JetBrains_Mono } from "next/font/google";
+import { Nunito_Sans, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ErrorToast } from "@/components/shared/error-toast";
 import "./globals.css";
 
-const interTight = Inter_Tight({
+const nunitoSans = Nunito_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -86,7 +86,7 @@ export default function RootLayout({
   return (
     <html
       lang="nl"
-      className={`${interTight.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${nunitoSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         {children}
