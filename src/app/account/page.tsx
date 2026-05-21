@@ -1,0 +1,270 @@
+import Link from "next/link";
+import { and, desc, eq, inArray, like } from "drizzle-orm";
+import {
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  Download,
+  KeyRound,
+} from "lucide-react";
+import { db } from "@/lib/db";
+import {
+  licenseActivations,
+  licenses,
+  plans,
+  subscriptions,
+} from "@/lib/db/schema";
+import { getSession } from "@/lib/auth/session";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Mijn account · Dicteren.ai" };
+
+export default async function AccountHomePage() {
+  const session = (await getSession())!;
+
+  // Latest trial (if any)
+  const [trial] = await db
+    .select({
+      id: licenses.id,
+      code: licenses.code,
+      status: licenses.status,
+      expiresAt: licenses.expiresAt,
+    })
+    .from(licenses)
+    .where(
+      and(
+        eq(licenses.userId, session.user.id),
+        like(licenses.code, "DIC-TRIAL-%"),
+      ),
+    )
+    .limit(1);
+
+  // All paid licenses
+  const paidLicenses = await db
+    .select({
+      id: licenses.id,
+      code: licenses.code,
+      status: licenses.status,
+      expiresAt: licenses.expiresAt,
+      type: licenses.type,
+      planLabel: plans.label,
+    })
+    .from(licenses)
+    .leftJoin(plans, eq(licenses.planId, plans.id))
+    .where(
+      and(
+        eq(licenses.userId, session.user.id),
+        // exclude beta/trial (DIC-TRIAL-*) — those go in the trial card
+      ),
+    )
+    .orderBy(desc(licenses.issuedAt));
+
+  const paid = paidLicenses.filter((l) => !l.code.startsWith("DIC-TRIAL-"));
+
+  // Activation totals across paid licenses
+  const licenseIds = paid.map((l) => l.id);
+  const activeActivations = licenseIds.length
+    ? await db
+        .select({ licenseId: licenseActivations.licenseId })
+        .from(licenseActivations)
+        .where(
+          and(
+            inArray(licenseActivations.licenseId, licenseIds),
+            eq(licenseActivations.isActive, true),
+          ),
+        )
+    : [];
+  const activationCount = activeActivations.length;
+
+  // Active subscriptions
+  const subs = await db
+    .select({
+      id: subscriptions.id,
+      status: subscriptions.status,
+      nextBillingAt: subscriptions.nextBillingAt,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, session.user.id));
+  const activeSub = subs.find((s) => s.status === "active" || s.status === "past_due");
+
+  const trialDaysLeft =
+    trial?.expiresAt && trial.status === "active"
+      ? Math.max(
+          0,
+          Math.ceil(
+            (trial.expiresAt.getTime() - Date.now()) / 86_400_000,
+          ),
+        )
+      : 0;
+  const isTrialActive =
+    trial?.status === "active" &&
+    trial?.expiresAt !== null &&
+    trial.expiresAt.getTime() > Date.now();
+
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-12">
+      <h1 className="text-3xl font-bold tracking-tight">
+        Hallo {session.user.name?.split(" ")[0] ?? ""}
+      </h1>
+      <p className="mt-2 text-sm text-[color:var(--text-muted)]">
+        {session.user.email}
+      </p>
+
+      {/* Trial card */}
+      {trial && (
+        <div className="mt-8 rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+                Gratis proefperiode
+              </div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-2xl font-bold">
+                  {isTrialActive ? `${trialDaysLeft} dagen` : "Verlopen"}
+                </span>
+                {isTrialActive && (
+                  <span className="text-sm text-[color:var(--text-muted)]">
+                    over
+                  </span>
+                )}
+              </div>
+              {trial.expiresAt && (
+                <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+                  {isTrialActive ? "Loopt tot " : "Liep tot "}
+                  {trial.expiresAt.toLocaleDateString("nl-NL", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold"
+              style={{
+                background: isTrialActive
+                  ? "color-mix(in srgb, var(--green) 12%, white)"
+                  : "color-mix(in srgb, var(--orange) 12%, white)",
+                color: isTrialActive ? "var(--green)" : "var(--orange-600)",
+              }}
+            >
+              {isTrialActive ? (
+                <CheckCircle2 className="size-3" />
+              ) : (
+                <Clock className="size-3" />
+              )}
+              {isTrialActive ? "Actief" : "Verlopen"}
+            </span>
+          </div>
+
+          {isTrialActive && (
+            <div className="mt-4 rounded-lg bg-[color:var(--surface-2)] p-3">
+              <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+                Trial-code
+              </div>
+              <code
+                className="mt-1 inline-block font-mono text-sm font-bold"
+                style={{ color: "var(--navy)" }}
+              >
+                {trial.code}
+              </code>
+            </div>
+          )}
+
+          {!isTrialActive && (
+            <div
+              className="mt-4 rounded-lg px-4 py-3 text-xs"
+              style={{
+                background: "color-mix(in srgb, var(--orange) 6%, white)",
+                color: "var(--text)",
+              }}
+            >
+              Je proefperiode is voorbij. Kies een licentie om door te gaan met
+              Dicteren.ai.
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            {isTrialActive && !paid.length && (
+              <Link href="/download" className="btn btn-secondary">
+                <Download className="size-3.5" />
+                Download de app
+              </Link>
+            )}
+            {!activeSub && (
+              <Link href="/prijzen" className="btn btn-primary">
+                <CreditCard className="size-3.5" />
+                Bekijk de prijzen
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* No trial, no paid → CTA */}
+      {!trial && !paid.length && (
+        <div className="mt-8 rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
+          <h2 className="text-lg font-semibold">Nog niet gestart?</h2>
+          <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+            Probeer Dicteren.ai 14 dagen gratis. Geen creditcard nodig.
+          </p>
+          <Link href="/trial/start" className="btn btn-primary mt-4">
+            <Clock className="size-3.5" />
+            Start 14 dagen gratis
+          </Link>
+        </div>
+      )}
+
+      {/* Licenties + abonnement quick links */}
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/account/licenses"
+          className="rounded-2xl border border-[color:var(--border-soft)] bg-white p-5 hover:border-[color:var(--navy)]"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+                Licenties
+              </div>
+              <div className="mt-1 text-xl font-bold">
+                {paid.length + (trial ? 1 : 0)}
+              </div>
+              <div className="mt-0.5 text-xs text-[color:var(--text-muted)]">
+                {activationCount} actief op apparaten
+              </div>
+            </div>
+            <KeyRound
+              className="size-6 text-[color:var(--text-muted)]"
+              strokeWidth={2}
+            />
+          </div>
+        </Link>
+
+        <Link
+          href="/account/billing"
+          className="rounded-2xl border border-[color:var(--border-soft)] bg-white p-5 hover:border-[color:var(--navy)]"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+                Facturering
+              </div>
+              <div className="mt-1 text-xl font-bold">
+                {activeSub ? "Actief" : "Geen abonnement"}
+              </div>
+              <div className="mt-0.5 text-xs text-[color:var(--text-muted)]">
+                {activeSub?.nextBillingAt
+                  ? `Volgende: ${activeSub.nextBillingAt.toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}`
+                  : "Beheer abonnement"}
+              </div>
+            </div>
+            <CreditCard
+              className="size-6 text-[color:var(--text-muted)]"
+              strokeWidth={2}
+            />
+          </div>
+        </Link>
+      </div>
+    </main>
+  );
+}

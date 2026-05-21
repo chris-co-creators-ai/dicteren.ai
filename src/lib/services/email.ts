@@ -20,6 +20,10 @@ export type EmailCategory =
   | "subscription_canceled"
   | "subscription_renewed"
   | "refund"
+  | "trial_started"
+  | "trial_reminder_d7"
+  | "trial_reminder_d13"
+  | "trial_expired"
   | "other";
 
 interface EmailLogContext {
@@ -594,6 +598,280 @@ function renewalEmailText(params: {
     `Je toegang loopt nu door tot ${formatDateNL(params.newExpiresAt)}.`,
     "",
     "Beheer je abonnement: https://dicteren.ai/account/billing",
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}
+
+// ───── Trial: kick-off (after web sign-up + claim) ─────────────────
+
+export async function sendTrialStartedEmail(params: {
+  to: string;
+  name?: string;
+  licenseCode: string;
+  expiresAt: Date;
+  userId?: string;
+  licenseId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: "Je 14 dagen Dicteren.ai zijn begonnen",
+    html: trialStartedHtml(params),
+    text: trialStartedText(params),
+    tags: [
+      { name: "category", value: "trial_started" },
+      ...(params.licenseId ? [{ name: "license_id", value: params.licenseId }] : []),
+    ],
+    idempotencyKey: params.licenseId ? `trial-started/${params.licenseId}` : undefined,
+    log: {
+      category: "trial_started",
+      userId: params.userId ?? null,
+      licenseId: params.licenseId ?? null,
+    },
+  });
+}
+
+// ───── Trial: day-7 reminder ───────────────────────────────────────
+
+export async function sendTrialReminderD7Email(params: {
+  to: string;
+  name?: string;
+  daysLeft: number;
+  expiresAt: Date;
+  userId?: string;
+  licenseId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: "Hoe bevalt Dicteren.ai?",
+    html: trialReminderD7Html(params),
+    text: trialReminderD7Text(params),
+    tags: [
+      { name: "category", value: "trial_reminder_d7" },
+      ...(params.licenseId ? [{ name: "license_id", value: params.licenseId }] : []),
+    ],
+    idempotencyKey: params.licenseId ? `trial-reminder-d7/${params.licenseId}` : undefined,
+    log: {
+      category: "trial_reminder_d7",
+      userId: params.userId ?? null,
+      licenseId: params.licenseId ?? null,
+    },
+  });
+}
+
+// ───── Trial: day-13 final reminder ────────────────────────────────
+
+export async function sendTrialReminderD13Email(params: {
+  to: string;
+  name?: string;
+  expiresAt: Date;
+  userId?: string;
+  licenseId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: "Je proefperiode verloopt morgen",
+    html: trialReminderD13Html(params),
+    text: trialReminderD13Text(params),
+    tags: [
+      { name: "category", value: "trial_reminder_d13" },
+      ...(params.licenseId ? [{ name: "license_id", value: params.licenseId }] : []),
+    ],
+    idempotencyKey: params.licenseId ? `trial-reminder-d13/${params.licenseId}` : undefined,
+    log: {
+      category: "trial_reminder_d13",
+      userId: params.userId ?? null,
+      licenseId: params.licenseId ?? null,
+    },
+  });
+}
+
+// ───── Trial: expired (day 14+) ────────────────────────────────────
+
+export async function sendTrialExpiredEmail(params: {
+  to: string;
+  name?: string;
+  userId?: string;
+  licenseId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: "Je proefperiode is voorbij",
+    html: trialExpiredHtml(params),
+    text: trialExpiredText(params),
+    tags: [
+      { name: "category", value: "trial_expired" },
+      ...(params.licenseId ? [{ name: "license_id", value: params.licenseId }] : []),
+    ],
+    idempotencyKey: params.licenseId ? `trial-expired/${params.licenseId}` : undefined,
+    log: {
+      category: "trial_expired",
+      userId: params.userId ?? null,
+      licenseId: params.licenseId ?? null,
+    },
+  });
+}
+
+// ───── Trial templates ─────────────────────────────────────────────
+
+function trialStartedHtml(params: {
+  name?: string;
+  licenseCode: string;
+  expiresAt: Date;
+}): string {
+  return shellHtml(
+    "Je 14 dagen Dicteren.ai zijn begonnen",
+    `<p>${greet(params.name)}</p>
+  <p>Je proefperiode is geactiveerd tot en met <strong>${formatDateNL(params.expiresAt)}</strong>.</p>
+  <p>Hier is je code voor de desktop-app:</p>
+  <div style="background: #f5f5f5; border-radius: 8px; padding: 20px; margin: 24px 0; text-align: center;">
+    <code style="font-size: 20px; font-family: 'SF Mono', Menlo, monospace; letter-spacing: 0.5px; color: #1a1a1a;">${params.licenseCode}</code>
+  </div>
+  <p>Stappen om te starten:</p>
+  <ol>
+    <li>Download Dicteren.ai op <a href="https://dicteren.ai/download?utm_source=trial_start_email" style="color: #0066ff;">dicteren.ai/download</a></li>
+    <li>Open de app — je krijgt direct het activatiescherm</li>
+    <li>Plak je code hierboven</li>
+  </ol>
+  <p>Onze tip: probeer de eerste dagen verschillende programma's — Outlook, Word, Notion, browser. Zo merk je waar Dicteren.ai het verschil maakt.</p>
+  <p style="margin-top: 32px; color: #666; font-size: 14px;">Vragen? Mail <a href="mailto:info@dicteren.ai" style="color: #0066ff;">info@dicteren.ai</a> of antwoord op deze mail.</p>`,
+  );
+}
+
+function trialStartedText(params: {
+  name?: string;
+  licenseCode: string;
+  expiresAt: Date;
+}): string {
+  return [
+    greet(params.name),
+    "",
+    `Je proefperiode is geactiveerd tot en met ${formatDateNL(params.expiresAt)}.`,
+    "",
+    "Je code:",
+    params.licenseCode,
+    "",
+    "Stappen om te starten:",
+    "1. Download Dicteren.ai op https://dicteren.ai/download",
+    "2. Open de app — activatiescherm verschijnt direct",
+    "3. Plak je code hierboven",
+    "",
+    "Tip: probeer Dicteren.ai de eerste dagen in verschillende programma's.",
+    "",
+    "Vragen? Mail info@dicteren.ai",
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}
+
+function trialReminderD7Html(params: {
+  name?: string;
+  daysLeft: number;
+  expiresAt: Date;
+}): string {
+  return shellHtml(
+    "Hoe bevalt Dicteren.ai?",
+    `<p>${greet(params.name)}</p>
+  <p>Je gebruikt Dicteren.ai nu een week. Nog <strong>${params.daysLeft} dagen</strong> in je proefperiode (tot ${formatDateNL(params.expiresAt)}).</p>
+  <p>Werkt het zoals je hoopte? We zien het graag — neem dan een licentie en blijf doorgaan:</p>
+  <p style="margin: 24px 0;">
+    <a href="https://dicteren.ai/prijzen?utm_source=trial_d7_email" style="color: #ffffff; background: #FF8F43; display: inline-block; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">Bekijk de prijzen</a>
+  </p>
+  <p>Vanaf €12 per maand of €96 per jaar. Geen verborgen kosten, opzeggen wanneer je wilt.</p>
+  <p style="margin-top: 32px; color: #666; font-size: 14px;">Werkt iets niet goed? Stuur een mail terug — we lossen het op.</p>`,
+  );
+}
+
+function trialReminderD7Text(params: {
+  name?: string;
+  daysLeft: number;
+  expiresAt: Date;
+}): string {
+  return [
+    greet(params.name),
+    "",
+    `Je gebruikt Dicteren.ai een week. Nog ${params.daysLeft} dagen in je proefperiode (tot ${formatDateNL(params.expiresAt)}).`,
+    "",
+    "Werkt het zoals je hoopte? Neem dan een licentie en blijf doorgaan:",
+    "https://dicteren.ai/prijzen",
+    "",
+    "Vanaf €12 per maand. Opzeggen wanneer je wilt.",
+    "",
+    "Werkt iets niet goed? Stuur een mail terug — we lossen het op.",
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}
+
+function trialReminderD13Html(params: {
+  name?: string;
+  expiresAt: Date;
+}): string {
+  return shellHtml(
+    "Je proefperiode verloopt morgen",
+    `<p>${greet(params.name)}</p>
+  <p>Je proefperiode van Dicteren.ai loopt af op <strong>${formatDateNL(params.expiresAt)}</strong>. Dat is morgen.</p>
+  <p>Koop nu een licentie zodat je app gewoon door kan blijven werken — geen onderbreking, geen nieuwe code, geen gedoe.</p>
+  <p style="margin: 24px 0;">
+    <a href="https://dicteren.ai/prijzen?utm_source=trial_d13_email" style="color: #ffffff; background: #FF8F43; display: inline-block; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">Kies een licentie</a>
+  </p>
+  <ul>
+    <li><strong>€12/maand</strong> — flexibel, opzeggen wanneer je wilt</li>
+    <li><strong>€30/kwartaal</strong> — 17% korting</li>
+    <li><strong>€96/jaar</strong> — 33% korting, twee maanden gratis</li>
+  </ul>
+  <p style="margin-top: 32px; color: #666; font-size: 14px;">Vragen? Mail <a href="mailto:info@dicteren.ai" style="color: #0066ff;">info@dicteren.ai</a> — we beantwoorden dezelfde dag.</p>`,
+  );
+}
+
+function trialReminderD13Text(params: {
+  name?: string;
+  expiresAt: Date;
+}): string {
+  return [
+    greet(params.name),
+    "",
+    `Je proefperiode van Dicteren.ai loopt af op ${formatDateNL(params.expiresAt)}. Dat is morgen.`,
+    "",
+    "Koop nu een licentie zodat je app door kan blijven werken:",
+    "https://dicteren.ai/prijzen",
+    "",
+    "Opties:",
+    "- €12/maand — flexibel, opzeggen wanneer je wilt",
+    "- €30/kwartaal — 17% korting",
+    "- €96/jaar — 33% korting, twee maanden gratis",
+    "",
+    "Vragen? Mail info@dicteren.ai",
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}
+
+function trialExpiredHtml(params: { name?: string }): string {
+  return shellHtml(
+    "Je proefperiode is voorbij",
+    `<p>${greet(params.name)}</p>
+  <p>Je 14-dagen proefperiode van Dicteren.ai is afgelopen. De app vraagt nu om een licentie voor je verder kunt.</p>
+  <p>Je instellingen en geschiedenis blijven gewoon bewaard — koop een licentie en je gaat verder waar je gebleven was.</p>
+  <p style="margin: 24px 0;">
+    <a href="https://dicteren.ai/prijzen?utm_source=trial_expired_email" style="color: #ffffff; background: #FF8F43; display: inline-block; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">Kies een licentie</a>
+  </p>
+  <p style="margin-top: 32px; color: #666; font-size: 14px;">Hulp nodig of feedback waarom je nog niet kiest? Antwoord gerust op deze mail. We lezen elke reactie.</p>`,
+  );
+}
+
+function trialExpiredText(params: { name?: string }): string {
+  return [
+    greet(params.name),
+    "",
+    "Je 14-dagen proefperiode van Dicteren.ai is afgelopen.",
+    "De app vraagt nu om een licentie voor je verder kunt.",
+    "",
+    "Je instellingen en geschiedenis blijven bewaard — koop een licentie en je gaat verder.",
+    "",
+    "https://dicteren.ai/prijzen",
+    "",
+    "Hulp nodig of feedback? Antwoord op deze mail.",
     "",
     "Dicteren.ai",
   ].join("\n");

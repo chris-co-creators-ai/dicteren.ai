@@ -1,16 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Building2,
   Download,
   Filter,
-  MoreHorizontal,
   Search,
   User,
 } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { cn } from "@/lib/utils";
+
+type Stage = "lead" | "trial_active" | "trial_expired" | "converted";
 
 type Customer = {
   id: string;
@@ -18,36 +20,55 @@ type Customer = {
   email: string;
   role: string | null;
   emailVerified: boolean;
-  licenseCount: number;
   createdAt: string;
+  trialStartedAt: string | null;
+  trialExpiresAt: string | null;
+  trialStatus: string | null;
+  paidLicenseCount: number;
+  emailsSent: number;
+  emailsOpened: number;
+  emailsClicked: number;
+  emailsBounced: number;
+  stage: Stage;
 };
 
 type Kpi = { label: string; value: string; detail: string };
 
-type TabKey = "all" | "active" | "verified" | "lead" | "admin";
+type TabKey = "all" | Stage;
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "Alle" },
-  { key: "active", label: "Met licentie" },
-  { key: "verified", label: "Geverifieerd" },
-  { key: "lead", label: "Zonder licentie" },
-  { key: "admin", label: "Admin" },
+  { key: "trial_active", label: "Trial actief" },
+  { key: "trial_expired", label: "Trial verlopen" },
+  { key: "converted", label: "Geconverteerd" },
+  { key: "lead", label: "Lead" },
 ];
 
-function matches(c: Customer, key: TabKey): boolean {
-  switch (key) {
-    case "all":
-      return true;
-    case "active":
-      return c.licenseCount > 0;
-    case "verified":
-      return c.emailVerified;
-    case "lead":
-      return c.licenseCount === 0;
-    case "admin":
-      return c.role === "admin";
-  }
-}
+const STAGE_META: Record<
+  Stage,
+  { label: string; chipBg: string; chipFg: string }
+> = {
+  trial_active: {
+    label: "Trial actief",
+    chipBg: "color-mix(in srgb, var(--green) 12%, white)",
+    chipFg: "var(--green)",
+  },
+  trial_expired: {
+    label: "Trial verlopen",
+    chipBg: "color-mix(in srgb, var(--orange) 12%, white)",
+    chipFg: "var(--orange-600)",
+  },
+  converted: {
+    label: "Converted",
+    chipBg: "color-mix(in srgb, var(--navy) 12%, white)",
+    chipFg: "var(--navy)",
+  },
+  lead: {
+    label: "Lead",
+    chipBg: "var(--surface-2)",
+    chipFg: "var(--text-muted)",
+  },
+};
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("nl-NL", {
@@ -60,32 +81,30 @@ function formatDate(iso: string): string {
 export function CrmView({
   customers,
   kpis,
+  stageCounts,
 }: {
   customers: Customer[];
   kpis: Kpi[];
+  stageCounts: Record<Stage, number>;
 }) {
   const [tab, setTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
-  const [drawer, setDrawer] = useState<Customer | null>(null);
 
-  const counts = useMemo(() => {
-    const c: Record<TabKey, number> = {
+  const counts: Record<TabKey, number> = useMemo(
+    () => ({
       all: customers.length,
-      active: 0,
-      verified: 0,
-      lead: 0,
-      admin: 0,
-    };
-    for (const k of Object.keys(c) as TabKey[]) {
-      c[k] = customers.filter((cu) => matches(cu, k)).length;
-    }
-    return c;
-  }, [customers]);
+      lead: stageCounts.lead,
+      trial_active: stageCounts.trial_active,
+      trial_expired: stageCounts.trial_expired,
+      converted: stageCounts.converted,
+    }),
+    [customers.length, stageCounts],
+  );
 
   const filtered = useMemo(
     () =>
       customers.filter((r) => {
-        if (!matches(r, tab)) return false;
+        if (tab !== "all" && r.stage !== tab) return false;
         if (search) {
           const q = search.toLowerCase();
           return (
@@ -115,7 +134,7 @@ export function CrmView({
             CRM
           </h1>
           <p className="mt-1 text-sm text-[color:var(--text-muted)]">
-            Live klantenbestand uit Neon Auth · licentie-koppeling per gebruiker.
+            Trial-funnel per klant: lead → trial → conversie. Klik op een rij voor de tijdlijn.
           </p>
         </div>
 
@@ -125,7 +144,9 @@ export function CrmView({
               <div className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
                 {kpi.label}
               </div>
-              <div className="mt-1 text-2xl font-bold tracking-tight">{kpi.value}</div>
+              <div className="mt-1 text-2xl font-bold tracking-tight">
+                {kpi.value}
+              </div>
               <div className="mt-1 text-[0.6875rem] text-[color:var(--text-soft)]">
                 {kpi.detail}
               </div>
@@ -185,13 +206,20 @@ export function CrmView({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[44rem] border-separate border-spacing-0 text-sm">
+            <table className="w-full min-w-[52rem] border-separate border-spacing-0 text-sm">
               <thead>
                 <tr
                   className="text-[color:var(--text-muted)]"
                   style={{ background: "var(--bg)" }}
                 >
-                  {["Klant", "Rol", "Licenties", "Status", "Lid sinds"].map((h) => (
+                  {[
+                    "Klant",
+                    "Stage",
+                    "Trial",
+                    "Mails",
+                    "Licenties",
+                    "Lid sinds",
+                  ].map((h) => (
                     <th
                       key={h}
                       className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-[0.05em]"
@@ -199,22 +227,22 @@ export function CrmView({
                       {h}
                     </th>
                   ))}
-                  <th className="w-14 px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-10 text-center text-sm text-[color:var(--text-muted)]">
-                      Nog geen klanten.
+                    <td
+                      colSpan={6}
+                      className="px-3 py-10 text-center text-sm text-[color:var(--text-muted)]"
+                    >
+                      Geen klanten in dit filter.
                     </td>
                   </tr>
                 ) : (
                   filtered.map((r) => {
                     const Icon = r.role === "admin" ? Building2 : User;
-                    const statusChip = r.emailVerified ? "chip-green" : "chip-orange";
-                    const statusDot = r.emailVerified ? "var(--green)" : "var(--orange)";
-                    const statusLabel = r.emailVerified ? "Geverifieerd" : "Niet geverifieerd";
+                    const stage = STAGE_META[r.stage];
                     return (
                       <tr
                         key={r.id}
@@ -222,7 +250,10 @@ export function CrmView({
                         style={{ borderTop: "1px solid var(--border-soft)" }}
                       >
                         <td className="px-3 py-3">
-                          <div className="flex items-center gap-3">
+                          <Link
+                            href={`/admin/crm/${r.id}`}
+                            className="flex items-center gap-3"
+                          >
                             <span
                               className="grid size-9 shrink-0 place-items-center rounded-full"
                               style={{ background: "var(--bg-deep)" }}
@@ -239,42 +270,50 @@ export function CrmView({
                               </div>
                               <div className="truncate text-[0.6875rem] text-[color:var(--text-muted)]">
                                 {r.email}
+                                {!r.emailVerified && " · niet geverifieerd"}
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td
-                          className="px-3 py-3 text-xs font-semibold"
-                          style={{ color: r.role === "admin" ? "var(--orange-600)" : "var(--navy-500)" }}
-                        >
-                          {r.role ?? "user"}
-                        </td>
-                        <td className="px-3 py-3 font-mono text-xs text-[color:var(--text-muted)]">
-                          {r.licenseCount}
+                          </Link>
                         </td>
                         <td className="px-3 py-3">
                           <span
-                            className={`chip ${statusChip} gap-1.5 px-2 py-0.5 text-[0.625rem]`}
+                            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold"
+                            style={{
+                              background: stage.chipBg,
+                              color: stage.chipFg,
+                            }}
                           >
-                            <span
-                              aria-hidden
-                              className="inline-block size-1.5 rounded-full"
-                              style={{ background: statusDot }}
-                            />
-                            {statusLabel}
+                            {stage.label}
                           </span>
                         </td>
                         <td className="px-3 py-3 text-xs text-[color:var(--text-muted)]">
-                          {formatDate(r.createdAt)}
+                          {r.trialStartedAt ? (
+                            <>
+                              <div>start {formatDate(r.trialStartedAt)}</div>
+                              {r.trialExpiresAt && (
+                                <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
+                                  loopt tot {formatDate(r.trialExpiresAt)}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => setDrawer(r)}
-                            aria-label="Opties"
-                            className="rounded p-1.5 text-[color:var(--text-soft)] hover:bg-[color:var(--bg-deep)]"
-                          >
-                            <MoreHorizontal className="size-4" strokeWidth={2} />
-                          </button>
+                        <td className="px-3 py-3 text-xs">
+                          <div className="font-semibold">
+                            {r.emailsSent} verstuurd
+                          </div>
+                          <div className="text-[0.6875rem] text-[color:var(--text-muted)]">
+                            {r.emailsOpened} geopend · {r.emailsClicked} geklikt
+                            {r.emailsBounced > 0 ? ` · ${r.emailsBounced} bounce` : ""}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 font-mono text-xs text-[color:var(--text-muted)]">
+                          {r.paidLicenseCount}
+                        </td>
+                        <td className="px-3 py-3 text-xs text-[color:var(--text-muted)]">
+                          {formatDate(r.createdAt)}
                         </td>
                       </tr>
                     );
@@ -291,68 +330,6 @@ export function CrmView({
           </div>
         </div>
       </div>
-
-      {drawer && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/30"
-            onClick={() => setDrawer(null)}
-            aria-hidden
-          />
-          <aside
-            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-[color:var(--border-soft)] bg-white"
-            style={{ boxShadow: "-0.75rem 0 2rem rgba(4, 38, 96, 0.10)" }}
-          >
-            <div className="flex items-center border-b border-[color:var(--border-soft)] px-5 py-4">
-              <div className="min-w-0">
-                <div className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
-                  {drawer.role ?? "user"}
-                </div>
-                <div className="truncate text-sm font-bold">{drawer.name}</div>
-              </div>
-              <button
-                onClick={() => setDrawer(null)}
-                aria-label="Sluit drawer"
-                className="ml-auto rounded p-1.5 hover:bg-[color:var(--bg-deep)]"
-              >
-                ×
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-5 py-5">
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  ["E-mail", drawer.email],
-                  ["Verifieerd", drawer.emailVerified ? "Ja" : "Nee"],
-                  ["Licenties", String(drawer.licenseCount)],
-                  ["Rol", drawer.role ?? "user"],
-                  ["Lid sinds", formatDate(drawer.createdAt)],
-                  ["User ID", drawer.id.slice(0, 8) + "…"],
-                ].map(([l, v]) => (
-                  <div
-                    key={l}
-                    className="rounded-xl p-3"
-                    style={{ background: "var(--bg)" }}
-                  >
-                    <div className="text-[0.625rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-soft)]">
-                      {l}
-                    </div>
-                    <div className="mt-1 text-sm">{v}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 border-t border-[color:var(--border-soft)] p-4">
-              <a
-                href={`mailto:${drawer.email}`}
-                className="btn btn-secondary btn-sm justify-center"
-              >
-                E-mail sturen
-              </a>
-              <button className="btn btn-secondary btn-sm">Bekijk licenties</button>
-            </div>
-          </aside>
-        </>
-      )}
     </>
   );
 }

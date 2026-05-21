@@ -33,4 +33,23 @@ export {
   sendCancelEmail,
   sendRefundEmail,
   sendRenewalEmail,
+  sendTrialStartedEmail,
+  sendTrialReminderD7Email,
+  sendTrialReminderD13Email,
+  sendTrialExpiredEmail,
 } from "./email";
+
+export {
+  claimTrialForUser,
+  trialAlreadyUsedOnDevice,
+  type ClaimTrialResult,
+  type TrialErrorCode,
+} from "./trial";
+
+export {
+  getCustomerSummary,
+  getCustomerTimeline,
+  type CustomerSummary,
+  type TimelineEntry,
+  type TimelineKind,
+} from "./customer-timeline";

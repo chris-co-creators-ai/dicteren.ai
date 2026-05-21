@@ -65,8 +65,8 @@ export default function PrijzenPage() {
           Een eerlijke prijs zonder verrassingen.
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-[color:var(--text-muted)] sm:text-lg">
-          Tijdens de beta is alles gratis. Daarna kies je een plan dat past,
-          of je stopt. Geen creditcard nodig om te starten.
+          Probeer Dicteren.ai 14 dagen gratis. Daarna kies je een plan dat
+          past — of je stopt. Geen creditcard nodig om te starten.
         </p>
       </section>
 
@@ -106,28 +106,31 @@ export default function PrijzenPage() {
       {/* Plans grid */}
       <section className="px-4 py-10 sm:px-6 sm:py-12 lg:px-14 lg:py-16">
         <div className="mx-auto grid max-w-5xl gap-4 sm:gap-5 lg:grid-cols-[1fr_1.05fr_1fr]">
-          {/* Beta */}
+          {/* Trial */}
           <article className="brand-card p-7">
-            <h3 className="text-lg font-semibold">Beta</h3>
+            <h3 className="text-lg font-semibold">Gratis proberen</h3>
             <p className="mt-1 text-sm text-[color:var(--text-muted)]">
-              Tijdens de testperiode
+              Eerst kijken of het bevalt
             </p>
             <div className="mt-4 flex items-baseline gap-1.5">
               <span className="text-5xl font-bold tracking-tight">€0</span>
               <span className="text-sm text-[color:var(--text-muted)]">
-                tot eind beta
+                14 dagen
               </span>
             </div>
-            <Link href="/download" className="btn btn-secondary mt-5 w-full">
-              Download gratis beta
+            <Link
+              href="/auth/sign-up?next=/trial/start"
+              className="btn btn-secondary mt-5 w-full"
+            >
+              Start 14 dagen gratis
             </Link>
             <ul className="mt-5 flex flex-col gap-2.5">
               {[
                 "Volledige dicteer-app",
                 "Mac & Windows",
                 "Nederlands V3-model",
-                "Geldig 90 dagen",
-                "1 gebruiker · 2 apparaten",
+                "Geldig 14 dagen",
+                "1 apparaat",
               ].map((item) => (
                 <li
                   key={item}
@@ -175,12 +178,15 @@ export default function PrijzenPage() {
                 = €8/maand · jaarlijks afgerekend
               </p>
             )}
-            <Link href="/download" className="btn btn-primary mt-5 w-full">
-              Start beta
+            <Link
+              href="/auth/sign-up?next=/trial/start"
+              className="btn btn-primary mt-5 w-full"
+            >
+              Start gratis trial
             </Link>
             <ul className="mt-5 flex flex-col gap-2.5">
               {[
-                "Alles uit Beta",
+                "Alles uit de gratis proefperiode",
                 "2 apparaten per licentie",
                 "Nieuwe modelversies",
                 "Prioriteits-support",

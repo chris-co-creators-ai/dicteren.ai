@@ -13,6 +13,7 @@ import {
   logEvent,
   signLicenseToken,
   trackEvent,
+  trialAlreadyUsedOnDevice,
   validateLicenseCodeFormat,
 } from "@/lib/services";
 import type { ActivationRequest, ActivationResponse } from "@/lib/types";
@@ -101,8 +102,27 @@ export async function POST(request: Request) {
     );
   }
 
-  // Upsert device on fingerprint. Multiple licenses may share a device.
   const fingerprint = body.deviceFingerprint.trim();
+
+  // Anti-abuse: a trial code can only be activated on a device that has never
+  // hosted a different trial before. Prevents account-spam to get fresh trials
+  // on the same machine.
+  const isTrialCode = license.code.startsWith("DIC-TRIAL-");
+  if (isTrialCode) {
+    const conflict = await trialAlreadyUsedOnDevice({
+      fingerprint,
+      excludeLicenseId: license.id,
+    });
+    if (conflict) {
+      return clientError(
+        403,
+        "Dit apparaat heeft al een proefperiode gebruikt. Koop een licentie om door te gaan.",
+        "trial_device_already_used",
+      );
+    }
+  }
+
+  // Upsert device on fingerprint. Multiple licenses may share a device.
   const [device] = await db
     .insert(devices)
     .values({

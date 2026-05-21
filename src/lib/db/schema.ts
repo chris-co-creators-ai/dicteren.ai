@@ -417,6 +417,10 @@ export const emailCategory = pgEnum("email_category", [
   "subscription_canceled",
   "subscription_renewed",
   "refund",
+  "trial_started",
+  "trial_reminder_d7",
+  "trial_reminder_d13",
+  "trial_expired",
   "other",
 ]);
 
