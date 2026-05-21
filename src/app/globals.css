@@ -1,26 +1,385 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Brand colors as Tailwind utility classes (bg-brand-navy, text-brand-orange, etc.) */
+  --color-brand-navy: var(--navy);
+  --color-brand-navy-700: var(--navy-700);
+  --color-brand-navy-500: var(--navy-500);
+  --color-brand-navy-300: var(--navy-300);
+  --color-brand-aqua: var(--aqua);
+  --color-brand-aqua-200: var(--aqua-200);
+  --color-brand-aqua-50: var(--aqua-50);
+  --color-brand-orange: var(--orange);
+  --color-brand-orange-600: var(--orange-600);
+  --color-brand-orange-50: var(--orange-50);
+  --color-brand-green: var(--green);
+  --color-brand-green-50: var(--green-50);
+  --color-brand-red: var(--red);
+  --color-brand-red-50: var(--red-50);
+  --color-brand-bg: var(--bg);
+  --color-brand-bg-deep: var(--bg-deep);
+  --color-brand-border: var(--border-soft);
+  --color-brand-border-strong: var(--border-strong);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  /* Dicteren.ai brand palette (exact hex from design tokens) */
+  --navy: #042660;
+  --navy-700: #0b3478;
+  --navy-500: #2B5299;
+  --navy-300: #6f8ec4;
+  --aqua: #8BE1E5;
+  --aqua-200: #c4eef0;
+  --aqua-50: #e8f8f9;
+  --orange: #FF8441;
+  --orange-600: #ec6c1f;
+  --orange-50: #fff1e7;
+  --green: #00B884;
+  --green-50: #e3f7f0;
+  --red: #E5484D;
+  --red-50: #fdecec;
+
+  /* Surfaces */
+  --bg: #F7FBFD;
+  --bg-deep: #EAF3FB;
+  --surface: #FFFFFF;
+  --border-soft: #D6E7F8;
+  --border-strong: #b9d3ef;
+
+  /* Text */
+  --text: #042660;
+  --text-muted: #4a6080;
+  --text-soft: #7a8ba8;
+
+  /* Effects */
+  --shadow-sm: 0 1px 2px rgba(4, 38, 96, 0.06), 0 1px 1px rgba(4, 38, 96, 0.04);
+  --shadow-md: 0 4px 16px rgba(4, 38, 96, 0.08), 0 1px 2px rgba(4, 38, 96, 0.04);
+  --shadow-lg: 0 16px 48px rgba(4, 38, 96, 0.10), 0 2px 6px rgba(4, 38, 96, 0.04);
+  --shadow-pop: 0 24px 60px rgba(43, 82, 153, 0.18);
+
+  /* Radii — design-specific (rem-based for responsive scaling) */
+  --r-xs: 0.375rem;
+  --r-sm: 0.625rem;
+  --r-md: 0.875rem;
+  --r-lg: 1.25rem;
+  --r-xl: 1.75rem;
+  --r-pill: 999px;
+
+  /* Fonts */
+  --font-sans: "Inter Tight", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* shadcn theme — mapped to brand hex */
+  --background: var(--bg);
+  --foreground: var(--text);
+
+  --card: var(--surface);
+  --card-foreground: var(--text);
+
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+
+  --primary: var(--navy);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--aqua-50);
+  --secondary-foreground: var(--navy);
+
+  --muted: #f3f7fb;
+  --muted-foreground: var(--text-muted);
+
+  --accent: var(--orange);
+  --accent-foreground: #ffffff;
+
+  --destructive: var(--red);
+
+  --border: var(--border-soft);
+  --input: var(--border-soft);
+  --ring: var(--navy-500);
+
+  --radius: 0.625rem;
+
+  /* Charts — brand gradient */
+  --chart-1: var(--navy);
+  --chart-2: var(--navy-500);
+  --chart-3: var(--orange);
+  --chart-4: var(--aqua);
+  --chart-5: var(--aqua-200);
+
+  /* Sidebar — for admin */
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--navy);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--aqua-50);
+  --sidebar-accent-foreground: var(--navy);
+  --sidebar-border: var(--border-soft);
+  --sidebar-ring: var(--navy-500);
+}
+
+.dark {
+  /* Reserved for future use. Marketing is light-only per design constraint. */
+  --background: #0a1428;
+  --foreground: #e8f0f7;
+  --card: #0f1e3a;
+  --card-foreground: #e8f0f7;
+  --popover: #0f1e3a;
+  --popover-foreground: #e8f0f7;
+  --primary: var(--aqua);
+  --primary-foreground: var(--navy);
+  --secondary: #1a2950;
+  --secondary-foreground: #e8f0f7;
+  --muted: #1a2950;
+  --muted-foreground: #8aa0c4;
+  --accent: var(--orange);
+  --accent-foreground: #ffffff;
+  --destructive: var(--red);
+  --border: #1f3160;
+  --input: #1f3160;
+  --ring: var(--aqua);
+  --chart-1: var(--aqua);
+  --chart-2: var(--orange);
+  --chart-3: #8aa0c4;
+  --chart-4: var(--navy-500);
+  --chart-5: var(--aqua-200);
+  --sidebar: #0a1428;
+  --sidebar-foreground: #e8f0f7;
+  --sidebar-primary: var(--aqua);
+  --sidebar-primary-foreground: var(--navy);
+  --sidebar-accent: #1a2950;
+  --sidebar-accent-foreground: #e8f0f7;
+  --sidebar-border: #1f3160;
+  --sidebar-ring: var(--aqua);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Design utility components — rem-based for responsive scaling */
+@layer components {
+  /* Buttons — fluid scale via clamp() for mobile → desktop */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    border-radius: var(--r-pill);
+    padding: 0.75rem 1.25rem;
+    transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+    font-size: clamp(0.875rem, 0.85rem + 0.15vw, 0.9375rem);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 0;
+  }
+  .btn-primary {
+    background: var(--orange);
+    color: white;
+    box-shadow: 0 0.375rem 1rem rgba(255, 132, 65, 0.35);
+  }
+  .btn-primary:hover {
+    background: var(--orange-600);
+    transform: translateY(-1px);
+    box-shadow: 0 0.625rem 1.375rem rgba(255, 132, 65, 0.42);
+  }
+  .btn-secondary {
+    background: white;
+    color: var(--navy);
+    border: 1px solid var(--border-soft);
+  }
+  .btn-secondary:hover {
+    border-color: var(--navy-300);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-ghost {
+    color: var(--navy);
+    padding: 0.625rem 0.875rem;
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    background: var(--bg-deep);
+  }
+  .btn-navy {
+    background: var(--navy);
+    color: white;
+  }
+  .btn-navy:hover {
+    background: var(--navy-700);
+  }
+  .btn-sm {
+    padding: 0.5625rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+  .btn-lg {
+    padding: clamp(0.875rem, 0.75rem + 0.6vw, 1.125rem) clamp(1.25rem, 1rem + 1vw, 1.75rem);
+    font-size: clamp(0.9375rem, 0.9rem + 0.2vw, 1rem);
+  }
+
+  /* Tags / chips */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--r-pill);
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--aqua-50);
+    color: var(--navy);
+    border: 1px solid var(--aqua-200);
+  }
+  .chip-orange {
+    background: var(--orange-50);
+    color: var(--orange-600);
+    border-color: #ffd8be;
+  }
+  .chip-green {
+    background: var(--green-50);
+    color: #057a59;
+    border-color: #b6e8d6;
+  }
+  .chip-navy {
+    background: #eaf0fb;
+    color: var(--navy);
+    border-color: #c6d6f0;
+  }
+  .chip-red {
+    background: var(--red-50);
+    color: #b8323a;
+    border-color: #f5c7c9;
+  }
+
+  /* Surface card with brand shadow */
+  .brand-card {
+    background: white;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Voice wave bars (CSS-only, em-based so it scales with parent font-size) */
+  .wave {
+    display: inline-flex;
+    align-items: end;
+    gap: 0.1875rem;
+    height: 1.375rem;
+  }
+  .wave i {
+    display: block;
+    width: 0.1875rem;
+    border-radius: 0.1875rem;
+    background: var(--aqua);
+    animation: dicteren-wave 1.2s ease-in-out infinite;
+  }
+  .wave i:nth-child(2) { animation-delay: .1s; background: var(--navy-500); }
+  .wave i:nth-child(3) { animation-delay: .2s; background: var(--orange); }
+  .wave i:nth-child(4) { animation-delay: .3s; background: var(--navy-500); }
+  .wave i:nth-child(5) { animation-delay: .4s; background: var(--aqua); }
+  .wave i:nth-child(6) { animation-delay: .5s; background: var(--navy-500); }
+  .wave i:nth-child(7) { animation-delay: .6s; background: var(--orange); }
+
+  /* Keyboard key */
+  .brand-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.375rem;
+    height: 1.375rem;
+    padding: 0 0.375rem;
+    border-radius: var(--r-xs);
+    background: white;
+    border: 1px solid var(--border-soft);
+    box-shadow: 0 1px 0 var(--border-strong);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--navy);
+  }
+
+  /* Subtle dotted background */
+  .dot-bg {
+    background-image: radial-gradient(circle at 1px 1px, rgba(43, 82, 153, 0.10) 1px, transparent 0);
+    background-size: 1.375rem 1.375rem;
+  }
+
+  /* Striped image placeholder */
+  .img-ph {
+    background: repeating-linear-gradient(135deg, #eaf3fb 0 0.75rem, #f5fafd 0.75rem 1.5rem);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--navy-300);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+}
+
+@keyframes dicteren-wave {
+  0%, 100% { height: 0.375rem; }
+  50% { height: 100%; }
 }
