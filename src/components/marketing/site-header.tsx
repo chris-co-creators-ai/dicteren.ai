@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogIn } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
+import { authClient } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
 type NavItem = { label: string; href: string };
@@ -20,6 +21,45 @@ const PRIMARY_NAV: NavItem[] = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const { data, isPending } = authClient.useSession();
+  const user = data?.user;
+  const isAdmin = user?.role === "admin";
+
+  const desktopAuthCta = isPending ? null : user ? (
+    <Link
+      href={isAdmin ? "/admin" : "/"}
+      className="btn btn-ghost btn-sm inline-flex items-center gap-1.5"
+    >
+      <LayoutDashboard className="size-3.5" strokeWidth={2} />
+      {isAdmin ? "Admin" : user.name?.split(" ")[0] || "Account"}
+    </Link>
+  ) : (
+    <Link
+      href="/auth/sign-in"
+      className="btn btn-ghost btn-sm inline-flex items-center gap-1.5"
+    >
+      <LogIn className="size-3.5" strokeWidth={2} />
+      Inloggen
+    </Link>
+  );
+
+  const mobileAuthCta = isPending ? null : user ? (
+    <Link
+      href={isAdmin ? "/admin" : "/"}
+      onClick={() => setOpen(false)}
+      className="btn btn-secondary w-full"
+    >
+      {isAdmin ? "Open admin" : "Mijn account"}
+    </Link>
+  ) : (
+    <Link
+      href="/auth/sign-in"
+      onClick={() => setOpen(false)}
+      className="btn btn-secondary w-full"
+    >
+      Inloggen
+    </Link>
+  );
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[color:var(--border-soft)] bg-white/85 backdrop-blur">
@@ -42,9 +82,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="/login" className="btn btn-ghost btn-sm">
-            Inloggen
-          </Link>
+          {desktopAuthCta}
           <Link href="/download" className="btn btn-primary btn-sm">
             Download gratis beta
           </Link>
@@ -79,13 +117,7 @@ export function SiteHeader() {
             </Link>
           ))}
           <div className="mt-3 flex flex-col gap-2 border-t border-[color:var(--border-soft)] pt-4">
-            <Link
-              href="/login"
-              onClick={() => setOpen(false)}
-              className="btn btn-secondary w-full"
-            >
-              Inloggen
-            </Link>
+            {mobileAuthCta}
             <Link
               href="/download"
               onClick={() => setOpen(false)}

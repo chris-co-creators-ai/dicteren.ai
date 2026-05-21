@@ -23,4 +23,12 @@ export {
   mapMollieStatus,
 } from "./mollie";
 
-export { sendEmail, sendLicenseEmail, sendWelcomeEmail } from "./email";
+export {
+  sendEmail,
+  sendLicenseEmail,
+  sendWelcomeEmail,
+  sendPastDueEmail,
+  sendCancelEmail,
+  sendRefundEmail,
+  sendRenewalEmail,
+} from "./email";

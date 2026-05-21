@@ -10,8 +10,8 @@ import {
   GitBranch,
   Home,
   Key,
+  Mail,
   Menu,
-  MoreHorizontal,
   Receipt,
   Scale,
   Settings,
@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { LogoIcon } from "@/components/shared/logo";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
@@ -39,17 +40,43 @@ const NAV: NavItem[] = [
   { href: "/admin/discounts", label: "Kortingen", icon: Scale },
   { href: "/admin/affiliates", label: "Affiliates", icon: GitBranch },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/emails", label: "E-mails", icon: Mail },
   { href: "/admin/support", label: "Support", icon: Bell, badge: 7 },
   { href: "/admin/settings", label: "Instellingen", icon: Settings },
 ];
 
-export function AdminSidebar() {
+function initials(name: string) {
+  return (
+    name
+      .split(" ")
+      .map((p) => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?"
+  );
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  admin: "Admin",
+  owner: "Eigenaar",
+  support: "Support",
+};
+
+export function AdminSidebar({
+  user,
+}: {
+  user: { name: string; email: string; role?: string | null };
+}) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const displayName = user.name?.trim() || user.email.split("@")[0];
+  const roleLabel = user.role ? ROLE_LABEL[user.role] ?? user.role : "Gebruiker";
 
   return (
     <>
-      {/* Mobile trigger */}
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
@@ -59,7 +86,6 @@ export function AdminSidebar() {
         <Menu className="size-5" />
       </button>
 
-      {/* Mobile backdrop */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/30 lg:hidden"
@@ -136,29 +162,53 @@ export function AdminSidebar() {
           })}
         </nav>
 
-        <div className="mt-3 flex items-center gap-2.5 border-t border-[color:var(--border-soft)] pt-3">
-          <div
-            className="grid size-8 place-items-center rounded-full text-xs font-bold text-white"
-            style={{ background: "var(--navy)" }}
-          >
-            CR
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-xs font-semibold">Christian</div>
-            <div className="text-[0.625rem] text-[color:var(--text-soft)]">
-              Eigenaar
+        <div className="relative mt-3 border-t border-[color:var(--border-soft)] pt-3">
+          {menuOpen && (
+            <div
+              className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-[color:var(--border-soft)] bg-white p-1.5"
+              style={{ boxShadow: "var(--shadow-md)" }}
+            >
+              <div className="px-3 py-2 text-[0.6875rem] text-[color:var(--text-muted)]">
+                Ingelogd als
+                <div
+                  className="mt-0.5 truncate text-xs font-semibold"
+                  style={{ color: "var(--text)" }}
+                >
+                  {user.email}
+                </div>
+              </div>
+              <div className="my-1 h-px bg-[color:var(--border-soft)]" />
+              <Link
+                href="/admin/settings"
+                onClick={() => setMenuOpen(false)}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-[color:var(--text)] hover:bg-[color:var(--bg-deep)]"
+              >
+                <Settings className="size-3.5" strokeWidth={2} />
+                Instellingen
+              </Link>
+              <SignOutButton variant="menuItem" />
             </div>
-          </div>
+          )}
+
           <button
             type="button"
-            aria-label="Meer opties"
-            className="rounded-md p-1 hover:bg-[color:var(--bg-deep)]"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex w-full items-center gap-2.5 rounded-lg px-1 py-1 text-left hover:bg-[color:var(--bg-deep)]"
           >
-            <MoreHorizontal
-              className="size-3.5"
-              strokeWidth={2}
-              style={{ color: "var(--text-soft)" }}
-            />
+            <div
+              className="grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold text-white"
+              style={{ background: "var(--navy)" }}
+            >
+              {initials(displayName)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-semibold">{displayName}</div>
+              <div className="text-[0.625rem] text-[color:var(--text-soft)]">
+                {roleLabel}
+              </div>
+            </div>
           </button>
         </div>
       </aside>

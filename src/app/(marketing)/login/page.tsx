@@ -18,13 +18,16 @@ export default function LoginPage() {
             licenties en facturen komt bij de publieke release online.
           </p>
           <div className="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap">
-            <Link href="/download" className="btn btn-primary btn-lg">
+            <Link href="/auth/sign-in" className="btn btn-primary btn-lg">
               <LogIn className="size-4" strokeWidth={2.2} />
+              Inloggen op account
+            </Link>
+            <Link href="/download" className="btn btn-secondary btn-lg">
               Activeer in de app
             </Link>
             <a
               href="mailto:info@dicteren.ai?subject=Hulp%20bij%20inloggen%20-%20Dicteren.ai"
-              className="btn btn-secondary btn-lg"
+              className="btn btn-ghost btn-lg"
             >
               <Mail className="size-4" strokeWidth={2.2} />
               Hulp nodig?

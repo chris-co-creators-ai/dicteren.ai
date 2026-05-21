@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter_Tight, JetBrains_Mono } from "next/font/google";
+import { Toaster } from "sonner";
+import { ErrorToast } from "@/components/shared/error-toast";
 import "./globals.css";
 
 const interTight = Inter_Tight({
@@ -59,6 +62,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         {children}
+        <Toaster richColors closeButton position="top-center" />
+        <Suspense fallback={null}>
+          <ErrorToast />
+        </Suspense>
       </body>
     </html>
   );

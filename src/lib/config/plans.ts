@@ -62,5 +62,5 @@ export const BETA_DEFAULTS = {
 export const LICENSE_CODE_PREFIXES = {
   beta: "DIC-BETA",
   consumer: "DIC-PRO",
-  organization: "DIC-TEAM",
+  team: "DIC-TEAM",
 } as const;

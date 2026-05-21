@@ -1,8 +1,6 @@
-// Dicteren.ai — Audit Service
-// Shared mechanics: event logging for all platform actions
-// Domain logic (what events to log, when) stays in actions
-
-import type { AuditEvent } from "@/lib/types";
+import "server-only";
+import { db } from "@/lib/db";
+import { events } from "@/lib/db/schema";
 
 type AuditAction =
   | "license.created"
@@ -25,45 +23,48 @@ type AuditAction =
   | "admin.login"
   | "admin.action";
 
-interface LogEventParams {
+type AuditParams = {
   action: AuditAction;
   entityType: string;
   entityId: string;
   actorId?: string | null;
   metadata?: Record<string, unknown>;
-}
+};
 
 /**
- * Log an audit event
- * TODO: Write to database once Neon is connected
+ * Audit log — written to `events` with eventType="audit.<action>".
+ * For high-volume product events use `trackEvent` instead.
  */
-export async function logEvent(params: LogEventParams): Promise<void> {
-  const event: Omit<AuditEvent, "id"> = {
-    action: params.action,
-    entityType: params.entityType,
-    entityId: params.entityId,
-    actorId: params.actorId ?? null,
-    metadata: params.metadata ?? {},
-    createdAt: new Date(),
-  };
-
-  // TODO: Insert into audit_log table
-  // For now, log to console in development
-  if (process.env.NODE_ENV === "development") {
-    console.log("[audit]", event.action, event.entityType, event.entityId);
+export async function logEvent(params: AuditParams): Promise<void> {
+  try {
+    await db.insert(events).values({
+      eventType: `audit.${params.action}`,
+      userId: params.actorId ?? null,
+      properties: {
+        entityType: params.entityType,
+        entityId: params.entityId,
+        ...(params.metadata ?? {}),
+      },
+    });
+  } catch (err) {
+    console.warn("[audit] failed to log", params.action, err);
   }
 }
 
 /**
- * Track analytics event (product/commercial, never user content)
- * TODO: Connect to analytics provider (PostHog/Plausible)
+ * Product/commercial analytics. Never include user content (transcripts,
+ * audio, raw input). Use anonymous-friendly keys.
  */
 export async function trackEvent(
   name: string,
   properties?: Record<string, unknown>,
 ): Promise<void> {
-  // TODO: Send to analytics provider
-  if (process.env.NODE_ENV === "development") {
-    console.log("[analytics]", name, properties);
+  try {
+    await db.insert(events).values({
+      eventType: name,
+      properties: (properties as object) ?? {},
+    });
+  } catch (err) {
+    console.warn("[analytics] failed to track", name, err);
   }
 }
