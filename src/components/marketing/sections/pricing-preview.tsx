@@ -17,7 +17,7 @@ const PLANS: Plan[] = [
     price: "€12",
     sub: "per maand",
     items: ["Volledige dicteer-app", "Mac & Windows", "Modelupdates"],
-    cta: { label: "Start beta", href: "/download" },
+    cta: { label: "Start gratis trial", href: "/auth/sign-up?next=/trial/start" },
   },
   {
     title: "Jaarlijks",
@@ -28,7 +28,7 @@ const PLANS: Plan[] = [
       "Beste prijs voor consumenten",
       "Eén apparaat",
     ],
-    cta: { label: "Start beta", href: "/download" },
+    cta: { label: "Start gratis trial", href: "/auth/sign-up?next=/trial/start" },
     best: true,
   },
   {

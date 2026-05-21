@@ -59,9 +59,12 @@ export default function AiToolsPage() {
             heeft voor een goed antwoord.
           </p>
           <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap">
-            <Link href="/download" className="btn btn-primary btn-lg">
+            <Link
+              href="/auth/sign-up?next=/trial/start"
+              className="btn btn-primary btn-lg"
+            >
               <Download className="size-4" />
-              Download gratis beta
+              Start 14 dagen gratis
             </Link>
             <Link href="/product/privacy" className="btn btn-secondary btn-lg">
               Lees de privacy-uitleg

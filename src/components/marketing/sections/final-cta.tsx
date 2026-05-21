@@ -19,12 +19,15 @@ export function FinalCtaSection() {
           Typ minder. Vertel meer.
         </h2>
         <p className="mt-4 text-base text-[color:var(--text-muted)] lg:text-lg">
-          Gratis te proberen tijdens de beta. Geen creditcard nodig.
+          Probeer Dicteren.ai 14 dagen gratis. Geen creditcard nodig.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/download" className="btn btn-primary btn-lg">
+          <Link
+            href="/auth/sign-up?next=/trial/start"
+            className="btn btn-primary btn-lg"
+          >
             <Download className="size-4" />
-            Download gratis beta
+            Start 14 dagen gratis
           </Link>
           <Link href="/prijzen" className="btn btn-secondary btn-lg">
             Zie prijzen

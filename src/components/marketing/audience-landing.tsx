@@ -23,9 +23,12 @@ export function AudienceLanding({ audience }: { audience: Audience }) {
               {audience.intro}
             </p>
             <div className="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <Link href="/download" className="btn btn-primary btn-lg">
+              <Link
+                href="/auth/sign-up?next=/trial/start"
+                className="btn btn-primary btn-lg"
+              >
                 <Download className="size-4" />
-                Download gratis beta
+                Start 14 dagen gratis
               </Link>
               <Link href="/blog" className="btn btn-secondary btn-lg">
                 Lees ervaringen
@@ -159,11 +162,11 @@ export function AudienceLanding({ audience }: { audience: Audience }) {
       {/* CTA back to top */}
       <section className="px-4 pb-16 text-center sm:px-6 sm:pb-20 lg:px-14">
         <Link
-          href="/download"
+          href="/auth/sign-up?next=/trial/start"
           className="btn btn-primary btn-lg inline-flex"
         >
           <Download className="size-4" />
-          Download gratis beta
+          Start 14 dagen gratis
         </Link>
         <Link
           href="/voor-wie/ondernemers"

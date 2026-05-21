@@ -83,8 +83,11 @@ export function SiteHeader() {
 
         <div className="hidden items-center gap-2 md:flex">
           {desktopAuthCta}
-          <Link href="/download" className="btn btn-primary btn-sm">
-            Download gratis beta
+          <Link
+            href="/auth/sign-up?next=/trial/start"
+            className="btn btn-primary btn-sm"
+          >
+            Start gratis trial
           </Link>
         </div>
 
@@ -119,11 +122,11 @@ export function SiteHeader() {
           <div className="mt-3 flex flex-col gap-2 border-t border-[color:var(--border-soft)] pt-4">
             {mobileAuthCta}
             <Link
-              href="/download"
+              href="/auth/sign-up?next=/trial/start"
               onClick={() => setOpen(false)}
               className="btn btn-primary w-full"
             >
-              Download gratis beta
+              Start gratis trial
             </Link>
           </div>
         </div>

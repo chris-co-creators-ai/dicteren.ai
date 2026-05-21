@@ -27,7 +27,7 @@ const DISCOUNT_TIERS: { range: string; pct: string; from: number; to: number | n
 const COMPARE: { feature: string; beta: boolean | string; persoonlijk: boolean | string; zakelijk: boolean | string }[] = [
   { feature: "Lokaal Nederlands V3-model", beta: true, persoonlijk: true, zakelijk: true },
   { feature: "Mac & Windows", beta: true, persoonlijk: true, zakelijk: true },
-  { feature: "Aantal apparaten", beta: "2", persoonlijk: "2", zakelijk: "per gebruiker" },
+  { feature: "Aantal apparaten", beta: "1", persoonlijk: "2", zakelijk: "per gebruiker" },
   { feature: "Nieuwe modelversies", beta: false, persoonlijk: true, zakelijk: true },
   { feature: "Prioriteits-support", beta: false, persoonlijk: true, zakelijk: true },
   { feature: "Admin-dashboard", beta: false, persoonlijk: false, zakelijk: true },
@@ -380,7 +380,7 @@ export default function PrijzenPage() {
                 <th className="px-4 py-4 text-left text-sm font-semibold text-[color:var(--text-muted)]">
                   Functies
                 </th>
-                {(["Beta", "Persoonlijk", "Zakelijk"] as const).map((c) => (
+                {(["Trial", "Persoonlijk", "Zakelijk"] as const).map((c) => (
                   <th
                     key={c}
                     className="px-4 py-4 text-center text-sm font-bold"
@@ -413,12 +413,12 @@ export default function PrijzenPage() {
 
         {/* Mobile / tablet: stacked cards per plan */}
         <div className="mx-auto grid max-w-2xl gap-4 lg:hidden">
-          {(["Beta", "Persoonlijk", "Zakelijk"] as const).map((plan) => (
+          {(["Trial", "Persoonlijk", "Zakelijk"] as const).map((plan) => (
             <div key={plan} className="brand-card p-5">
               <h3 className="mb-3 text-base font-bold">{plan}</h3>
               <ul className="flex flex-col gap-2.5">
                 {COMPARE.map((row) => {
-                  const key = (plan === "Beta"
+                  const key = (plan === "Trial"
                     ? "beta"
                     : plan === "Persoonlijk"
                       ? "persoonlijk"
