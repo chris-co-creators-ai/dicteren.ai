@@ -8,7 +8,7 @@ const FAQS = [
   },
   {
     q: "Werkt het ook in andere talen?",
-    a: "Het model is gemaakt voor Nederlands. Engels werkt ook. Andere talen volgen later.",
+    a: "Het model is geoptimaliseerd voor Nederlands. Voor v1 ondersteunen we alleen Nederlands. Andere talen volgen later.",
   },
   {
     q: "In welke apps kan ik dicteren?",
@@ -16,7 +16,15 @@ const FAQS = [
   },
   {
     q: "Kan ik mijn licentie op meer dan één apparaat gebruiken?",
-    a: "Ja. Een persoonlijke licentie werkt op twee apparaten. Een zakelijke licentie is per gebruiker.",
+    a: "Ja. Een persoonlijke licentie werkt op twee apparaten. Een zakelijke licentie is per gebruiker. De gratis proefperiode is voor één apparaat.",
+  },
+  {
+    q: "Wat gebeurt er na de veertien dagen gratis?",
+    a: "Je kiest een licentie en gaat door, of je stopt. Geen automatische incasso zonder dat je dat zelf hebt ingesteld.",
+  },
+  {
+    q: "Op welke besturingssystemen werkt het?",
+    a: "macOS, Windows en Linux. Voor macOS heb je toegankelijkheidsrechten nodig zodat de sneltoets werkt; daar leidt de app je doorheen.",
   },
 ];
 

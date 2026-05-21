@@ -38,8 +38,8 @@ export function ProblemContextSection() {
             className="rounded-xl p-4 text-base leading-relaxed"
             style={{ background: "#fdf3f4" }}
           >
-            &ldquo;schrijf mail naar huurder over inspectie verzetten naar
-            dinsdag&rdquo;
+            “schrijf mail naar huurder over inspectie verzetten naar
+            dinsdag”
           </p>
           <ul className="mt-5 flex flex-col gap-2.5">
             {typedBad.map((item) => (
@@ -78,7 +78,7 @@ export function ProblemContextSection() {
             <span className="chip chip-green ml-auto">62 woorden</span>
           </div>
           <p className="rounded-xl border border-[color:var(--border-soft)] bg-white p-4 text-[15px] leading-relaxed">
-            &ldquo;Schrijf een mail naar de huurder over het verzetten van de
+            “Schrijf een mail naar de huurder over het verzetten van de
             inspectie naar{" "}
             <mark
               className="rounded px-1"
@@ -99,7 +99,7 @@ export function ProblemContextSection() {
             >
               vriendelijk maar zakelijk
             </mark>
-            , en verwijs naar onze afspraak van vorige week.&rdquo;
+            , en verwijs naar onze afspraak van vorige week.”
           </p>
           <ul className="mt-5 flex flex-col gap-2.5">
             {spokenGood.map((item) => (

@@ -94,7 +94,6 @@ export function HeroSection() {
               { icon: Shield, label: "Spraak blijft lokaal" },
               { icon: Globe, label: "Nederlands taalmodel" },
               { icon: Apple, label: "Mac en Windows" },
-              { icon: Lock, label: "Eenmalige koop" },
             ].map(({ icon: Icon, label }) => (
               <li key={label} className="inline-flex items-center gap-1.5">
                 <Icon className="size-3.5" style={{ color: "var(--navy-500)" }} />

@@ -22,7 +22,7 @@ export default function BlogIndexPage() {
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base text-[color:var(--text-muted)] sm:text-lg">
           Eerste artikelen verschijnen rond de publieke launch. Tot die tijd
-          een overzicht van de thema's waarover we gaan schrijven.
+          een overzicht van de onderwerpen waarover we gaan schrijven.
         </p>
       </section>
 

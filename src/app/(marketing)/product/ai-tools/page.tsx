@@ -281,10 +281,10 @@ export default function AiToolsPage() {
       >
         <div className="mx-auto max-w-2xl text-center">
           <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Werkt fantastisch met
+            Plakt direct in elke AI-tool
           </h3>
           <p className="mt-2 text-sm text-[color:var(--text-muted)]">
-            En met elke andere tool waarin je een tekstveld kunt vinden.
+            En in elke andere app waarin je een tekstveld kunt typen.
           </p>
           <AiToolChipList
             tools={[

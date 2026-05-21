@@ -132,11 +132,11 @@ export function HowItWorksSection() {
                     strokeWidth={2.2}
                     style={{ color: "var(--orange)" }}
                   />
-                  Auto-punctuatie
+                  Met punctuatie
                 </span>
                 <span className="chip chip-navy">
                   <Globe className="size-3" strokeWidth={2.2} />
-                  NL · V3
+                  Nederlands V3
                 </span>
               </div>
             </div>
@@ -161,7 +161,7 @@ export function HowItWorksSection() {
               <div className="text-xs">
                 <div className="font-semibold text-sm">Tekst geplakt</div>
                 <div className="text-[11px] text-[color:var(--text-muted)]">
-                  184 woorden · 0,3s lokaal
+                  184 woorden · lokaal verwerkt
                 </div>
               </div>
             </div>

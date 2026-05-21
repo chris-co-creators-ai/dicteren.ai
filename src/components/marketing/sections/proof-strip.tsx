@@ -8,12 +8,9 @@ export function ProofStripSection() {
     >
       <div className="mx-auto flex max-w-7xl flex-col items-start gap-4 lg:flex-row lg:items-center lg:justify-between">
         <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--text-soft)]">
-          Werkt fantastisch met
+          Plakt direct in elke app
         </span>
         <AiToolChipList tools={["chatgpt", "claude", "copilot", "gemini"]} />
-        <span className="text-xs text-[color:var(--text-soft)]">
-          (compatibiliteit · geen officieel partnerschap)
-        </span>
       </div>
     </section>
   );
