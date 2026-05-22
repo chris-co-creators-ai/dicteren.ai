@@ -9,7 +9,7 @@ export function ProblemContextSection() {
   const spokenGood = [
     "Toon, datum en tijd helder",
     "Achtergrond meegegeven",
-    "AI snapt direct wat je bedoelt",
+    "Klaar om te versturen",
   ];
 
   return (
@@ -17,7 +17,7 @@ export function ProblemContextSection() {
       <div className="mx-auto mb-14 max-w-3xl text-center">
         <span className="chip chip-orange">Het probleem</span>
         <h2 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-[color:var(--navy)] lg:text-4xl">
-          Je typt vaak korter dan je bedoelt. AI raadt de rest.
+          Je typt vaak korter dan je bedoelt.
         </h2>
       </div>
 

@@ -1,9 +1,29 @@
 import Link from "next/link";
-import { ArrowRight, Download, Quote } from "lucide-react";
-import { ImagePlaceholder } from "@/components/shared/image-placeholder";
+import {
+  Accessibility,
+  ArrowRight,
+  Download,
+  Languages,
+  type LucideIcon,
+  Mic,
+  Shield,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+import { AppMiniBar } from "@/components/app/app-mini-bar";
 import type { Audience } from "@/lib/audiences";
 
+function categoryIcon(meta: string): LucideIcon {
+  if (meta.includes("Productiviteit")) return Zap;
+  if (meta.includes("Privacy")) return Shield;
+  if (meta.includes("Nederlands")) return Languages;
+  if (meta.includes("Toegankelijkheid")) return Accessibility;
+  return Sparkles;
+}
+
 export function AudienceLanding({ audience }: { audience: Audience }) {
+  const firstUseCase = audience.useCases[0];
+
   return (
     <>
       {/* Hero */}
@@ -36,25 +56,85 @@ export function AudienceLanding({ audience }: { audience: Audience }) {
             </div>
           </div>
 
-          {/* Hero illustration + savings card */}
-          <div className="relative">
-            <ImagePlaceholder
-              label={audience.heroImageLabel}
-              className="h-72 w-full sm:h-80 lg:h-96"
-            />
+          {/* Hero scene — composed from real components, no image required */}
+          <div className="relative h-[26rem] lg:h-[28rem]">
+            {/* Background blob */}
             <div
-              className="brand-card absolute -bottom-5 -left-3 w-56 p-3.5 sm:-left-5 sm:w-60"
-              style={{ boxShadow: "var(--shadow-pop)" }}
+              aria-hidden
+              className="pointer-events-none absolute -right-8 top-4 size-[20rem] rounded-full opacity-50"
+              style={{
+                background:
+                  "radial-gradient(circle, var(--aqua-200), transparent 70%)",
+              }}
+            />
+
+            {/* Stats card — back, rotated */}
+            <div
+              className="brand-card absolute right-2 top-3 w-48 rotate-[4deg] p-4 sm:right-6"
+              style={{ boxShadow: "var(--shadow-md)" }}
             >
               <div className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
                 {audience.savingsLabel}
               </div>
-              <div className="mt-1 text-2xl font-bold tracking-tight">
+              <div
+                className="mt-1 text-2xl font-bold tracking-tight"
+                style={{ color: "var(--navy)" }}
+              >
                 {audience.savingsValue}
               </div>
               <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
-                indicatie · gebaseerd op interne tests
+                indicatie · interne tests
               </div>
+            </div>
+
+            {/* Use-case card — front, slight tilt opposite direction */}
+            <div
+              className="brand-card absolute left-0 top-20 w-[22rem] -rotate-[2deg] p-5 sm:w-[24rem]"
+              style={{ boxShadow: "var(--shadow-lg)" }}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="font-mono text-xs font-bold tracking-[0.04em]"
+                  style={{ color: "var(--orange)" }}
+                >
+                  {firstUseCase.time}
+                </span>
+                <span className="chip chip-navy text-[0.625rem]">
+                  {audience.chip}
+                </span>
+              </div>
+              <div
+                className="mt-3 text-lg font-bold leading-tight"
+                style={{ color: "var(--navy)" }}
+              >
+                {firstUseCase.title}
+              </div>
+              <div className="mt-2 text-sm leading-relaxed text-[color:var(--text-muted)]">
+                {firstUseCase.desc}
+              </div>
+              <div
+                className="mt-4 flex items-center gap-2 border-t pt-3"
+                style={{
+                  borderColor: "var(--border-soft)",
+                  borderTopStyle: "dashed",
+                }}
+              >
+                <span className="chip chip-green">
+                  <Mic className="size-3" strokeWidth={2.2} />
+                  Lokaal verwerkt
+                </span>
+                <span
+                  className="ml-auto font-mono text-[0.6875rem]"
+                  style={{ color: "var(--text-soft)" }}
+                >
+                  00:18
+                </span>
+              </div>
+            </div>
+
+            {/* Real AppMiniBar — floats in front, just like in the actual app */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+              <AppMiniBar visible={true} state="recording" />
             </div>
           </div>
         </div>
@@ -80,34 +160,6 @@ export function AudienceLanding({ audience }: { audience: Audience }) {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* Voorbeeld-scenario (geen echte testimonial — vervangen wanneer beta-feedback binnen is) */}
-      <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-14">
-        <div
-          className="brand-card mx-auto max-w-3xl p-7 sm:p-10"
-          style={{
-            background:
-              "linear-gradient(135deg, white, var(--aqua-50))",
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <Quote
-              className="size-7 -scale-x-100"
-              strokeWidth={1.6}
-              style={{ color: "var(--orange)" }}
-            />
-            <span className="chip chip-orange text-[0.625rem]">
-              Voorbeeld · echte ervaringen volgen na beta
-            </span>
-          </div>
-          <p className="mt-3 text-balance text-xl font-medium leading-snug tracking-tight sm:text-2xl">
-            &ldquo;{audience.quote.text}&rdquo;
-          </p>
-          <div className="mt-5 text-xs text-[color:var(--text-muted)]">
-            Hoe iemand in deze rol Dicteren.ai zou kunnen ervaren.
-          </div>
         </div>
       </section>
 
@@ -141,20 +193,53 @@ export function AudienceLanding({ audience }: { audience: Audience }) {
         <div className="mx-auto max-w-5xl">
           <h3 className="text-lg font-bold sm:text-xl">Verder lezen</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {audience.related.map((p) => (
-              <article key={p.title} className="brand-card p-4">
-                <ImagePlaceholder label="blog · header" className="h-28 w-full" />
-                <div
-                  className="mt-3 text-[0.6875rem] font-semibold uppercase tracking-[0.05em]"
-                  style={{ color: "var(--text-soft)" }}
-                >
-                  {p.meta}
-                </div>
-                <div className="mt-1 text-[15px] font-semibold leading-snug">
-                  {p.title}
-                </div>
-              </article>
-            ))}
+            {audience.related.map((p) => {
+              const Icon = categoryIcon(p.meta);
+              const category = p.meta.split("·")[0].trim();
+              return (
+                <article key={p.title} className="brand-card overflow-hidden p-0">
+                  <div
+                    className="relative flex h-28 items-center justify-center"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, var(--aqua-50), var(--orange-50))",
+                      borderBottom: "1px solid var(--border-soft)",
+                    }}
+                  >
+                    <span
+                      className="grid size-14 place-items-center rounded-2xl"
+                      style={{
+                        background: "white",
+                        boxShadow: "var(--shadow-sm)",
+                      }}
+                    >
+                      <Icon
+                        className="size-7"
+                        strokeWidth={1.8}
+                        style={{ color: "var(--navy-500)" }}
+                      />
+                    </span>
+                    <span
+                      className="absolute right-3 top-3 chip chip-navy text-[0.625rem]"
+                      style={{ boxShadow: "var(--shadow-sm)" }}
+                    >
+                      {category}
+                    </span>
+                  </div>
+                  <div className="p-4">
+                    <div
+                      className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em]"
+                      style={{ color: "var(--text-soft)" }}
+                    >
+                      {p.meta}
+                    </div>
+                    <div className="mt-1 text-[15px] font-semibold leading-snug">
+                      {p.title}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>

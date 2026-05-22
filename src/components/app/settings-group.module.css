@@ -1,0 +1,62 @@
+/* SettingsGroup + SettingRow — port van repo's SettingsGroup/SettingContainer.
+ * Witte card met afgeronde hoeken, rijen gescheiden door 1px lijntjes. */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 0 16px;
+  margin: 0 0 8px;
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  letter-spacing: -0.005em;
+}
+
+.rowDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.rowAction {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}

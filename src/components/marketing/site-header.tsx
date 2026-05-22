@@ -28,7 +28,7 @@ export function SiteHeader() {
       className="btn btn-ghost btn-sm inline-flex items-center gap-1.5"
     >
       <LayoutDashboard className="size-3.5" strokeWidth={2} />
-      {isAdmin ? "Admin" : user.name?.split(" ")[0] || "Account"}
+      {isAdmin ? "Inloggen" : user.name?.split(" ")[0] || "Account"}
     </Link>
   ) : (
     <Link
@@ -46,7 +46,7 @@ export function SiteHeader() {
       onClick={() => setOpen(false)}
       className="btn btn-secondary w-full"
     >
-      {isAdmin ? "Open admin" : "Mijn account"}
+      {isAdmin ? "Inloggen" : "Mijn account"}
     </Link>
   ) : (
     <Link

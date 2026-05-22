@@ -2,28 +2,36 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Apple, Check, Copy, Download, Globe, Lock, Send, Shield, Sparkles } from "lucide-react";
-import { LogoIcon } from "@/components/shared/logo";
-import { VoiceWave } from "@/components/shared/voice-wave";
+import { Apple, Download, Globe, Shield } from "lucide-react";
+import { AppMiniBar } from "@/components/app/app-mini-bar";
 
-const DEMO_PROMPT =
-  "Ik wil een mail naar de huurder schrijven over het uitstellen van de inspectie naar dinsdag. Houd de toon vriendelijk maar zakelijk en verwijs naar onze eerdere afspraak van vorige week.";
+const DEMO_TEXT =
+  "Hoi Sanne, het werk aan jullie keuken loopt voor op schema. Ik kom dinsdag rond 10 uur even langs om de aansluiting te checken. Past het je dan? Anders hoor ik graag.";
 
 export function HeroSection() {
   const [demoText, setDemoText] = useState("");
+  const [cycle, setCycle] = useState(0);
 
   useEffect(() => {
     let i = 0;
-    const t = setInterval(() => {
-      if (i <= DEMO_PROMPT.length) {
-        setDemoText(DEMO_PROMPT.slice(0, i));
-        i += 2;
-      } else {
-        i = 0;
-        setTimeout(() => setDemoText(""), 1200);
+    let typing = true;
+    const id = window.setInterval(() => {
+      if (typing) {
+        if (i <= DEMO_TEXT.length) {
+          setDemoText(DEMO_TEXT.slice(0, i));
+          i += 2;
+        } else {
+          typing = false;
+          window.setTimeout(() => {
+            setDemoText("");
+            i = 0;
+            typing = true;
+            setCycle((c) => c + 1);
+          }, 1800);
+        }
       }
     }, 35);
-    return () => clearInterval(t);
+    return () => window.clearInterval(id);
   }, []);
 
   return (
@@ -52,9 +60,9 @@ export function HeroSection() {
             14 dagen gratis · Mac &amp; Windows
           </span>
           <h1 className="text-balance text-4xl font-bold leading-[1.05] tracking-tight text-[color:var(--navy)] sm:text-5xl lg:text-6xl">
-            Betere AI-resultaten beginnen met{" "}
+            Praat.{" "}
             <span className="relative inline-block">
-              meer context
+              En het staat er.
               <svg
                 aria-hidden
                 viewBox="0 0 360 18"
@@ -70,12 +78,11 @@ export function HeroSection() {
                 />
               </svg>
             </span>
-            .
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-[color:var(--text-muted)] sm:mt-6 sm:text-lg">
-            Druk een sneltoets, spreek je gedachte uit en je tekst staat er.
-            In elke app. Op je eigen computer. Klaar voor ChatGPT, Claude,
-            Copilot of Gemini.
+            Druk op een sneltoets, zeg wat je wilt typen, en je tekst verschijnt
+            in welke app dan ook. Mail, notities, Word, ChatGPT, een
+            formulier op een website. Lokaal en Nederlands.
           </p>
           <div className="mt-7 flex flex-col items-stretch gap-3 sm:mt-8 sm:flex-row sm:items-center sm:flex-wrap">
             <Link
@@ -85,7 +92,7 @@ export function HeroSection() {
               <Download className="size-4" />
               Probeer 14 dagen gratis
             </Link>
-            <Link href="/product/ai-tools" className="btn btn-secondary btn-lg">
+            <Link href="#hoe-het-werkt" className="btn btn-secondary btn-lg">
               Bekijk hoe het werkt
             </Link>
           </div>
@@ -103,131 +110,91 @@ export function HeroSection() {
           </ul>
         </div>
 
-        {/* Right: composed scene — desktop only */}
-        <div className="relative hidden h-[34rem] lg:block">
-          {/* User card (top left) */}
+        {/* Right: real component scene */}
+        <div className="relative hidden h-[30rem] items-center justify-center lg:flex">
+          {/* Mock app-window with text appearing */}
           <div
-            className="brand-card absolute left-0 top-7 w-[16rem] -rotate-[2.5deg] p-4"
-            style={{ boxShadow: "var(--shadow-lg)" }}
+            className="relative w-[28rem] overflow-hidden rounded-2xl bg-white"
+            style={{
+              border: "1px solid var(--border-soft)",
+              boxShadow: "var(--shadow-lg)",
+            }}
           >
-            <div className="flex items-center gap-2.5">
-              <div
-                className="grid size-9 place-items-center rounded-full text-sm font-bold text-[color:var(--navy)]"
-                style={{ background: "var(--aqua-200)" }}
-              >
-                NM
-              </div>
-              <div>
-                <div className="text-sm font-semibold">Noor M.</div>
-                <div className="text-[0.6875rem] text-[color:var(--text-muted)]">
-                  spreekt nu…
-                </div>
-              </div>
-              <span className="ml-auto">
-                <VoiceWave bars={5} />
-              </span>
-            </div>
-            <div className="img-ph mt-3 h-[5.75rem] w-full">laptop · person</div>
-          </div>
-
-          {/* Mascot floating */}
-          <div className="absolute right-14 top-0 rotate-[8deg]">
-            <LogoIcon size={120} />
-          </div>
-
-          {/* Center: prompt panel */}
-          <div
-            className="brand-card absolute left-24 top-32 w-[28.75rem] rounded-3xl p-5"
-            style={{ boxShadow: "var(--shadow-pop)" }}
-          >
-            <div className="mb-3 flex items-center gap-2.5">
-              <span className="brand-kbd">⌥</span>
-              <span className="brand-kbd">Space</span>
-              <span className="text-xs text-[color:var(--text-muted)]">
-                Dicteren actief
-              </span>
-              <span className="ml-auto">
-                <VoiceWave />
-              </span>
-              <span className="font-mono text-[0.6875rem] text-[color:var(--text-soft)]">
-                00:08
-              </span>
-            </div>
-            <p className="min-h-[6.875rem] text-[0.9375rem] leading-relaxed text-[color:var(--navy)]">
-              {demoText}
-              <span
-                className="ml-0.5 inline-block h-[1.125rem] w-0.5 align-[-3px]"
-                style={{
-                  background: "var(--orange)",
-                  animation: "dicteren-blink 1s steps(2) infinite",
-                }}
-              />
-            </p>
+            {/* Window chrome */}
             <div
-              className="mt-3 flex items-center gap-2 border-t pt-3"
-              style={{ borderTopStyle: "dashed", borderColor: "var(--border-soft)" }}
+              className="flex items-center gap-2 border-b px-4 py-3"
+              style={{
+                borderColor: "var(--border-soft)",
+                background: "var(--bg)",
+              }}
             >
-              <span className="chip chip-green">
-                <Check className="size-3" strokeWidth={2.5} />
-                Lokaal verwerkt
-              </span>
-              <span className="ml-auto inline-flex gap-1.5">
-                <button className="btn btn-secondary btn-sm">
-                  <Copy className="size-3" />
-                  Kopieer
-                </button>
-                <button className="btn btn-primary btn-sm">
-                  <Send className="size-3" />
-                  Verstuur
-                </button>
-              </span>
-            </div>
-          </div>
-
-          {/* AI result card (bottom right) */}
-          <div
-            className="brand-card absolute bottom-0 right-0 w-[18.75rem] rotate-[3deg] p-4"
-            style={{ boxShadow: "var(--shadow-lg)" }}
-          >
-            <div className="mb-2.5 flex items-center gap-2">
+              <span className="size-2.5 rounded-full bg-[#ff5f57]" />
+              <span className="size-2.5 rounded-full bg-[#ffbd2e]" />
+              <span className="size-2.5 rounded-full bg-[#28c840]" />
               <span
-                className="grid size-5 place-items-center rounded-md text-[0.6875rem] text-white"
-                style={{ background: "var(--navy)" }}
+                className="ml-3 text-xs font-medium"
+                style={{ color: "var(--text-muted)" }}
               >
-                AI
-              </span>
-              <span className="text-xs font-semibold">Concept klaar</span>
-              <span className="chip chip-orange ml-auto px-2 py-0.5 text-[0.625rem]">
-                Concept
+                Nieuw bericht — Mail
               </span>
             </div>
-            <div className="text-xs leading-relaxed text-[color:var(--text-muted)]">
-              <p className="font-semibold text-[color:var(--navy)]">Beste familie de Vries,</p>
-              <p className="mt-1.5">
-                Met het oog op de eerder gemaakte afspraak van vorige week wil ik graag voorstellen om de inspectie te verzetten naar dinsdag.
+
+            {/* Mail-style fields */}
+            <div className="px-5 pt-4 pb-2">
+              <div
+                className="flex items-baseline gap-3 border-b py-2 text-sm"
+                style={{ borderColor: "var(--border-soft)" }}
+              >
+                <span
+                  className="w-12 text-xs font-semibold"
+                  style={{ color: "var(--text-soft)" }}
+                >
+                  Aan
+                </span>
+                <span style={{ color: "var(--navy)" }}>sanne@vandenberg.nl</span>
+              </div>
+              <div
+                className="flex items-baseline gap-3 border-b py-2 text-sm"
+                style={{ borderColor: "var(--border-soft)" }}
+              >
+                <span
+                  className="w-12 text-xs font-semibold"
+                  style={{ color: "var(--text-soft)" }}
+                >
+                  Onderwerp
+                </span>
+                <span style={{ color: "var(--navy)" }}>Update keuken</span>
+              </div>
+            </div>
+
+            {/* Text area where dictated text appears */}
+            <div className="px-5 pt-3 pb-16">
+              <p
+                key={cycle}
+                className="min-h-[10rem] text-sm leading-relaxed"
+                style={{ color: "var(--navy)" }}
+              >
+                {demoText}
+                <span
+                  className="ml-0.5 inline-block h-4 w-0.5 align-[-2px]"
+                  style={{
+                    background: "var(--orange)",
+                    animation: "dicteren-caret 1s steps(2) infinite",
+                  }}
+                />
               </p>
             </div>
           </div>
 
-          {/* Floating mini chips (left middle) */}
-          <div className="absolute -left-2 top-80 flex flex-col gap-2">
-            <span className="chip" style={{ boxShadow: "var(--shadow-sm)" }}>
-              <Sparkles
-                className="size-3"
-                strokeWidth={2.2}
-                style={{ color: "var(--orange)" }}
-              />
-              +187 woorden context
-            </span>
-            <span className="chip chip-navy" style={{ boxShadow: "var(--shadow-sm)" }}>
-              toon: zakelijk
-            </span>
+          {/* The REAL AppMiniBar — floating overlay, just like in the actual app */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+            <AppMiniBar visible={true} state="recording" timerKey={cycle} />
           </div>
         </div>
       </div>
 
       <style>{`
-        @keyframes dicteren-blink { 50% { opacity: 0; } }
+        @keyframes dicteren-caret { 50% { opacity: 0; } }
       `}</style>
     </section>
   );
