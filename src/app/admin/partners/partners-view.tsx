@@ -26,6 +26,10 @@ type Kpis = {
   total: number;
   perStatus: Record<string, number>;
   activeCodes: number;
+  totalActivations: number;
+  activeActivations: number;
+  last7DaysActivations: number;
+  last30DaysActivations: number;
 };
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -82,10 +86,10 @@ export function PartnersView({ orgs, kpis }: { orgs: Org[]; kpis: Kpis }) {
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-4">
-        <Kpi label="Totaal" value={kpis.total} />
-        <Kpi label="Nieuw" value={kpis.perStatus.Nieuw ?? 0} />
-        <Kpi label="Live" value={kpis.perStatus.Live ?? 0} />
-        <Kpi label="Actieve codes" value={kpis.activeCodes} accent />
+        <Kpi label="Organisaties" value={kpis.total} sublabel={`${kpis.perStatus.Nieuw ?? 0} nieuw · ${kpis.perStatus.Live ?? 0} live`} />
+        <Kpi label="Actieve codes" value={kpis.activeCodes} sublabel="uitgegeven & actief" />
+        <Kpi label="Activaties totaal" value={kpis.totalActivations} sublabel={`${kpis.activeActivations} nu actief`} accent />
+        <Kpi label="Activaties 7d / 30d" value={kpis.last7DaysActivations} sublabel={`${kpis.last30DaysActivations} laatste 30 dagen`} />
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-[color:var(--border-soft)] bg-white p-3">
@@ -188,7 +192,17 @@ export function PartnersView({ orgs, kpis }: { orgs: Org[]; kpis: Kpis }) {
   );
 }
 
-function Kpi({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+function Kpi({
+  label,
+  value,
+  sublabel,
+  accent,
+}: {
+  label: string;
+  value: number;
+  sublabel?: string;
+  accent?: boolean;
+}) {
   return (
     <div className="rounded-xl border border-[color:var(--border-soft)] bg-white p-4">
       <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
@@ -200,6 +214,11 @@ function Kpi({ label, value, accent }: { label: string; value: number; accent?: 
       >
         {value}
       </div>
+      {sublabel && (
+        <div className="mt-0.5 text-xs text-[color:var(--text-muted)]">
+          {sublabel}
+        </div>
+      )}
     </div>
   );
 }

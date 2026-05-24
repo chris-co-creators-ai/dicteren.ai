@@ -6,9 +6,10 @@
 // geen userId-koppeling bij activatie (anoniem).
 
 import "server-only";
-import { and, desc, eq, like, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  devices,
   licenseActivations,
   licenses,
   partnerOrganizations,
@@ -242,7 +243,7 @@ export async function issuePartnerCode(args: {
   return { success: true as const, license, isExisting: false, org: updatedOrg };
 }
 
-/** Aantal partner-orgs per outreach-status voor KPI-cards. */
+/** Aantal partner-orgs per outreach-status + totalen voor KPI-cards. */
 export async function partnerOrgsKpis() {
   const rows = await db
     .select({
@@ -264,9 +265,142 @@ export async function partnerOrgsKpis() {
     .from(licenses)
     .where(and(eq(licenses.type, "partner"), eq(licenses.status, "active")));
 
+  // Totaal aantal activaties via álle partner-licenses (ooit + nu).
+  const [allActivations] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      active: sql<number>`count(*) FILTER (WHERE ${licenseActivations.isActive} = true)::int`,
+    })
+    .from(licenseActivations)
+    .innerJoin(licenses, eq(licenses.id, licenseActivations.licenseId))
+    .where(eq(licenses.type, "partner"));
+
+  // Activaties laatste 7 + 30 dagen via partner-licenses.
+  const [recent] = await db
+    .select({
+      last7: sql<number>`count(*) FILTER (WHERE ${licenseActivations.activatedAt} >= now() - interval '7 days')::int`,
+      last30: sql<number>`count(*) FILTER (WHERE ${licenseActivations.activatedAt} >= now() - interval '30 days')::int`,
+    })
+    .from(licenseActivations)
+    .innerJoin(licenses, eq(licenses.id, licenseActivations.licenseId))
+    .where(eq(licenses.type, "partner"));
+
   return {
     total,
     perStatus: counts,
     activeCodes: activeLicensesRow?.count ?? 0,
+    totalActivations: allActivations?.total ?? 0,
+    activeActivations: allActivations?.active ?? 0,
+    last7DaysActivations: recent?.last7 ?? 0,
+    last30DaysActivations: recent?.last30 ?? 0,
+  };
+}
+
+export type PartnerActivationStats = {
+  totalActivations: number;
+  activeNow: number;
+  uniqueDevices: number;
+  firstActivatedAt: string | null;
+  lastActivatedAt: string | null;
+  last7Days: number;
+  last30Days: number;
+  byPlatform: Record<string, number>;
+  activationsByDay: { date: string; count: number }[];
+  activationLimit: number;
+  usagePercentage: number;
+};
+
+/** Detail-statistieken voor één partner-organisatie. */
+export async function getPartnerActivationStats(
+  orgId: string,
+): Promise<PartnerActivationStats | null> {
+  const [org] = await db
+    .select({ licenseId: partnerOrganizations.licenseId })
+    .from(partnerOrganizations)
+    .where(eq(partnerOrganizations.id, orgId))
+    .limit(1);
+  if (!org?.licenseId) return null;
+
+  const [license] = await db
+    .select({
+      seats: licenses.seats,
+      maxActivationsPerSeat: licenses.maxActivationsPerSeat,
+    })
+    .from(licenses)
+    .where(eq(licenses.id, org.licenseId))
+    .limit(1);
+  if (!license) return null;
+
+  const limit = license.seats * license.maxActivationsPerSeat;
+
+  // Aggregaat-rij.
+  const [agg] = await db
+    .select({
+      total: count(),
+      active: sql<number>`count(*) FILTER (WHERE ${licenseActivations.isActive} = true)::int`,
+      uniqueDevices: sql<number>`count(DISTINCT ${licenseActivations.deviceId})::int`,
+      first: sql<Date | null>`min(${licenseActivations.activatedAt})`,
+      last: sql<Date | null>`max(${licenseActivations.activatedAt})`,
+      last7: sql<number>`count(*) FILTER (WHERE ${licenseActivations.activatedAt} >= now() - interval '7 days')::int`,
+      last30: sql<number>`count(*) FILTER (WHERE ${licenseActivations.activatedAt} >= now() - interval '30 days')::int`,
+    })
+    .from(licenseActivations)
+    .where(eq(licenseActivations.licenseId, org.licenseId));
+
+  // Per platform.
+  const platformRows = await db
+    .select({
+      platform: devices.platform,
+      n: count(),
+    })
+    .from(licenseActivations)
+    .innerJoin(devices, eq(devices.id, licenseActivations.deviceId))
+    .where(eq(licenseActivations.licenseId, org.licenseId))
+    .groupBy(devices.platform);
+  const byPlatform: Record<string, number> = {};
+  for (const r of platformRows) byPlatform[r.platform ?? "onbekend"] = Number(r.n);
+
+  // Daily series laatste 30 dagen, fill gaps.
+  const dailyRows = await db
+    .select({
+      day: sql<string>`to_char(${licenseActivations.activatedAt}, 'YYYY-MM-DD')`,
+      n: count(),
+    })
+    .from(licenseActivations)
+    .where(
+      and(
+        eq(licenseActivations.licenseId, org.licenseId),
+        gte(
+          licenseActivations.activatedAt,
+          sql`now() - interval '30 days'`,
+        ),
+      ),
+    )
+    .groupBy(sql`to_char(${licenseActivations.activatedAt}, 'YYYY-MM-DD')`)
+    .orderBy(sql`to_char(${licenseActivations.activatedAt}, 'YYYY-MM-DD')`);
+
+  const byDay = new Map(dailyRows.map((r) => [r.day, Number(r.n)]));
+  const activationsByDay: { date: string; count: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    activationsByDay.push({ date: key, count: byDay.get(key) ?? 0 });
+  }
+
+  const total = Number(agg?.total ?? 0);
+
+  return {
+    totalActivations: total,
+    activeNow: Number(agg?.active ?? 0),
+    uniqueDevices: Number(agg?.uniqueDevices ?? 0),
+    firstActivatedAt: agg?.first ? new Date(agg.first).toISOString() : null,
+    lastActivatedAt: agg?.last ? new Date(agg.last).toISOString() : null,
+    last7Days: Number(agg?.last7 ?? 0),
+    last30Days: Number(agg?.last30 ?? 0),
+    byPlatform,
+    activationsByDay,
+    activationLimit: limit,
+    usagePercentage: limit > 0 ? Math.round((total / limit) * 100) : 0,
   };
 }

@@ -70,6 +70,8 @@ export {
   updatePartnerOrg,
   issuePartnerCode,
   partnerOrgsKpis,
+  getPartnerActivationStats,
   type PartnerOrgListItem,
   type PartnerOrgPatch,
+  type PartnerActivationStats,
 } from "./partner";

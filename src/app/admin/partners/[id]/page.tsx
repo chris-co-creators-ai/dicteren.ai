@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPartnerOrg } from "@/lib/services";
+import { getPartnerActivationStats, getPartnerOrg } from "@/lib/services";
 import { PartnerDetailView } from "./partner-detail-view";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ export default async function AdminPartnerDetailPage({
   if (!data) notFound();
 
   const { org, license, activations } = data;
+  const stats = await getPartnerActivationStats(id);
 
   return (
     <PartnerDetailView
@@ -43,6 +44,7 @@ export default async function AdminPartnerDetailPage({
         activatedAt: a.activatedAt.toISOString(),
         lastTokenIssuedAt: a.lastTokenIssuedAt?.toISOString() ?? null,
       }))}
+      stats={stats}
     />
   );
 }

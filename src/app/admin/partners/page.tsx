@@ -29,7 +29,15 @@ export default async function AdminPartnersPage() {
         licenseStatus: o.licenseStatus,
         activeActivations: o.activeActivations,
       }))}
-      kpis={kpis}
+      kpis={{
+        total: kpis.total,
+        perStatus: kpis.perStatus,
+        activeCodes: kpis.activeCodes,
+        totalActivations: kpis.totalActivations,
+        activeActivations: kpis.activeActivations,
+        last7DaysActivations: kpis.last7DaysActivations,
+        last30DaysActivations: kpis.last30DaysActivations,
+      }}
     />
   );
 }

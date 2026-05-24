@@ -16,6 +16,20 @@ import {
   type UpdatePartnerInput,
 } from "./actions";
 
+type ActivationStats = {
+  totalActivations: number;
+  activeNow: number;
+  uniqueDevices: number;
+  firstActivatedAt: string | null;
+  lastActivatedAt: string | null;
+  last7Days: number;
+  last30Days: number;
+  byPlatform: Record<string, number>;
+  activationsByDay: { date: string; count: number }[];
+  activationLimit: number;
+  usagePercentage: number;
+};
+
 type Org = Omit<UpdatePartnerInput, "id"> & {
   id: string;
   externalId: string;
@@ -66,10 +80,12 @@ export function PartnerDetailView({
   org,
   license,
   activations,
+  stats,
 }: {
   org: Org;
   license: License | null;
   activations: Activation[];
+  stats: ActivationStats | null;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<Org>(org);
@@ -156,6 +172,72 @@ export function PartnerDetailView({
           <CheckCircle2 className="size-3" />
           Opgeslagen
         </div>
+      )}
+
+      {/* Statistics section — alleen tonen als code uitgegeven is */}
+      {stats && (
+        <Section title="Statistieken">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Stat label="Activaties totaal" value={String(stats.totalActivations)} accent />
+            <Stat label="Nu actief" value={String(stats.activeNow)} />
+            <Stat label="Unieke apparaten" value={String(stats.uniqueDevices)} />
+            <Stat
+              label="Gebruikt van limiet"
+              value={`${stats.usagePercentage}%`}
+              sublabel={`${stats.totalActivations} / ${stats.activationLimit}`}
+            />
+            <Stat label="Laatste 7 dagen" value={String(stats.last7Days)} />
+            <Stat label="Laatste 30 dagen" value={String(stats.last30Days)} />
+            <Stat
+              label="Eerste activatie"
+              value={
+                stats.firstActivatedAt
+                  ? new Date(stats.firstActivatedAt).toLocaleDateString("nl-NL")
+                  : "—"
+              }
+            />
+            <Stat
+              label="Laatste activatie"
+              value={
+                stats.lastActivatedAt
+                  ? new Date(stats.lastActivatedAt).toLocaleDateString("nl-NL")
+                  : "—"
+              }
+            />
+          </div>
+
+          {Object.keys(stats.byPlatform).length > 0 && (
+            <div className="mt-4">
+              <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+                Per platform
+              </div>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {Object.entries(stats.byPlatform).map(([platform, count]) => (
+                  <div
+                    key={platform}
+                    className="rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-sm"
+                  >
+                    <span className="font-mono text-xs text-[color:var(--text-muted)]">
+                      {platform}
+                    </span>
+                    <span className="ml-2 font-bold text-[color:var(--navy)]">
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {stats.activationsByDay.length > 0 && (
+            <div className="mt-5">
+              <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+                Activaties per dag — laatste 30 dagen
+              </div>
+              <BarChart data={stats.activationsByDay} />
+            </div>
+          )}
+        </Section>
       )}
 
       {/* License section */}
@@ -590,5 +672,84 @@ function Select({
         </option>
       ))}
     </select>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  sublabel,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sublabel?: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-[color:var(--border-soft)] p-3">
+      <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+        {label}
+      </div>
+      <div
+        className="mt-1 text-xl font-bold"
+        style={{ color: accent ? "var(--orange-600)" : "var(--navy)" }}
+      >
+        {value}
+      </div>
+      {sublabel && (
+        <div className="mt-0.5 text-xs text-[color:var(--text-muted)]">
+          {sublabel}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BarChart({ data }: { data: { date: string; count: number }[] }) {
+  const max = Math.max(1, ...data.map((d) => d.count));
+  const width = 720;
+  const height = 90;
+  const barWidth = width / data.length - 2;
+  return (
+    <div className="mt-2 overflow-x-auto">
+      <svg
+        viewBox={`0 0 ${width} ${height + 22}`}
+        className="w-full"
+        preserveAspectRatio="none"
+        style={{ maxHeight: 130 }}
+      >
+        {data.map((d, i) => {
+          const barH = (d.count / max) * height;
+          const x = i * (barWidth + 2);
+          const y = height - barH;
+          const isLast = i === data.length - 1;
+          return (
+            <g key={d.date}>
+              <title>{`${d.date}: ${d.count}`}</title>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barH || 1}
+                fill={isLast ? "var(--orange)" : "var(--aqua-300)"}
+                rx={2}
+              />
+              {(i === 0 || i === data.length - 1) && (
+                <text
+                  x={x + barWidth / 2}
+                  y={height + 14}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill="var(--text-muted)"
+                >
+                  {d.date.slice(5)}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 }
