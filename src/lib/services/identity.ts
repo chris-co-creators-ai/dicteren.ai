@@ -1,5 +1,16 @@
 import "server-only";
-import { count, desc, eq, like, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  isNull,
+  like,
+  ne,
+  notLike,
+  or,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   authMembers,
@@ -9,6 +20,13 @@ import {
   licenses,
   organizationBilling,
 } from "@/lib/db/schema";
+
+/** Filter dat race-condition duplicate-trials uitsluit (artefact van
+ *  trial-service dedupe-fix). Zelfde patroon als in services/account.ts. */
+const NOT_RACE_DUPLICATE = or(
+  isNull(licenses.notes),
+  notLike(licenses.notes, "%Race-condition duplicate%"),
+);
 
 /**
  * Identity service — single source of truth for users/orgs/members reads.
@@ -180,7 +198,9 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
 
   if (users.length === 0) return [];
 
-  // Trial per user (latest by issuedAt)
+  // Trial per user (latest non-race-dupe trial). Race-duplicates (revoked
+  // door trial-service dedupe-fix) worden uitgefilterd zodat we de échte
+  // active trial krijgen, niet de microseconde-later geïssuede dupe.
   const trialRows = await db
     .select({
       userId: licenses.userId,
@@ -189,7 +209,7 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       status: licenses.status,
     })
     .from(licenses)
-    .where(like(licenses.code, "DIC-TRIAL-%"));
+    .where(and(like(licenses.code, "DIC-TRIAL-%"), NOT_RACE_DUPLICATE));
 
   const trialByUser = new Map<
     string,
@@ -207,14 +227,22 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
     }
   }
 
-  // Paid license count per user
+  // Paid license count per user — telt alleen échte consumer/team aankopen.
+  // Sluit uit: trials (DIC-TRIAL-*), partner-licenses (type=partner, anoniem
+  // gebruikt door stichting-leden, niet user-conversies) en race-duplicates.
   const paidCounts = await db
     .select({
       userId: licenses.userId,
       n: count(),
     })
     .from(licenses)
-    .where(sql`${licenses.code} NOT LIKE 'DIC-TRIAL-%'`)
+    .where(
+      and(
+        notLike(licenses.code, "DIC-TRIAL-%"),
+        ne(licenses.type, "partner"),
+        NOT_RACE_DUPLICATE,
+      ),
+    )
     .groupBy(licenses.userId);
   const paidByUser = new Map(paidCounts.map((p) => [p.userId, p.n]));
 
