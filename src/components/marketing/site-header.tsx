@@ -24,7 +24,7 @@ export function SiteHeader() {
 
   const desktopAuthCta = isPending ? null : user ? (
     <Link
-      href={isAdmin ? "/admin" : "/"}
+      href={isAdmin ? "/admin" : "/account"}
       className="btn btn-ghost btn-sm inline-flex items-center gap-1.5"
     >
       <LayoutDashboard className="size-3.5" strokeWidth={2} />
@@ -42,7 +42,7 @@ export function SiteHeader() {
 
   const mobileAuthCta = isPending ? null : user ? (
     <Link
-      href={isAdmin ? "/admin" : "/"}
+      href={isAdmin ? "/admin" : "/account"}
       onClick={() => setOpen(false)}
       className="btn btn-secondary w-full"
     >
