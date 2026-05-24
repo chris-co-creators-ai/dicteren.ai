@@ -16,10 +16,31 @@ const PRIMARY_NAV: NavItem[] = [
   { label: "Help", href: "/help" },
 ];
 
-export function SiteHeader() {
+type InitialUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string | null;
+};
+
+export function SiteHeader({
+  initialUser,
+}: {
+  initialUser?: InitialUser | null;
+}) {
   const [open, setOpen] = useState(false);
   const { data, isPending } = authClient.useSession();
-  const user = data?.user;
+
+  // Use client-session for logged-in/out reactivity (sign-out updates without
+  // page-reload), maar bron-van-waarheid voor role is de server-prop. Client
+  // session-payload bevat geen role-veld in default Better Auth.
+  const clientUser = data?.user;
+  const user = clientUser
+    ? {
+        ...clientUser,
+        role: initialUser?.role ?? null,
+      }
+    : initialUser ?? null;
   const isAdmin = user?.role === "admin";
 
   const desktopAuthCta = isPending ? null : user ? (
