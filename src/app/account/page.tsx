@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { and, desc, eq, inArray, like } from "drizzle-orm";
 import {
   CheckCircle2,
   Clock,
@@ -7,13 +6,11 @@ import {
   Download,
   KeyRound,
 } from "lucide-react";
-import { db } from "@/lib/db";
 import {
-  licenseActivations,
-  licenses,
-  plans,
-  subscriptions,
-} from "@/lib/db/schema";
+  getUserActiveSubscription,
+  getUserTrial,
+  listUserPaidLicenses,
+} from "@/lib/services";
 import { getSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -22,84 +19,13 @@ export const metadata = { title: "Mijn account · Dicteren.ai" };
 export default async function AccountHomePage() {
   const session = (await getSession())!;
 
-  // Latest trial (if any)
-  const [trial] = await db
-    .select({
-      id: licenses.id,
-      code: licenses.code,
-      status: licenses.status,
-      expiresAt: licenses.expiresAt,
-    })
-    .from(licenses)
-    .where(
-      and(
-        eq(licenses.userId, session.user.id),
-        like(licenses.code, "DIC-TRIAL-%"),
-      ),
-    )
-    .limit(1);
+  const [trial, paid, activeSub] = await Promise.all([
+    getUserTrial(session.user.id),
+    listUserPaidLicenses(session.user.id),
+    getUserActiveSubscription(session.user.id),
+  ]);
 
-  // All paid licenses
-  const paidLicenses = await db
-    .select({
-      id: licenses.id,
-      code: licenses.code,
-      status: licenses.status,
-      expiresAt: licenses.expiresAt,
-      type: licenses.type,
-      planLabel: plans.label,
-    })
-    .from(licenses)
-    .leftJoin(plans, eq(licenses.planId, plans.id))
-    .where(
-      and(
-        eq(licenses.userId, session.user.id),
-        // exclude beta/trial (DIC-TRIAL-*) — those go in the trial card
-      ),
-    )
-    .orderBy(desc(licenses.issuedAt));
-
-  const paid = paidLicenses.filter((l) => !l.code.startsWith("DIC-TRIAL-"));
-
-  // Activation totals across paid licenses
-  const licenseIds = paid.map((l) => l.id);
-  const activeActivations = licenseIds.length
-    ? await db
-        .select({ licenseId: licenseActivations.licenseId })
-        .from(licenseActivations)
-        .where(
-          and(
-            inArray(licenseActivations.licenseId, licenseIds),
-            eq(licenseActivations.isActive, true),
-          ),
-        )
-    : [];
-  const activationCount = activeActivations.length;
-
-  // Active subscriptions
-  const subs = await db
-    .select({
-      id: subscriptions.id,
-      status: subscriptions.status,
-      nextBillingAt: subscriptions.nextBillingAt,
-    })
-    .from(subscriptions)
-    .where(eq(subscriptions.userId, session.user.id));
-  const activeSub = subs.find((s) => s.status === "active" || s.status === "past_due");
-
-  const trialDaysLeft =
-    trial?.expiresAt && trial.status === "active"
-      ? Math.max(
-          0,
-          Math.ceil(
-            (trial.expiresAt.getTime() - Date.now()) / 86_400_000,
-          ),
-        )
-      : 0;
-  const isTrialActive =
-    trial?.status === "active" &&
-    trial?.expiresAt !== null &&
-    trial.expiresAt.getTime() > Date.now();
+  const activationCount = paid.reduce((sum, l) => sum + l.activeActivations, 0);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
@@ -110,7 +36,6 @@ export default async function AccountHomePage() {
         {session.user.email}
       </p>
 
-      {/* Trial card */}
       {trial && (
         <div className="mt-8 rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -120,9 +45,9 @@ export default async function AccountHomePage() {
               </div>
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="text-2xl font-bold">
-                  {isTrialActive ? `${trialDaysLeft} dagen` : "Verlopen"}
+                  {trial.isActive ? `${trial.daysLeft} dagen` : "Verlopen"}
                 </span>
-                {isTrialActive && (
+                {trial.isActive && (
                   <span className="text-sm text-[color:var(--text-muted)]">
                     over
                   </span>
@@ -130,7 +55,7 @@ export default async function AccountHomePage() {
               </div>
               {trial.expiresAt && (
                 <p className="mt-1 text-xs text-[color:var(--text-muted)]">
-                  {isTrialActive ? "Loopt tot " : "Liep tot "}
+                  {trial.isActive ? "Loopt tot " : "Liep tot "}
                   {trial.expiresAt.toLocaleDateString("nl-NL", {
                     day: "numeric",
                     month: "long",
@@ -142,22 +67,22 @@ export default async function AccountHomePage() {
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold"
               style={{
-                background: isTrialActive
+                background: trial.isActive
                   ? "color-mix(in srgb, var(--green) 12%, white)"
                   : "color-mix(in srgb, var(--orange) 12%, white)",
-                color: isTrialActive ? "var(--green)" : "var(--orange-600)",
+                color: trial.isActive ? "var(--green)" : "var(--orange-600)",
               }}
             >
-              {isTrialActive ? (
+              {trial.isActive ? (
                 <CheckCircle2 className="size-3" />
               ) : (
                 <Clock className="size-3" />
               )}
-              {isTrialActive ? "Actief" : "Verlopen"}
+              {trial.isActive ? "Actief" : "Verlopen"}
             </span>
           </div>
 
-          {isTrialActive && (
+          {trial.isActive && (
             <div className="mt-4 rounded-lg bg-[color:var(--surface-2)] p-3">
               <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
                 Trial-code
@@ -171,7 +96,7 @@ export default async function AccountHomePage() {
             </div>
           )}
 
-          {!isTrialActive && (
+          {!trial.isActive && (
             <div
               className="mt-4 rounded-lg px-4 py-3 text-xs"
               style={{
@@ -185,7 +110,7 @@ export default async function AccountHomePage() {
           )}
 
           <div className="mt-5 flex flex-wrap gap-3">
-            {isTrialActive && !paid.length && (
+            {trial.isActive && !paid.length && (
               <Link href="/download" className="btn btn-secondary">
                 <Download className="size-3.5" />
                 Download de app
@@ -201,7 +126,6 @@ export default async function AccountHomePage() {
         </div>
       )}
 
-      {/* No trial, no paid → CTA */}
       {!trial && !paid.length && (
         <div className="mt-8 rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
           <h2 className="text-lg font-semibold">Nog niet gestart?</h2>
@@ -215,7 +139,6 @@ export default async function AccountHomePage() {
         </div>
       )}
 
-      {/* Licenties + abonnement quick links */}
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
         <Link
           href="/account/licenses"

@@ -53,3 +53,13 @@ export {
   type TimelineEntry,
   type TimelineKind,
 } from "./customer-timeline";
+
+export {
+  getUserTrial,
+  listUserLicenses,
+  listUserPaidLicenses,
+  getUserActiveSubscription,
+  type UserTrial,
+  type UserLicense,
+  type UserSubscription,
+} from "./account";
