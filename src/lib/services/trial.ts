@@ -6,7 +6,7 @@
 //  - Anti-abuse device check happens at activate-time (see api/license/activate).
 
 import "server-only";
-import { and, eq, like } from "drizzle-orm";
+import { and, asc, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   licenses,
@@ -97,6 +97,38 @@ export async function claimTrialForUser(args: {
       notes: "Self-service 14-day trial (web-initiated)",
     })
     .returning();
+
+  // Race-condition guard: two parallel callers (server-page + client POST,
+  // or double invocation) both pass the existence check and both insert.
+  // Re-read after insert, keep oldest, revoke the rest. The losing caller
+  // gets isExisting=true so its caller skips the welcome email.
+  const allTrials = await db
+    .select()
+    .from(licenses)
+    .where(
+      and(
+        eq(licenses.userId, args.userId),
+        like(licenses.code, "DIC-TRIAL-%"),
+      ),
+    )
+    .orderBy(asc(licenses.issuedAt), asc(licenses.id));
+
+  if (allTrials.length > 1) {
+    const winner = allTrials[0]!;
+    const loserIds = allTrials.slice(1).map((row) => row.id);
+    await db
+      .update(licenses)
+      .set({
+        status: "revoked",
+        notes: "Race-condition duplicate, superseded by older trial",
+      })
+      .where(inArray(licenses.id, loserIds));
+    return {
+      success: true,
+      license: winner,
+      isExisting: winner.id !== license.id,
+    };
+  }
 
   return { success: true, license, isExisting: false };
 }

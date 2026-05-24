@@ -273,7 +273,7 @@ export default async function AuthPage({
             <div className="mt-6">
               <AuthProvider>
                 <RedirectAfterAuth to={redirectTo}>
-                  <AuthView path={path} />
+                  <AuthView path={path} redirectTo={redirectTo} />
                 </RedirectAfterAuth>
               </AuthProvider>
             </div>
