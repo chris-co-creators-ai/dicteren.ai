@@ -6,7 +6,16 @@
 // gebruikers ze nooit zien — die zijn artefacten van trial.ts dedupe-fix.
 
 import "server-only";
-import { and, desc, eq, like, not, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  like,
+  notLike,
+  or,
+} from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   licenseActivations,
@@ -49,8 +58,8 @@ export type UserSubscription = {
 
 /** Filter dat race-condition duplicates verbergt (zelfde voor alle views). */
 const NOT_RACE_DUPLICATE = or(
-  sql`${licenses.notes} IS NULL`,
-  not(like(licenses.notes, "%Race-condition duplicate%")),
+  isNull(licenses.notes),
+  notLike(licenses.notes, "%Race-condition duplicate%"),
 );
 
 /** Haal de relevant trial voor deze user. Voorkeur: actief, anders meest recente. */
@@ -124,7 +133,7 @@ export async function listUserLicenses(
     .where(
       and(
         eq(licenseActivations.isActive, true),
-        sql`${licenseActivations.licenseId} = ANY(${ids})`,
+        inArray(licenseActivations.licenseId, ids),
       ),
     );
 
