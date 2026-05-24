@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dicteren.ai - Spreek en schrijf direct in elke app</title>
+    <meta
+      name="description"
+      content="Dicteren.ai is een lokale desktop dicteer-app: spreek met je microfoon en laat AI direct tekst schrijven in elke app."
+    />
+    <style>
+      :root {
+        --brand-navy: #0a2a73;
+        --brand-aqua: #9be7ee;
+        --brand-aqua-deep: #5acedb;
+        --brand-orange: #ff8f43;
+        --brand-bg: #f7fbff;
+        --text: #12306f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "Nunito Sans", "Segoe UI", sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #f9fdff 0%, #f1f8ff 100%);
+      }
+      .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+      section { padding: 64px 0; }
+      h1, h2, h3 { color: var(--brand-navy); margin: 0 0 12px; }
+      h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.08; }
+      h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); }
+      p { margin: 0; line-height: 1.6; }
+      .hero { padding: 72px 0 48px; }
+      .pill-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 24px; }
+      .pill { background: #e7f9fc; color: var(--brand-navy); border: 1px solid #c7ebf2; border-radius: 999px; padding: 8px 14px; font-size: 14px; }
+      .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+      .btn { border: 0; border-radius: 12px; padding: 12px 18px; font-weight: 700; cursor: pointer; }
+      .btn-primary { background: var(--brand-orange); color: #fff; }
+      .btn-secondary { background: #fff; color: var(--brand-navy); border: 1px solid #c8d8f2; }
+      .grid { display: grid; gap: 20px; }
+      .g-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+      .card { background: #fff; border: 1px solid #d9e6fb; border-radius: 16px; padding: 18px; }
+      .logo-slab { background: #fff; border-radius: 20px; padding: 20px; border: 1px solid #dce8fb; display: flex; justify-content: center; }
+      .logo-slab img { width: min(100%, 560px); height: auto; }
+      .step { background: #f4fbff; border: 1px solid #d0ecf3; border-radius: 14px; padding: 18px; }
+      table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 14px; overflow: hidden; }
+      th, td { border: 1px solid #dce8fb; padding: 12px; text-align: left; vertical-align: top; }
+      .cta-end { background: linear-gradient(135deg, #dff8fb, #e9f1ff); border-top: 1px solid #d2e6fa; }
+      @media (max-width: 720px) { section { padding: 52px 0; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <div class="wrap grid" style="gap: 24px;">
+          <h1>Stop met typen. Spreek en schrijf direct in elke app.</h1>
+          <p>Dicteren.ai zet je stem lokaal om naar tekst met één globale shortcut. Geen maandabonnement, geen standaard cloud-audio workflow.</p>
+          <div class="pill-row">
+            <span class="pill">Local processing</span>
+            <span class="pill">Dutch-first interface</span>
+            <span class="pill">One-time purchase</span>
+          </div>
+          <div class="cta">
+            <button class="btn btn-primary">Koop eenmalig</button>
+            <button class="btn btn-secondary">Bekijk demo</button>
+          </div>
+          <div class="logo-slab">
+            <img src="../../assets/brand-kit/raw/dicteren-master.png" alt="Dicteren.ai logo" />
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Vertrouwd fundament voor dagelijkse schrijf-workflows</h2>
+          <div class="grid g-3" style="margin-top: 18px;">
+            <div class="card"><strong>Lokaal verwerkt</strong><p>Audio blijft standaard op je machine tijdens transcriptie.</p></div>
+            <div class="card"><strong>Desktop-first</strong><p>Werkt met globale shortcut in de apps waar jij al schrijft.</p></div>
+            <div class="card"><strong>Gebouwd voor NL gebruikers</strong><p>Nederlandse interface en setupflow voor snelle activatie.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Het probleem: je gedachten zijn sneller dan je toetsenbord</h2>
+          <p>Typen kost momentum. Losse dicteertools geven frictie, privacytwijfel of terugkerende kosten. Dicteren.ai maakt van spreken een directe schrijf-actie in je bestaande desktop flow.</p>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Hoe het werkt</h2>
+          <div class="grid g-3" style="margin-top: 18px;">
+            <div class="step"><strong>1. Setup in 2 minuten</strong><p>Geef permissies, kies microfoon en rond onboarding af.</p></div>
+            <div class="step"><strong>2. Houd shortcut ingedrukt</strong><p>Spreek natuurlijk in elk app-venster waar je tekst wilt.</p></div>
+            <div class="step"><strong>3. Laat los en ga door</strong><p>Tekst wordt lokaal getranscribeerd en direct ingevoerd.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Belangrijkste voordelen</h2>
+          <div class="grid g-3" style="margin-top: 18px;">
+            <div class="card"><strong>Privacy by default</strong><p>Geen standaard cloud-audio route nodig voor je basisworkflow.</p></div>
+            <div class="card"><strong>Snelheid in elke app</strong><p>Shortcut + microfoon + directe tekstinvoer zonder context-switch.</p></div>
+            <div class="card"><strong>Éénmalige aankoop</strong><p>Geen maandelijkse kosten voor je dagelijkse dicteer-tool.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Wat gebruikers zeggen</h2>
+          <div class="card" style="margin-top: 16px;">
+            <p>"Ik gebruik Dicteren.ai nu voor mails, notities en prompts. Mijn output ging omhoog omdat ik mijn flow niet meer verlies aan typen."</p>
+            <p style="margin-top: 10px;"><strong>— NL founder (pilot)</strong></p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Use cases</h2>
+          <div class="grid g-3" style="margin-top: 18px;">
+            <div class="card"><strong>Founder mode</strong><p>Sneller ideeën, updates en prompts verwerken.</p></div>
+            <div class="card"><strong>Consultant mode</strong><p>Verslagen en klantcommunicatie sneller afronden.</p></div>
+            <div class="card"><strong>Operator mode</strong><p>Dagelijkse teksttaken met minder handmatig typen.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Vergelijking</h2>
+          <table style="margin-top: 18px;">
+            <thead>
+              <tr><th>Alternatief</th><th>Wat het goed doet</th><th>Waar het faalt</th><th>Waarom Dicteren.ai wint</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>OS built-in dictatie</td><td>Direct beschikbaar</td><td>Beperkte workflowcontrole</td><td>Desktop utility UX met meer controle</td></tr>
+              <tr><td>Cloud dicteertools</td><td>Vaak sterke UX</td><td>Privacyvraag + abonnementen</td><td>Lokaal + one-time purchase model</td></tr>
+              <tr><td>Handmatig typen</td><td>Volledige controle</td><td>Te traag bij hoog volume</td><td>Spreken is sneller dan typen</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Case study snippet</h2>
+          <div class="card" style="margin-top: 16px;">
+            <p><strong>Before:</strong> alles handmatig typen tussen meetings door.</p>
+            <p><strong>After:</strong> globale shortcut voor mails, docs en AI-prompts.</p>
+            <p><strong>Resultaat:</strong> snellere doorlooptijd per tekstblok en meer output per week.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <h2>Veelgestelde vragen</h2>
+          <div class="grid" style="margin-top: 16px; gap: 10px;">
+            <div class="card"><strong>Werkt dit zonder cloud-audio?</strong><p>Ja, de basistranscriptie is local-first.</p></div>
+            <div class="card"><strong>Welke platforms?</strong><p>Desktop focus: macOS, Windows en Linux.</p></div>
+            <div class="card"><strong>Hoe zit het met prijs?</strong><p>Positionering is éénmalige aankoop.</p></div>
+            <div class="card"><strong>Wat zit niet in v1?</strong><p>Teambeheer en enterprise controls.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta-end">
+        <div class="wrap">
+          <h2>Schrijf sneller met je stem, lokaal en zonder abonnement.</h2>
+          <p>Probeer Dicteren.ai zonder risico met 14 dagen niet-goed-geld-terug (te bevestigen voor live launch).</p>
+          <div class="cta">
+            <button class="btn btn-primary">Start met Dicteren.ai</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

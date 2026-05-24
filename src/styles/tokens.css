@@ -1,0 +1,360 @@
+/* Dicteren.ai — design tokens
+ * Bron: Claude Design (/Desktop/Dicteren.ai/tokens.css). Voor consistentie
+ * is het paletkern 1-op-1 overgenomen zodat web, desktop en design canvas
+ * dezelfde kleur- en shadow-tokens delen. Pas dit bestand aan als de
+ * design-systeem bron-of-truth wijzigt.
+ */
+
+:root {
+  /* Brand palette */
+  --navy: #042660;
+  --navy-700: #0b3478;
+  --navy-500: #2B5299;
+  --navy-300: #6f8ec4;
+  --aqua: #8BE1E5;
+  --aqua-200: #c4eef0;
+  --aqua-50: #e8f8f9;
+  --orange: #FF8441;
+  --orange-600: #ec6c1f;
+  --orange-50: #fff1e7;
+  --green: #00B884;
+  --green-50: #e3f7f0;
+  --red: #E5484D;
+  --red-50: #fdecec;
+
+  /* Surfaces */
+  --bg: #F7FBFD;
+  --bg-deep: #EAF3FB;
+  --surface: #FFFFFF;
+  --border: #D6E7F8;
+  --border-strong: #b9d3ef;
+
+  /* Text */
+  --text: #042660;
+  --text-muted: #4a6080;
+  --text-soft: #7a8ba8;
+
+  /* Effects */
+  --shadow-sm: 0 1px 2px rgba(4, 38, 96, 0.06),
+    0 1px 1px rgba(4, 38, 96, 0.04);
+  --shadow-md: 0 4px 16px rgba(4, 38, 96, 0.08),
+    0 1px 2px rgba(4, 38, 96, 0.04);
+  --shadow-lg: 0 16px 48px rgba(4, 38, 96, 0.10),
+    0 2px 6px rgba(4, 38, 96, 0.04);
+  --shadow-pop: 0 24px 60px rgba(43, 82, 153, 0.18);
+
+  /* Radii */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* Type */
+  --font-sans: "Nunito Sans", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  border: 0;
+  border-radius: var(--r-pill);
+  padding: 14px 22px;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--orange);
+  color: white;
+  box-shadow: 0 6px 16px rgba(255, 132, 65, 0.35);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--orange-600);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(255, 132, 65, 0.42);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--navy);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--navy-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--navy);
+  padding: 10px 14px;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-deep);
+}
+
+.btn-navy {
+  background: var(--navy);
+  color: white;
+}
+.btn-navy:hover:not(:disabled) {
+  background: var(--navy-700);
+}
+
+.btn-sm {
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.btn-lg {
+  padding: 18px 28px;
+  font-size: 16px;
+}
+
+/* ─── Chips ───────────────────────────────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--aqua-50);
+  color: var(--navy);
+  border: 1px solid var(--aqua-200);
+}
+.chip-orange {
+  background: var(--orange-50);
+  color: var(--orange-600);
+  border-color: #ffd8be;
+}
+.chip-green {
+  background: var(--green-50);
+  color: #057a59;
+  border-color: #b6e8d6;
+}
+.chip-navy {
+  background: #eaf0fb;
+  color: var(--navy);
+  border-color: #c6d6f0;
+}
+.chip-red {
+  background: var(--red-50);
+  color: #b8323a;
+  border-color: #f5c7c9;
+}
+
+/* ─── Cards ───────────────────────────────────────────────────────── */
+
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── Kbd (keyboard keys) ─────────────────────────────────────────── */
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--r-xs);
+  background: white;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--border-strong);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+/* ─── Toggle (switch) ─────────────────────────────────────────────── */
+
+.dc-toggle {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--border-strong);
+  transition: background 0.18s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+}
+.dc-toggle[data-on="true"] {
+  background: var(--orange);
+}
+.dc-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: left 0.18s ease;
+}
+.dc-toggle[data-on="true"]::after {
+  left: 18px;
+}
+
+/* ─── Sidebar menu (Settings-style) ───────────────────────────────── */
+
+.dc-sidebar {
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  font-family: var(--font-sans);
+}
+
+.dc-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.dc-sidebar-item:hover {
+  background: rgba(255, 132, 65, 0.04);
+  color: var(--navy);
+}
+.dc-sidebar-item[data-active="true"] {
+  background: white;
+  color: var(--orange-600);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.dc-sidebar-item[data-active="true"] svg {
+  color: var(--orange-600);
+}
+
+/* ─── Divider ─────────────────────────────────────────────────────── */
+
+.dc-divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+
+/* ─── Row (Settings sneltoetsen / opties) ─────────────────────────── */
+
+.dc-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.dc-row:first-child {
+  border-top: 0;
+}
+.dc-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+}
+.dc-row-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Inputs ──────────────────────────────────────────────────────── */
+
+.dc-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text);
+  background: white;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dc-input:focus {
+  outline: none;
+  border-color: var(--aqua);
+  box-shadow: 0 0 0 4px var(--aqua-50);
+}
+.dc-input-code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--navy);
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  border: 2px solid var(--aqua);
+  box-shadow: 0 0 0 4px var(--aqua-50);
+}
+
+/* ─── Progress bar (model install) ────────────────────────────────── */
+
+.dc-progress {
+  height: 10px;
+  background: white;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.dc-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--aqua), var(--orange));
+  transition: width 0.2s ease;
+}
+
+/* ─── Settings group children dividers ───────────────────────────── */
+
+.dc-settings-group > * + * {
+  border-top: 1px solid var(--border);
+}
+
+/* ─── Utility ─────────────────────────────────────────────────────── */
+
+.dc-mono {
+  font-family: var(--font-mono);
+}

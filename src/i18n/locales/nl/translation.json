@@ -1,0 +1,579 @@
+{
+  "tray": {
+    "settings": "Settings...",
+    "checkUpdates": "Check for Updates...",
+    "copyLastTranscript": "Copy Last Transcript",
+    "unloadModel": "Unload Model",
+    "model": "Model",
+    "quit": "Quit",
+    "cancel": "Cancel"
+  },
+  "sidebar": {
+    "general": "Algemeen",
+    "models": "Modellen",
+    "advanced": "Geavanceerd",
+    "postProcessing": "Nabewerking",
+    "history": "Geschiedenis",
+    "debug": "Debug",
+    "about": "Over"
+  },
+  "onboarding": {
+    "subtitle": "Dicteren.ai V3 wordt klaargezet",
+    "recommended": "Aanbevolen",
+    "download": "Downloaden",
+    "downloading": "Downloaden...",
+    "customModelDescription": "Niet officieel ondersteund",
+    "downloadFailed": "Download mislukt. Probeer het opnieuw.",
+    "modelCard": {
+      "accuracy": "nauwkeurigheid",
+      "speed": "snelheid"
+    },
+    "models": {
+      "parakeet-tdt-0.6b-v3": {
+        "name": "Dicteren.ai V3",
+        "description": "Het lokale Dicteren.ai-model wordt automatisch op je computer geinstalleerd. Alles wat je dicteert blijft lokaal opgeslagen."
+      }
+    },
+    "autoInstall": {
+      "title": "Dicteren.ai V3 wordt geinstalleerd",
+      "subtitle": "We installeren automatisch het model. Daarna ga je direct verder.",
+      "downloading": "Model downloaden...",
+      "verifying": "Download controleren...",
+      "extracting": "Model uitpakken...",
+      "done": "Model klaar. We gaan verder...",
+      "noProgress": "De modeldownload start niet. Controleer of models.dicteren.ai bereikbaar is."
+    },
+    "errors": {
+      "loadModels": "Kon de beschikbare modellen niet laden",
+      "downloadModel": "Kon model niet downloaden: {{error}}"
+    },
+    "permissions": {
+      "title": "Toestemmingen nodig",
+      "description": "Dicteren.ai heeft een paar toestemmingen nodig om goed te werken.",
+      "microphone": {
+        "title": "Microfoontoegang",
+        "description": "Nodig om je stem te kunnen omzetten naar tekst."
+      },
+      "accessibility": {
+        "title": "Toegankelijkheidstoegang",
+        "description": "Nodig om gedicteerde tekst in je apps te typen."
+      },
+      "grant": "Toestemming geven",
+      "granted": "Gegeven",
+      "waiting": "Wachten...",
+      "allGranted": "Alles staat klaar!",
+      "errors": {
+        "checkFailed": "Kon toestemmingen niet controleren. Probeer het opnieuw.",
+        "requestFailed": "Kon toestemming niet aanvragen. Probeer het opnieuw."
+      }
+    }
+  },
+  "modelSelector": {
+    "custom": "Aangepast",
+    "active": "Actief",
+    "switching": "Wisselen...",
+    "noModelsAvailable": "Geen modellen beschikbaar",
+    "verifying": "{{modelName}} controleren...",
+    "verifyingGeneric": "Controleren...",
+    "extracting": "{{modelName}} uitpakken...",
+    "extractingMultiple": "{{count}} modellen uitpakken...",
+    "extractingGeneric": "Uitpakken...",
+    "downloading": "Downloaden {{percentage}}%",
+    "downloadingMultiple": "{{count}} modellen downloaden...",
+    "modelReady": "Model gereed",
+    "loading": "{{modelName}} laden...",
+    "loadingGeneric": "Laden...",
+    "modelError": "Modelfout",
+    "modelUnloaded": "Model niet geladen",
+    "noModelDownloadRequired": "Geen model - download vereist",
+    "deleteModel": "{{modelName}} verwijderen",
+    "downloadSpeed": "{{speed}} MB/s",
+    "cancel": "Annuleren",
+    "cancelDownload": "Download annuleren"
+  },
+  "settings": {
+    "modelSettings": {
+      "title": "{{model}} instellingen",
+      "noSettingsNeeded": "Dit model werkt automatisch en heeft geen configuratie nodig."
+    },
+    "general": {
+      "title": "Algemeen",
+      "shortcut": {
+        "title": "Sneltoetsen",
+        "description": "Stel toetsencombinaties in om dicteren te starten",
+        "loading": "Sneltoetsen laden...",
+        "none": "Geen sneltoetsen ingesteld",
+        "notFound": "Sneltoets niet gevonden",
+        "pressKeys": "Druk op toetsen...",
+        "bindings": {
+          "transcribe": {
+            "name": "Dicteer-sneltoets",
+            "description": "De toetsencombinatie waarmee je opname en transcriptie start."
+          },
+          "cancel": {
+            "name": "Annuleer-sneltoets",
+            "description": "De toetsencombinatie waarmee je de huidige opname annuleert."
+          },
+          "transcribe_with_post_process": {
+            "name": "Nabewerking-sneltoets",
+            "description": "Optioneel: een aparte sneltoets die altijd AI-nabewerking toepast op je transcriptie."
+          }
+        },
+        "errors": {
+          "restore": "Kon oorspronkelijke sneltoets niet herstellen",
+          "set": "Kon sneltoets niet instellen: {{error}}",
+          "reset": "Kon sneltoets niet herstellen naar oorspronkelijke waarde"
+        }
+      },
+      "pushToTalk": {
+        "label": "Push-to-talk",
+        "description": "Ingedrukt houden om op te nemen, loslaten om te stoppen"
+      }
+    },
+    "models": {
+      "title": "Transcriptiemodel",
+      "description": "Dicteren.ai gebruikt Dicteren.ai V3: een lokaal model dat op jouw computer wordt geinstalleerd. Alles wat je dicteert en alle tekst die wordt opgeslagen blijft lokaal op je eigen computer.",
+      "yourModels": "Geinstalleerd model",
+      "availableModels": "Beschikbaar om te downloaden",
+      "downloaded": "Geinstalleerd",
+      "available": "Beschikbaar om te downloaden",
+      "deleteConfirm": "Weet je zeker dat je {{modelName}} wilt verwijderen? Je moet het opnieuw downloaden om het weer te gebruiken.",
+      "deleteActiveConfirm": "{{modelName}} is je actieve model. Als je het verwijdert, stopt dicteren totdat je het opnieuw downloadt. Weet je het zeker?",
+      "deleteTitle": "Model verwijderen",
+      "noModelsMatch": "Geen model beschikbaar."
+    },
+    "sound": {
+      "title": "Geluid",
+      "microphone": {
+        "title": "Microfoon",
+        "description": "Kies je gewenste microfoon",
+        "placeholder": "Kies microfoon...",
+        "loading": "Laden..."
+      },
+      "audioFeedback": {
+        "label": "Geluidssignalen",
+        "description": "Speel een geluid af wanneer opname start en stopt"
+      },
+      "outputDevice": {
+        "title": "Uitvoerapparaat",
+        "description": "Kies je audio-uitgang voor geluidssignalen",
+        "placeholder": "Kies uitvoerapparaat...",
+        "loading": "Laden..."
+      },
+      "volume": {
+        "title": "Volume",
+        "description": "Pas het volume van geluidssignalen aan"
+      }
+    },
+    "advanced": {
+      "title": "Geavanceerd",
+      "groups": {
+        "app": "App",
+        "output": "Uitvoer",
+        "transcription": "Transcriptie",
+        "history": "Geschiedenis",
+        "experimental": "Experimenteel"
+      },
+      "experimentalToggle": {
+        "label": "Experimentele functies",
+        "description": "Schakel functies in die nog in ontwikkeling zijn."
+      },
+      "lazyStreamClose": {
+        "label": "Microfoon open houden tussen dictaten",
+        "description": "Houdt de microfoonstream 30 seconden open na een opname, zodat opeenvolgende dictaten sneller starten. Dit kan Bluetooth-audio tijdelijk verslechteren."
+      },
+      "acceleration": {
+        "whisper": {
+          "title": "Whisper-versnelling",
+          "description": "Hardwareversnelling voor Whisper-modellen. Automatisch gebruikt de GPU als die beschikbaar is."
+        },
+        "ort": {
+          "title": "ONNX-versnelling",
+          "description": "Hardwareversnelling voor ONNX-modellen zoals Parakeet. DirectML op Windows is experimenteel."
+        },
+        "gpuDevice": {
+          "title": "GPU-apparaat",
+          "description": "Kies welke GPU gebruikt wordt. Automatisch kiest de aparte GPU.",
+          "auto": "Automatisch"
+        }
+      },
+      "startHidden": {
+        "label": "Verborgen starten",
+        "description": "Start in de menubalk/systeemtray zonder het venster te openen."
+      },
+      "autostart": {
+        "label": "Starten bij inloggen",
+        "description": "Start Dicteren.ai automatisch wanneer je inlogt op je computer."
+      },
+      "showTrayIcon": {
+        "label": "Tray-icoon tonen",
+        "description": "Toon het Dicteren.ai-icoon in de systeemtray."
+      },
+      "overlay": {
+        "title": "Overlaypositie",
+        "description": "Toon visuele feedback tijdens opnemen en transcriberen. Op Linux is Geen aanbevolen.",
+        "options": {
+          "none": "Geen",
+          "bottom": "Onder",
+          "top": "Boven"
+        }
+      },
+      "pasteMethod": {
+        "title": "Plakmethode",
+        "description": "Kies hoe tekst wordt ingevoegd. Direct simuleert typen via systeeminvoer. Geen slaat alleen op in geschiedenis/klembord.",
+        "options": {
+          "clipboard": "Klembord ({{modifier}}+V)",
+          "clipboardCtrlShiftV": "Klembord (Ctrl+Shift+V)",
+          "clipboardShiftInsert": "Klembord (Shift+Insert)",
+          "direct": "Direct",
+          "none": "Geen",
+          "externalScript": "Extern script"
+        },
+        "externalScriptPlaceholder": "/pad/naar/script.sh"
+      },
+      "typingTool": {
+        "title": "Typehulpmiddel",
+        "description": "Kies welk Linux-typehulpmiddel gebruikt wordt voor direct plakken.",
+        "options": {
+          "auto": "Automatisch (aanbevolen)"
+        }
+      },
+      "clipboardHandling": {
+        "title": "Klembordgedrag",
+        "description": "Klembord niet wijzigen herstelt je oorspronkelijke klembord na transcriptie. Kopieren naar klembord laat het resultaat op je klembord staan.",
+        "options": {
+          "dontModify": "Klembord niet wijzigen",
+          "copyToClipboard": "Kopieren naar klembord"
+        }
+      },
+      "autoSubmit": {
+        "title": "Automatisch verzenden",
+        "description": "Verzend automatisch een toetscombinatie nadat tekst is ingevoegd.",
+        "options": {
+          "off": "Uit",
+          "enter": "Enter",
+          "cmdEnter": "Cmd+Enter",
+          "superEnter": "Super+Enter",
+          "ctrlEnter": "Ctrl+Enter"
+        }
+      },
+      "modelUnload": {
+        "title": "Model ontladen",
+        "description": "Geef GPU/CPU-geheugen automatisch vrij wanneer het model een tijdje niet is gebruikt",
+        "options": {
+          "never": "Nooit",
+          "immediately": "Meteen",
+          "min2": "Na 2 minuten",
+          "min5": "Na 5 minuten",
+          "min10": "Na 10 minuten",
+          "min15": "Na 15 minuten",
+          "hour1": "Na 1 uur",
+          "sec15": "Na 15 seconden (debug)"
+        }
+      },
+      "customWords": {
+        "title": "Eigen woorden",
+        "description": "Voeg woorden toe die vaak verkeerd worden verstaan of gespeld. Het systeem corrigeert vergelijkbaar klinkende woorden automatisch naar jouw lijst.",
+        "placeholder": "Voeg een woord toe",
+        "add": "Toevoegen",
+        "remove": "{{word}} verwijderen",
+        "duplicate": "\"{{word}}\" bestaat al"
+      }
+    },
+    "postProcessing": {
+      "title": "Post Process",
+      "hotkey": {
+        "title": "Hotkey"
+      },
+      "api": {
+        "title": "API (OpenAI Compatible)",
+        "provider": {
+          "title": "Provider",
+          "description": "Select an OpenAI-compatible provider."
+        },
+        "appleIntelligence": {
+          "title": "Apple Intelligence",
+          "description": "Runs fully on-device. No API key or network access is required.",
+          "requirements": "Requires an Apple Silicon Mac running macOS Tahoe (26.0) or later. Apple Intelligence must be enabled in System Settings.",
+          "unavailable": "Apple Intelligence is not available on this device. Requires an Apple Silicon Mac running macOS Tahoe (26.0) or later with Apple Intelligence enabled in System Settings."
+        },
+        "baseUrl": {
+          "title": "Base URL",
+          "description": "API base URL for the selected provider. Only the custom provider can be edited.",
+          "placeholder": "https://api.openai.com/v1"
+        },
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the selected provider.",
+          "placeholder": "sk-..."
+        },
+        "model": {
+          "title": "Model",
+          "descriptionApple": "Provide an optional numeric token limit or keep the default on-device preset.",
+          "descriptionCustom": "Provide the model identifier expected by your custom endpoint.",
+          "descriptionDefault": "Choose a model exposed by the selected provider.",
+          "placeholderApple": "Apple Intelligence",
+          "placeholderWithOptions": "Search or select a model",
+          "placeholderNoOptions": "Type a model name",
+          "refreshModels": "Refresh models"
+        }
+      },
+      "prompts": {
+        "title": "Prompt",
+        "selectedPrompt": {
+          "title": "Selected Prompt",
+          "description": "Select a template for refining transcriptions or create a new one. Use ${output} inside the prompt text to reference the captured transcript."
+        },
+        "noPrompts": "No prompts available",
+        "selectPrompt": "Select a prompt",
+        "createNew": "Create New Prompt",
+        "promptLabel": "Prompt Label",
+        "promptLabelPlaceholder": "Enter prompt name",
+        "promptInstructions": "Prompt Instructions",
+        "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Improve grammar and clarity for the following text: ${output}",
+        "promptTip": "Tip: Use <code>${output}</code> to insert the transcribed text in your prompt.",
+        "updatePrompt": "Update Prompt",
+        "deletePrompt": "Delete Prompt",
+        "createPrompt": "Create Prompt",
+        "cancel": "Cancel",
+        "selectToEdit": "Select a prompt above to view and edit its details.",
+        "createFirst": "Click 'Create New Prompt' above to create your first post-processing prompt."
+      }
+    },
+    "history": {
+      "title": "Geschiedenis",
+      "openFolder": "Opnamemap openen",
+      "loading": "Geschiedenis laden...",
+      "empty": "Nog geen transcripties. Start een opname om je geschiedenis op te bouwen.",
+      "copyToClipboard": "Transcriptie kopieren naar klembord",
+      "save": "Transcriptie bewaren",
+      "unsave": "Niet meer bewaren",
+      "delete": "Item verwijderen",
+      "deleteError": "Kon item niet verwijderen. Probeer het opnieuw.",
+      "retranscribe": "Opnieuw transcriberen",
+      "retranscribeError": "Kon niet opnieuw transcriberen. Probeer het opnieuw.",
+      "transcribing": "Transcriberen...",
+      "transcriptionFailed": "Transcriptie mislukt. Je kunt opnieuw transcriberen met het probeer-opnieuw-icoon."
+    },
+    "debug": {
+      "title": "Debug",
+      "logDirectory": {
+        "title": "Logmap",
+        "description": "Locatie waar logbestanden worden opgeslagen"
+      },
+      "logLevel": {
+        "title": "Logniveau",
+        "description": "Stel in hoeveel detail er wordt gelogd"
+      },
+      "updateChecks": {
+        "label": "Controleren op updates",
+        "description": "Automatisch controleren op nieuwe versies van Dicteren.ai"
+      },
+      "soundTheme": {
+        "label": "Geluidsthema",
+        "description": "Kies een geluidsthema voor feedback bij starten en stoppen van opname"
+      },
+      "wordCorrectionThreshold": {
+        "title": "Woordcorrectiedrempel",
+        "description": "Gevoeligheid voor correcties van eigen woorden"
+      },
+      "historyLimit": {
+        "title": "Geschiedenislengte",
+        "description": "Maximaal aantal items in de geschiedenis",
+        "entries": "items"
+      },
+      "recordingRetention": {
+        "title": "Opnames automatisch verwijderen",
+        "description": "Verwijder oude opnames automatisch om ruimte te besparen",
+        "never": "Nooit",
+        "preserveLimit": "Bewaar laatste {{count}}",
+        "days3": "Na 3 dagen",
+        "weeks2": "Na 2 weken",
+        "months3": "Na 3 maanden",
+        "placeholder": "Kies bewaartermijn..."
+      },
+      "alwaysOnMicrophone": {
+        "label": "Microfoon altijd aan",
+        "description": "Houd de microfoon actief voor snellere respons"
+      },
+      "clamshellMicrophone": {
+        "title": "Microfoon bij gesloten laptop",
+        "description": "Microfoon die gebruikt wordt wanneer de laptop dichtgeklapt is"
+      },
+      "postProcessingToggle": {
+        "label": "Nabewerking",
+        "description": "Schakel AI-tekstverbetering in na transcriptie"
+      },
+      "muteWhileRecording": {
+        "label": "Dempen tijdens opname",
+        "description": "Demp systeemaudio terwijl je opneemt"
+      },
+      "appendTrailingSpace": {
+        "label": "Spatie toevoegen",
+        "description": "Voeg een spatie toe na geplakte transcriptie"
+      },
+      "keyboardImplementation": {
+        "title": "Toetsenbordbackend",
+        "description": "Kies de backend voor sneltoetsen.",
+        "bindingsReset": "Sneltoetsen waren niet compatibel en zijn teruggezet naar standaardwaarden"
+      },
+      "paths": {
+        "appData": "Appgegevens:",
+        "models": "Modellen:",
+        "settings": "Instellingen:"
+      },
+      "pasteDelay": {
+        "title": "Plakvertraging",
+        "description": "Vertraging voordat de plaktoets wordt verstuurd. Verhoog dit als de verkeerde tekst wordt geplakt."
+      },
+      "recordingBuffer": {
+        "title": "Extra opnamebuffer",
+        "description": "Extra tijd om door te blijven opnemen nadat je de toets loslaat. 0 = geen extra buffer."
+      }
+    },
+    "about": {
+      "title": "Over Dicteren.ai",
+      "licenseSection": "Je licentie",
+      "accountSection": "Mijn account",
+      "supportSection": "Hulp en juridisch",
+      "appInfoSection": "App-info",
+      "version": {
+        "title": "Versie",
+        "description": "Huidige versie van Dicteren.ai"
+      },
+      "appDataDirectory": {
+        "title": "Appgegevensmap",
+        "description": "Locatie waar Dicteren.ai je gegevens opslaat"
+      },
+      "website": {
+        "title": "Productwebsite",
+        "description": "Bekijk dicteren.ai voor product- en updateinformatie",
+        "button": "Website openen"
+      },
+      "buyLicense": {
+        "title": "Bekijk licenties",
+        "description": "Maand, kwartaal of jaar. Opzeggen wanneer je wil.",
+        "button": "Open prijzen"
+      },
+      "myAccount": {
+        "title": "Mijn account",
+        "description": "Beheer je profiel, licenties en facturen op dicteren.ai",
+        "button": "Open account"
+      },
+      "myBilling": {
+        "title": "Mijn abonnement",
+        "description": "Bekijk of pas je lopende abonnement aan",
+        "button": "Open facturering"
+      },
+      "deactivate": {
+        "title": "Licentie deactiveren",
+        "description": "Verwijder de licentie van dit apparaat zodat je een andere code kunt activeren.",
+        "button": "Deactiveren",
+        "confirmTitle": "Licentie deactiveren?",
+        "confirmBody": "Je licentie wordt van dit apparaat verwijderd. Je kunt later opnieuw activeren met dezelfde of een andere code."
+      },
+      "privacy": {
+        "title": "Privacyverklaring",
+        "description": "Wat we wel en niet opslaan",
+        "button": "Open privacy"
+      },
+      "terms": {
+        "title": "Algemene voorwaarden",
+        "description": "Voorwaarden voor het gebruik van Dicteren.ai",
+        "button": "Open voorwaarden"
+      },
+      "support": {
+        "title": "Contact en support",
+        "description": "Vragen of feedback? Mail ons rechtstreeks.",
+        "button": "Mail support"
+      },
+      "licenseStatus": {
+        "active": "Actief",
+        "trial": "Proefperiode",
+        "pastDue": "Betaling mislukt",
+        "expired": "Verlopen",
+        "canceled": "Opgezegd",
+        "refunded": "Terugbetaald",
+        "revoked": "Ingetrokken",
+        "unknown": "Niet geactiveerd",
+        "validUntil": "Geldig tot {{date}}",
+        "noExpiry": "Geen vervaldatum"
+      },
+      "acknowledgments": {
+        "title": "Dankwoord",
+        "madeWithLove": {
+          "title": "Met liefde gemaakt in Nederland",
+          "description": "Door Dicteren.ai",
+          "details": "Voor iedereen die sneller wil schrijven door gewoon te praten. Je stem blijft lokaal, je woorden blijven van jou."
+        }
+      }
+    }
+  },
+  "footer": {
+    "downloadingModel": "{{model}} downloaden...",
+    "checkingUpdates": "Controleren op updates...",
+    "updateAvailable": "Update beschikbaar: {{version}}",
+    "updateAvailableShort": "Update beschikbaar",
+    "upToDate": "Up-to-date",
+    "downloadUpdate": "Update downloaden",
+    "restart": "Herstarten",
+    "updateCheckingDisabled": "Updatecontrole uitgeschakeld",
+    "downloading": "Downloaden... {{progress}}%",
+    "installing": "Installeren...",
+    "preparing": "Voorbereiden...",
+    "checkForUpdates": "Controleren op updates",
+    "portableUpdateTitle": "Handmatige update nodig",
+    "portableUpdateMessage": "Portable installaties kunnen niet automatisch worden bijgewerkt.",
+    "portableUpdateButton": "Downloadpagina openen"
+  },
+  "common": {
+    "loading": "Laden...",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "reset": "Herstellen",
+    "add": "Toevoegen",
+    "remove": "Verwijderen",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "create": "Aanmaken",
+    "update": "Bijwerken",
+    "retry": "Opnieuw proberen",
+    "close": "Sluiten",
+    "open": "Openen",
+    "default": "Standaard",
+    "enabled": "Ingeschakeld",
+    "disabled": "Uitgeschakeld",
+    "on": "Aan",
+    "off": "Uit",
+    "yes": "Ja",
+    "no": "Nee",
+    "noOptionsFound": "Geen opties gevonden"
+  },
+  "accessibility": {
+    "permissionsRequired": "Toegankelijkheidstoestemming nodig",
+    "permissionsDescription": "Dicteren.ai heeft toegankelijkheidstoestemming nodig om gedicteerde tekst te typen.",
+    "openSettings": "Systeeminstellingen openen",
+    "dismiss": "Sluiten"
+  },
+  "errors": {
+    "loadDirectory": "Error loading directory: {{error}}",
+    "micPermissionDeniedTitle": "Microphone Access Denied",
+    "micPermissionDenied": {
+      "generic": "Microphone access was denied by the operating system. Please grant microphone permission in your system settings.",
+      "windows": "Enable microphone access in Settings → Privacy & security → Microphone (including desktop app access).",
+      "macos": "Grant microphone access in System Settings → Privacy & Security → Microphone.",
+      "linux": "Grant microphone access in your system's sound or privacy settings."
+    },
+    "noInputDeviceTitle": "No Microphone Found",
+    "noInputDevice": "No audio input device was detected. Please connect a microphone or headset and try again.",
+    "recordingFailed": "Failed to start recording: {{error}}",
+    "modelLoadFailed": "Failed to load model: {{model}}",
+    "modelLoadFailedUnknown": "unknown model",
+    "pasteFailedTitle": "Failed to Paste Text",
+    "pasteFailed": "Text could not be pasted into the active application."
+  },
+  "overlay": {
+    "transcribing": "Transcribing...",
+    "processing": "Processing..."
+  }
+}
