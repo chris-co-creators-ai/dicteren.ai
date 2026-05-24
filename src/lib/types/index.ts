@@ -7,7 +7,7 @@
 // License-type matches the `licenses.type` Drizzle enum (`beta | consumer | team`).
 // Note: a license is "team" when it's bought BY an organization. The buyer's
 // customerType is "organization" — these are two related but distinct concepts.
-export type LicenseType = "beta" | "consumer" | "team";
+export type LicenseType = "beta" | "consumer" | "team" | "partner";
 // Mirrors the `license_status` Drizzle pgEnum in db/schema.ts. Keep in sync.
 export type LicenseStatus =
   | "trial"

@@ -54,8 +54,8 @@ export function normalizeLicenseCode(code: string): string {
 export function validateLicenseCodeFormat(code: string): ServiceResult<{ normalized: string }> {
   const normalized = normalizeLicenseCode(code);
 
-  // Expected after normalization: DICBETA / DICPRO / DICTEAM / DICTRIAL + year + 8 chars.
-  const pattern = /^DIC(BETA|TRIAL|PRO|TEAM)\d{4}[A-Z0-9]{8}$/;
+  // Expected after normalization: DICBETA / DICPRO / DICTEAM / DICTRIAL / DICNPO + year + 8 chars.
+  const pattern = /^DIC(BETA|TRIAL|PRO|TEAM|NPO)\d{4}[A-Z0-9]{8}$/;
 
   if (!pattern.test(normalized)) {
     return {
@@ -71,6 +71,15 @@ export function validateLicenseCodeFormat(code: string): ServiceResult<{ normali
 /** Generate a self-service trial code (stored with DB-type "beta"). */
 export function generateTrialCode(): string {
   const prefix = LICENSE_CODE_PREFIXES.trial;
+  const year = new Date().getFullYear();
+  const segment1 = randomBytes(2).toString("hex").toUpperCase().slice(0, 4);
+  const segment2 = randomBytes(2).toString("hex").toUpperCase().slice(0, 4);
+  return `${prefix}-${year}-${segment1}-${segment2}`;
+}
+
+/** Generate a partner-org code voor maatschappelijke samenwerking. */
+export function generatePartnerCode(): string {
+  const prefix = LICENSE_CODE_PREFIXES.partner;
   const year = new Date().getFullYear();
   const segment1 = randomBytes(2).toString("hex").toUpperCase().slice(0, 4);
   const segment2 = randomBytes(2).toString("hex").toUpperCase().slice(0, 4);

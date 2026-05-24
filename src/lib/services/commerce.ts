@@ -257,7 +257,7 @@ export async function listDiscounts(): Promise<DiscountRow[]> {
 // ─────────────────────── License distribution ───────────────────────
 
 export type LicenseDistribution = {
-  type: "beta" | "consumer" | "team";
+  type: "beta" | "consumer" | "team" | "partner";
   count: number;
   pct: number;
 };

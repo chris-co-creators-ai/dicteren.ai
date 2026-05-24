@@ -10,7 +10,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { devices, licenseActivations, licenses } from "@/lib/db/schema";
 import { isExpired, signLicenseToken, verifyLicenseToken } from "@/lib/services";
-import type { LicenseStatus } from "@/lib/types";
+import type { LicenseStatus, LicenseType } from "@/lib/types";
 
 type StatusResponse =
   | {
@@ -18,7 +18,7 @@ type StatusResponse =
       token: string;
       license: {
         status: LicenseStatus;
-        type: "beta" | "consumer" | "team";
+        type: LicenseType;
         expiresAt: string | null;
       };
     }

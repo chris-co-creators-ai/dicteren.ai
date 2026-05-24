@@ -63,3 +63,13 @@ export {
   type UserLicense,
   type UserSubscription,
 } from "./account";
+
+export {
+  listPartnerOrgs,
+  getPartnerOrg,
+  updatePartnerOrg,
+  issuePartnerCode,
+  partnerOrgsKpis,
+  type PartnerOrgListItem,
+  type PartnerOrgPatch,
+} from "./partner";

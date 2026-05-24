@@ -72,4 +72,5 @@ export const LICENSE_CODE_PREFIXES = {
   trial: "DIC-TRIAL",
   consumer: "DIC-PRO",
   team: "DIC-TEAM",
+  partner: "DIC-NPO",
 } as const;

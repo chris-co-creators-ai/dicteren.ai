@@ -21,7 +21,9 @@ type AuditAction =
   | "organization.member_added"
   | "organization.member_removed"
   | "admin.login"
-  | "admin.action";
+  | "admin.action"
+  | "partner.updated"
+  | "partner.code_issued";
 
 type AuditParams = {
   action: AuditAction;

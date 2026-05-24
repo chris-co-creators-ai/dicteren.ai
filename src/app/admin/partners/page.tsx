@@ -1,0 +1,35 @@
+import { listPartnerOrgs, partnerOrgsKpis } from "@/lib/services";
+import { PartnersView } from "./partners-view";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Partners · Admin · Dicteren.ai" };
+
+export default async function AdminPartnersPage() {
+  const [orgs, kpis] = await Promise.all([
+    listPartnerOrgs(),
+    partnerOrgsKpis(),
+  ]);
+
+  return (
+    <PartnersView
+      orgs={orgs.map((o) => ({
+        id: o.id,
+        externalId: o.externalId,
+        organizationName: o.organizationName,
+        priority: o.priority,
+        segment: o.segment,
+        outreachStatus: o.outreachStatus,
+        pilotStatus: o.pilotStatus,
+        email: o.email,
+        city: o.city,
+        accountOwner: o.accountOwner,
+        followUpDate: o.followUpDate,
+        freeCodesCount: o.freeCodesCount,
+        partnerCode: o.partnerCode,
+        licenseStatus: o.licenseStatus,
+        activeActivations: o.activeActivations,
+      }))}
+      kpis={kpis}
+    />
+  );
+}

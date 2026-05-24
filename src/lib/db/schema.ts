@@ -77,6 +77,7 @@ export const licenseType = pgEnum("license_type", [
   "beta",
   "consumer",
   "team",
+  "partner",
 ]);
 
 export const planPeriod = pgEnum("plan_period", [
@@ -326,6 +327,58 @@ export const licenses = pgTable(
   ],
 );
 
+// Maatschappelijke outreach pipeline: stichtingen en non-profits die we
+// (gaan) benaderen voor gratis partnercodes. Een partner_organization krijgt
+// optioneel één license van type=partner, gedeeld binnen de organisatie.
+export const partnerOrganizations = pgTable(
+  "partner_organizations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    externalId: text("external_id").notNull(), // "ORG-001" — stabiele key uit CSV
+    priority: text("priority"), // "A" / "B" / "C"
+    segment: text("segment"),
+    organizationName: text("organization_name").notNull(),
+    organizationType: text("organization_type"),
+    whyRelevant: text("why_relevant"),
+    partnershipAngle: text("partnership_angle"),
+    openingLine: text("opening_line"),
+    offer: text("offer"),
+    decisionMaker: text("decision_maker"),
+    email: text("email"),
+    phone: text("phone"),
+    address: text("address"),
+    city: text("city"),
+    website: text("website"),
+    contactUrl: text("contact_url"),
+    sourceUrl: text("source_url"),
+    sourceStatus: text("source_status"),
+    sourceVerifiedAt: text("source_verified_at"),
+    accountOwner: text("account_owner"),
+    outreachStatus: text("outreach_status").default("Nieuw"),
+    lastContactDate: text("last_contact_date"),
+    nextAction: text("next_action"),
+    followUpDate: text("follow_up_date"),
+    responseSummary: text("response_summary"),
+    pilotStatus: text("pilot_status").default("Nog niet gestart"),
+    freeCodesCount: integer("free_codes_count"),
+    licenseId: uuid("license_id").references(() => licenses.id, {
+      onDelete: "set null",
+    }),
+    gdprNotes: text("gdpr_notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("partner_orgs_external_id_unique").on(t.externalId),
+    index("partner_orgs_outreach_status_idx").on(t.outreachStatus),
+    index("partner_orgs_priority_idx").on(t.priority),
+  ],
+);
+
 export const devices = pgTable(
   "devices",
   {
@@ -509,6 +562,8 @@ export type Subscription = typeof subscriptions.$inferSelect;
 export type NewSubscription = typeof subscriptions.$inferInsert;
 export type License = typeof licenses.$inferSelect;
 export type NewLicense = typeof licenses.$inferInsert;
+export type PartnerOrganization = typeof partnerOrganizations.$inferSelect;
+export type NewPartnerOrganization = typeof partnerOrganizations.$inferInsert;
 export type LicenseActivation = typeof licenseActivations.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Plan = typeof plans.$inferSelect;
