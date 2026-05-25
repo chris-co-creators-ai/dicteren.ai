@@ -16,7 +16,7 @@ import {
   notLike,
   or,
 } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, dbAuth } from "@/lib/db";
 import {
   licenseActivations,
   licenses,
@@ -24,6 +24,7 @@ import {
   subscriptions,
   type License,
 } from "@/lib/db/schema";
+import { authMember } from "@/lib/db/auth-schema";
 
 /** Trial-rij geschikt voor /account hero. Null als geen actieve trial. */
 export type UserTrial = {
@@ -103,10 +104,28 @@ export async function getUserTrial(userId: string): Promise<UserTrial | null> {
   };
 }
 
-/** Alle licenses van deze user, race-duplicates uitgefilterd. */
+/** Alle licenses van deze user, race-duplicates uitgefilterd.
+ *
+ *  Vindt:
+ *    1. Licenses waar `licenses.userId = user` (eigen aankoop / trial)
+ *    2. Licenses waar `licenses.organizationId IN (orgs waar user member is)`
+ *       (team-licenses voor de hele org)
+ *
+ *  Team-members zien zo de team-licentiecode van hun organisatie op /account.
+ */
 export async function listUserLicenses(
   userId: string,
 ): Promise<UserLicense[]> {
+  const memberOrgs = await dbAuth
+    .select({ organizationId: authMember.organizationId })
+    .from(authMember)
+    .where(eq(authMember.userId, userId));
+  const orgIds = memberOrgs.map((m) => m.organizationId);
+
+  const ownership = orgIds.length > 0
+    ? or(eq(licenses.userId, userId), inArray(licenses.organizationId, orgIds))
+    : eq(licenses.userId, userId);
+
   const rows = await db
     .select({
       id: licenses.id,
@@ -121,7 +140,7 @@ export async function listUserLicenses(
     })
     .from(licenses)
     .leftJoin(plans, eq(licenses.planId, plans.id))
-    .where(and(eq(licenses.userId, userId), NOT_RACE_DUPLICATE))
+    .where(and(ownership, NOT_RACE_DUPLICATE))
     .orderBy(desc(licenses.issuedAt));
 
   if (rows.length === 0) return [];

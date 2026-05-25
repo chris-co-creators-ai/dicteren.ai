@@ -129,6 +129,10 @@ export async function fulfillPaidOrder(args: {
   licenseId: string;
   licenseCode: string;
   orderId: string;
+  organizationId: string | null;
+  userId: string | null;
+  paymentId: string;
+  seats: number;
   expiresAt: Date;
   plan: Plan;
 } | null> {
@@ -175,14 +179,17 @@ export async function fulfillPaidOrder(args: {
   const codeHash = hashLicenseCode(code);
   const seats = plan.isPerSeat ? order.quantity : 1;
 
-  await db.insert(payments).values({
-    orderId: order.id,
-    molliePaymentId: args.molliePaymentId,
-    status: "paid",
-    amountCents: args.paidAmountCents,
-    currency: order.currency,
-    rawWebhookPayload: args.rawWebhookPayload as object,
-  });
+  const [paymentRow] = await db
+    .insert(payments)
+    .values({
+      orderId: order.id,
+      molliePaymentId: args.molliePaymentId,
+      status: "paid",
+      amountCents: args.paidAmountCents,
+      currency: order.currency,
+      rawWebhookPayload: args.rawWebhookPayload as object,
+    })
+    .returning({ id: payments.id });
 
   const [license] = await db
     .insert(licenses)
@@ -207,6 +214,10 @@ export async function fulfillPaidOrder(args: {
     licenseId: license.id,
     licenseCode: code,
     orderId: order.id,
+    organizationId: order.organizationId,
+    userId: order.userId,
+    paymentId: paymentRow.id,
+    seats,
     expiresAt,
     plan,
   };
@@ -486,6 +497,13 @@ export function mollieMetadataForOrder(args: {
   user: { id: string; email: string; name: string };
   source?: LicenseSource;
   discount?: DiscountSnapshot;
+  /** Voor B2B-orders: organisatiegegevens worden gespiegeld naar Mollie-metadata
+   *  zodat het dashboard meteen company/VAT laat zien. */
+  organization?: {
+    name?: string | null;
+    vatNumber?: string | null;
+    countryCode?: string | null;
+  };
 }): MollieMetadataInput {
   const licenseType: LicenseType =
     args.plan.customerType === "organization" ? "team" : "consumer";
@@ -500,6 +518,9 @@ export function mollieMetadataForOrder(args: {
     organizationId: args.order.organizationId,
     email: args.user.email,
     name: args.user.name,
+    organizationName: args.organization?.name ?? null,
+    vatNumber: args.organization?.vatNumber ?? null,
+    countryCode: args.organization?.countryCode ?? null,
   };
 }
 

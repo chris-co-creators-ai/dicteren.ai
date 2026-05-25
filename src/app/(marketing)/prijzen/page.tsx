@@ -328,11 +328,11 @@ export default function PrijzenPage() {
               </Link>
             ) : (
               <Link
-                href="/auth/sign-up?next=/trial/start"
+                href={`/zakelijk/start?plan=team-jaar&seats=${seats}`}
                 className="btn mt-5 w-full"
                 style={{ background: "var(--aqua)", color: "var(--navy)" }}
               >
-                Start zakelijke trial
+                Start zakelijke licenties
               </Link>
             )}
 

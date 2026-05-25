@@ -496,6 +496,155 @@ export const emailLogs = pgTable(
   ],
 );
 
+// ─────────────────────────── Affiliate program ───────────────────────────
+//
+// Commerciële resellers die zakelijke klanten doorverkopen en commissie krijgen.
+// LET OP: NIET hetzelfde als `partnerOrganizations` (= maatschappelijke outreach).
+//
+// Attributie: lifetime via affiliateReferrals.userId. Eerste-touch wins (uniek
+// op userId). Bij elke paid order van een referred user → commission record.
+
+export const affiliateStatus = pgEnum("affiliate_status", [
+  "active",
+  "paused",
+  "disabled",
+]);
+
+export const affiliateCommissionType = pgEnum("affiliate_commission_type", [
+  "percentage",
+  "fixed_per_seat",
+]);
+
+export const affiliateCommissionStatus = pgEnum(
+  "affiliate_commission_status",
+  ["pending", "payable", "paid", "voided"],
+);
+
+export const affiliates = pgTable(
+  "affiliates",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    contactEmail: text("contact_email").notNull(),
+    contactPhone: text("contact_phone"),
+    // Optionele koppeling naar een auth.user (zodat reseller via /affiliate/
+    // dashboard kan inloggen). Mag null blijven als affiliate puur admin-zijdig is.
+    userId: uuid("user_id").references(() => authUsers.id, {
+      onDelete: "set null",
+    }),
+    status: affiliateStatus("status").notNull().default("active"),
+    commissionType: affiliateCommissionType("commission_type")
+      .notNull()
+      .default("percentage"),
+    /** 0-100, geldt als commissionType = "percentage". */
+    commissionPct: integer("commission_pct").notNull().default(0),
+    /** Cents per seat, geldt als commissionType = "fixed_per_seat". */
+    commissionFixedCents: integer("commission_fixed_cents")
+      .notNull()
+      .default(0),
+    payoutMethod: text("payout_method"),
+    /** IBAN, paypal-mail, etc. JSONB zodat we flexibel kunnen uitbreiden. */
+    payoutDetails: jsonb("payout_details"),
+    internalNotes: text("internal_notes"),
+    /** Lifetime cumulatief — incrementeel bijgewerkt bij commission paid. */
+    totalEarnedCents: integer("total_earned_cents").notNull().default(0),
+    totalPaidCents: integer("total_paid_cents").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("affiliates_code_unique").on(t.code),
+    uniqueIndex("affiliates_contact_email_unique").on(t.contactEmail),
+    uniqueIndex("affiliates_user_unique").on(t.userId),
+    index("affiliates_status_idx").on(t.status),
+  ],
+);
+
+export const affiliateReferrals = pgTable(
+  "affiliate_referrals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    affiliateId: uuid("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
+    /** Voor zakelijke orders kopiëren we de orgId hier zodat admin-views op
+     *  org-niveau de affiliate kunnen vinden. */
+    organizationId: uuid("organization_id").references(
+      () => authOrganizations.id,
+      { onDelete: "set null" },
+    ),
+    /** "url-ref" (klik op affiliate-link bij signup) of "admin-grant" (handmatig). */
+    attributionSource: text("attribution_source").notNull().default("url-ref"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Eerste paid order — null tot dan. Voor reseller-dashboard ("conversie"). */
+    convertedAt: timestamp("converted_at", { withTimezone: true }),
+  },
+  (t) => [
+    // 1 affiliate per user, lifetime first-touch.
+    uniqueIndex("affiliate_referrals_user_unique").on(t.userId),
+    index("affiliate_referrals_affiliate_idx").on(t.affiliateId),
+    index("affiliate_referrals_org_idx").on(t.organizationId),
+  ],
+);
+
+export const affiliateCommissions = pgTable(
+  "affiliate_commissions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    affiliateId: uuid("affiliate_id")
+      .notNull()
+      .references(() => affiliates.id, { onDelete: "cascade" }),
+    referralId: uuid("referral_id").references(() => affiliateReferrals.id, {
+      onDelete: "set null",
+    }),
+    orderId: uuid("order_id").references(() => orders.id, {
+      onDelete: "set null",
+    }),
+    licenseId: uuid("license_id").references(() => licenses.id, {
+      onDelete: "set null",
+    }),
+    paymentId: uuid("payment_id").references(() => payments.id, {
+      onDelete: "set null",
+    }),
+    /** Order-amount waarop berekend (cents). */
+    basisAmountCents: integer("basis_amount_cents").notNull(),
+    /** Voor seat-based commission. */
+    seats: integer("seats").notNull().default(1),
+    /** Snapshot van affiliate-config op moment van issue (kan later wijzigen). */
+    commissionType: affiliateCommissionType("commission_type").notNull(),
+    commissionPct: integer("commission_pct").notNull(),
+    commissionFixedCents: integer("commission_fixed_cents").notNull(),
+    /** Berekend resultaat. */
+    amountCents: integer("amount_cents").notNull(),
+    status: affiliateCommissionStatus("status").notNull().default("pending"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    /** Factuurnr / payout-referentie voor de affiliate-uitbetaling. */
+    paidReference: text("paid_reference"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // 1 commission per order — voorkomt dubbele records bij webhook-retries.
+    uniqueIndex("affiliate_commissions_order_unique").on(t.orderId),
+    index("affiliate_commissions_affiliate_idx").on(t.affiliateId),
+    index("affiliate_commissions_status_idx").on(t.status),
+  ],
+);
+
 export const events = pgTable(
   "events",
   {
@@ -544,3 +693,9 @@ export type DiscountCode = typeof discountCodes.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type EmailLog = typeof emailLogs.$inferSelect;
 export type NewEmailLog = typeof emailLogs.$inferInsert;
+export type Affiliate = typeof affiliates.$inferSelect;
+export type NewAffiliate = typeof affiliates.$inferInsert;
+export type AffiliateReferral = typeof affiliateReferrals.$inferSelect;
+export type NewAffiliateReferral = typeof affiliateReferrals.$inferInsert;
+export type AffiliateCommission = typeof affiliateCommissions.$inferSelect;
+export type NewAffiliateCommission = typeof affiliateCommissions.$inferInsert;

@@ -24,7 +24,14 @@ type AuditAction =
   | "admin.login"
   | "admin.action"
   | "partner.updated"
-  | "partner.code_issued";
+  | "partner.code_issued"
+  | "affiliate.created"
+  | "affiliate.updated"
+  | "affiliate.attributed"
+  | "affiliate.commission_recorded"
+  | "affiliate.commission_status_changed"
+  | "organization.billing_updated"
+  | "organization.member_invited";
 
 type AuditParams = {
   action: AuditAction;

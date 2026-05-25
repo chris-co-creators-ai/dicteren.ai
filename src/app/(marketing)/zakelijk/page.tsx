@@ -74,8 +74,8 @@ export default function ZakelijkPage() {
               op het apparaat van je collega.
             </p>
             <div className="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <Link href="/contact" className="btn btn-primary btn-lg">
-                Vraag zakelijke beta aan
+              <Link href="/zakelijk/start?plan=team-jaar&seats=5" className="btn btn-primary btn-lg">
+                Start zakelijke licenties
               </Link>
               <Link href="/contact" className="btn btn-secondary btn-lg">
                 Plan een demo

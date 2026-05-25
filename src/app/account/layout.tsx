@@ -26,6 +26,12 @@ export default async function AccountLayout({
               Licenties
             </Link>
             <Link
+              href="/account/organization"
+              className="text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
+            >
+              Organisatie
+            </Link>
+            <Link
               href="/account/billing"
               className="text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
             >

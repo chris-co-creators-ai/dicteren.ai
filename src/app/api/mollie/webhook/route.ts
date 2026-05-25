@@ -41,6 +41,12 @@ import {
   sendRefundEmail,
   sendRenewalEmail,
 } from "@/lib/services/email";
+import {
+  getAffiliateById,
+  getReferralForUser,
+  markReferralConverted,
+  recordCommission,
+} from "@/lib/services/affiliate";
 
 /** Lookup billing contact by license-id (used for recurring/refund mails). */
 async function contactForLicense(
@@ -346,6 +352,46 @@ export async function POST(request: Request) {
         }
       }
 
+      // ───── Affiliate commission ─────
+      // Lifetime attributie: als deze user via een affiliate kwam, krijgt die
+      // commission op deze paid order. Idempotent op orderId (unique index).
+      if (fulfilled.userId) {
+        const referral = await getReferralForUser(fulfilled.userId);
+        if (referral) {
+          const affiliate = await getAffiliateById(referral.affiliateId);
+          if (affiliate && affiliate.status === "active") {
+            const commission = await recordCommission({
+              affiliate,
+              referralId: referral.id,
+              orderId: fulfilled.orderId,
+              licenseId: fulfilled.licenseId,
+              paymentId: fulfilled.paymentId,
+              basisAmountCents: payment.data.amount,
+              seats: fulfilled.seats,
+            });
+            await markReferralConverted({ userId: fulfilled.userId });
+            if (commission) {
+              await logEvent({
+                action: "affiliate.commission_recorded",
+                entityType: "affiliate",
+                entityId: affiliate.id,
+                metadata: {
+                  orderId: fulfilled.orderId,
+                  licenseId: fulfilled.licenseId,
+                  amountCents: commission.amountCents,
+                  basisAmountCents: payment.data.amount,
+                  seats: fulfilled.seats,
+                },
+              });
+              await trackEvent("affiliate_commission_recorded", {
+                affiliateCode: affiliate.code,
+                amountCents: commission.amountCents,
+              });
+            }
+          }
+        }
+      }
+
       // If this was a first-of-recurring payment AND the plan is recurring,
       // create the Mollie subscription so renewals happen automatically.
       const customerId = payment.data.customerId;
@@ -386,14 +432,14 @@ export async function POST(request: Request) {
             await recordSubscription({
               mollieSubscriptionId: sub.data.subscriptionId,
               mollieCustomerId: customerId,
-              userId: await resolveUserIdByCustomer(customerId),
-              organizationId: null,
+              userId: fulfilled.userId ?? (await resolveUserIdByCustomer(customerId)),
+              organizationId: fulfilled.organizationId,
               licenseId: fulfilled.licenseId,
               planId: fulfilled.plan.id,
               intervalLabel: interval,
               amountCents: fulfilled.plan.priceCents,
               currency: fulfilled.plan.currency,
-              seats: 1,
+              seats: fulfilled.seats,
               nextBillingAt: fulfilled.expiresAt,
             });
           } else {

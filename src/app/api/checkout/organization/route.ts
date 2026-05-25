@@ -1,7 +1,20 @@
+// Dicteren.ai — Zakelijke checkout
+//
+// Self-service team-aankoop: gebruiker geeft (verplicht) organisatie-naam,
+// billing-velden + (optioneel) VAT op. Server maakt een Better Auth org aan
+// (= huidige user wordt automatisch owner), upsert billing, maakt order +
+// Mollie payment, en koppelt eventuele affiliate-referral aan de order.
+//
+// Bestaande org (member) flow: als organizationId wordt meegestuurd én de
+// session-user is owner/admin van die org, wordt geen nieuwe org aangemaakt
+// maar de bestaande hergebruikt voor een nieuwe order (bv. seat-uitbreiding).
+
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { authMember } from "@/lib/db/auth-schema";
+import { auth } from "@/lib/auth/server";
 import { getSession } from "@/lib/auth/session";
 import {
   attachMolliePayment,
@@ -13,7 +26,28 @@ import {
 } from "@/lib/services/order";
 import { createCustomerPayment, createPayment } from "@/lib/services/mollie";
 import { buildMollieMetadata } from "@/lib/services/mollie-metadata";
-import { trackEvent } from "@/lib/services/audit";
+import { logEvent, trackEvent } from "@/lib/services/audit";
+import {
+  deriveOrganizationSlug,
+  upsertOrganizationBilling,
+} from "@/lib/services/organization";
+import {
+  attributeUserToAffiliate,
+  getAffiliateByCode,
+  getReferralForUser,
+} from "@/lib/services/affiliate";
+
+type BillingInput = {
+  organizationName: string;
+  billingEmail: string;
+  countryCode: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  postalCode: string;
+  city: string;
+  vatNumber?: string | null;
+  purchaseOrderNumber?: string | null;
+};
 
 function webhookUrlFor(base: string): string | undefined {
   if (/localhost|127\.0\.0\.1/.test(base)) return undefined;
@@ -27,64 +61,50 @@ function appBase(): string {
   );
 }
 
+function clientError(status: number, error: string, code: string) {
+  return NextResponse.json({ success: false, error, code }, { status });
+}
+
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session?.user) {
-    return NextResponse.json(
-      { success: false, error: "Inloggen vereist" },
-      { status: 401 },
-    );
+    return clientError(401, "Inloggen vereist", "UNAUTH");
   }
 
   let body: {
     planSlug?: string;
     seats?: number;
-    organizationName?: string;
     organizationId?: string;
+    billing?: BillingInput;
+    affiliateCode?: string | null;
   };
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json(
-      { success: false, error: "Body ontbreekt" },
-      { status: 400 },
-    );
+    return clientError(400, "Body ontbreekt", "INVALID_BODY");
   }
 
-  const { planSlug, seats, organizationName, organizationId } = body;
+  const { planSlug, seats, organizationId, billing, affiliateCode } = body;
 
-  if (!planSlug) {
-    return NextResponse.json(
-      { success: false, error: "planSlug ontbreekt" },
-      { status: 400 },
-    );
-  }
+  if (!planSlug) return clientError(400, "planSlug ontbreekt", "MISSING_PLAN");
 
   const seatCount = Math.max(1, Math.floor(Number(seats ?? 1)));
   if (seatCount > 49) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Voor 50+ seats vragen we een maatwerk-offerte.",
-        code: "CUSTOM_QUOTE_REQUIRED",
-      },
-      { status: 400 },
+    return clientError(
+      400,
+      "Voor 50+ seats vragen we een maatwerk-offerte.",
+      "CUSTOM_QUOTE_REQUIRED",
     );
   }
 
   const plan = await getPlanBySlug(planSlug);
   if (!plan || plan.customerType !== "organization" || !plan.isActive) {
-    return NextResponse.json(
-      { success: false, error: "Plan niet beschikbaar" },
-      { status: 400 },
-    );
+    return clientError(400, "Plan niet beschikbaar", "PLAN_INACTIVE");
   }
 
-  // Cross-tenant guard: als organizationId meegestuurd wordt, moet de session-user
-  // member van die org zijn en owner/admin-role hebben. Anders kan iemand een
-  // order voor een vreemde org aanmaken.
-  // Pattern: Better Auth org-plugin documentatie, sectie "Implement Authorization
-  // Check for Organization Subscriptions".
+  // ───── Pad A: bestaande org → check membership ─────
+  let resolvedOrgId: string | null = null;
+
   if (organizationId) {
     const [membership] = await db
       .select({ role: authMember.role })
@@ -96,22 +116,130 @@ export async function POST(request: Request) {
         ),
       )
       .limit(1);
-
     if (!membership) {
-      return NextResponse.json(
-        { success: false, error: "Je bent geen lid van deze organisatie.", code: "NOT_A_MEMBER" },
-        { status: 403 },
+      return clientError(
+        403,
+        "Je bent geen lid van deze organisatie.",
+        "NOT_A_MEMBER",
       );
     }
     if (membership.role !== "owner" && membership.role !== "admin") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Alleen organisatie-beheerders kunnen aankopen doen.",
-          code: "INSUFFICIENT_ROLE",
-        },
-        { status: 403 },
+      return clientError(
+        403,
+        "Alleen organisatie-beheerders kunnen aankopen doen.",
+        "INSUFFICIENT_ROLE",
       );
+    }
+    resolvedOrgId = organizationId;
+  } else {
+    // ───── Pad B: nieuwe org maken ─────
+    if (!billing?.organizationName?.trim()) {
+      return clientError(
+        400,
+        "Bedrijfsnaam is verplicht.",
+        "MISSING_ORG_NAME",
+      );
+    }
+    if (
+      !billing.billingEmail?.trim() ||
+      !billing.addressLine1?.trim() ||
+      !billing.postalCode?.trim() ||
+      !billing.city?.trim() ||
+      !billing.countryCode?.trim()
+    ) {
+      return clientError(
+        400,
+        "Volledige factuuradres-gegevens zijn verplicht.",
+        "MISSING_BILLING",
+      );
+    }
+
+    const slug = deriveOrganizationSlug(billing.organizationName);
+    // Better Auth's createOrganization: met session-headers wordt de
+    // current user automatisch owner van de nieuwe org (member.role = "owner").
+    let createdOrg;
+    try {
+      createdOrg = await auth.api.createOrganization({
+        headers: await headers(),
+        body: {
+          name: billing.organizationName.trim(),
+          slug,
+          keepCurrentActiveOrganization: false,
+        },
+      });
+    } catch (err) {
+      console.error("[checkout/org] createOrganization failed", err);
+      return clientError(
+        500,
+        "Aanmaken van organisatie mislukt. Probeer opnieuw.",
+        "ORG_CREATE_FAILED",
+      );
+    }
+    if (!createdOrg?.id) {
+      return clientError(
+        500,
+        "Aanmaken van organisatie gaf geen ID terug.",
+        "ORG_CREATE_EMPTY",
+      );
+    }
+    resolvedOrgId = createdOrg.id;
+
+    await logEvent({
+      action: "organization.created",
+      entityType: "organization",
+      entityId: resolvedOrgId,
+      actorId: session.user.id,
+      metadata: { name: billing.organizationName, slug },
+    });
+  }
+
+  // ───── Billing-row upsert ─────
+  if (billing && resolvedOrgId) {
+    await upsertOrganizationBilling(resolvedOrgId, {
+      billingEmail: billing.billingEmail ?? null,
+      vatNumber: billing.vatNumber ?? null,
+      countryCode: billing.countryCode ?? null,
+      addressLine1: billing.addressLine1 ?? null,
+      addressLine2: billing.addressLine2 ?? null,
+      postalCode: billing.postalCode ?? null,
+      city: billing.city ?? null,
+      purchaseOrderNumber: billing.purchaseOrderNumber ?? null,
+      notes: null,
+    });
+    await logEvent({
+      action: "organization.billing_updated",
+      entityType: "organization",
+      entityId: resolvedOrgId,
+      actorId: session.user.id,
+      metadata: { source: "checkout" },
+    });
+  }
+
+  // ───── Affiliate attribution (lifetime, first-touch) ─────
+  if (affiliateCode) {
+    const aff = await getAffiliateByCode(affiliateCode);
+    if (aff && aff.status === "active") {
+      const existing = await getReferralForUser(session.user.id);
+      if (!existing) {
+        const result = await attributeUserToAffiliate({
+          affiliateId: aff.id,
+          userId: session.user.id,
+          organizationId: resolvedOrgId,
+          attributionSource: "url-ref",
+        });
+        if (result.created) {
+          await logEvent({
+            action: "affiliate.attributed",
+            entityType: "affiliate",
+            entityId: aff.id,
+            actorId: session.user.id,
+            metadata: { code: affiliateCode, organizationId: resolvedOrgId },
+          });
+        }
+      } else if (!existing.organizationId && resolvedOrgId) {
+        // Koppel orgId aan bestaande referral als nog leeg.
+        // (Defensive — niet kritiek voor commission-berekening.)
+      }
     }
   }
 
@@ -132,12 +260,14 @@ export async function POST(request: Request) {
   const { order, plan: planRow, amountCents, description } = await createOrder({
     userId: session.user.id,
     planSlug,
-    organizationId: organizationId ?? null,
+    organizationId: resolvedOrgId,
     quantity: seatCount,
   });
 
   const base = appBase();
-  const fullDescription = `${description}${organizationName ? ` — ${organizationName}` : ""}`;
+  const fullDescription = `${description}${
+    billing?.organizationName ? ` — ${billing.organizationName}` : ""
+  }`;
   const redirectUrl = `${base}/checkout/success?order=${order.id}`;
   const webhookUrl = webhookUrlFor(base);
   const baseMetadata = buildMollieMetadata(
@@ -150,13 +280,18 @@ export async function POST(request: Request) {
         name: session.user.name,
       },
       source: "self-signup",
+      organization: billing
+        ? {
+            name: billing.organizationName,
+            vatNumber: billing.vatNumber ?? null,
+            countryCode: billing.countryCode ?? null,
+          }
+        : undefined,
     }),
   );
-  // team-specifieke extra keys op metadata zetten (binnen ~1kB ruim genoeg).
   const metadata: Record<string, string | number | null> = {
     ...baseMetadata,
     seats: seatCount,
-    organizationName: organizationName ?? null,
   };
 
   const mollie =
@@ -179,10 +314,7 @@ export async function POST(request: Request) {
         });
 
   if (!mollie.success) {
-    return NextResponse.json(
-      { success: false, error: mollie.error, code: mollie.code },
-      { status: 502 },
-    );
+    return clientError(502, mollie.error, mollie.code ?? "MOLLIE_FAIL");
   }
 
   await attachMolliePayment(
@@ -194,6 +326,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     orderId: order.id,
+    organizationId: resolvedOrgId,
     checkoutUrl: mollie.data.checkoutUrl,
   });
 }

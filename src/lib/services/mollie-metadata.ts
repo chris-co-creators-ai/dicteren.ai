@@ -46,6 +46,11 @@ export interface MollieMetadataInput {
   organizationId?: string | null;
   email?: string;
   name?: string;
+  /** B2B audit-trail bij Mollie. Mollie heeft geen native company/VAT-velden;
+   *  we sturen ze als metadata zodat het in Mollie-dashboard te zien is. */
+  organizationName?: string | null;
+  vatNumber?: string | null;
+  countryCode?: string | null;
 }
 
 /**
@@ -67,6 +72,9 @@ export function buildMollieMetadata(
   if (input.organizationId) out.organizationId = input.organizationId;
   if (input.email) out.email = input.email;
   if (input.name) out.name = input.name;
+  if (input.organizationName) out.organizationName = input.organizationName;
+  if (input.vatNumber) out.vatNumber = input.vatNumber;
+  if (input.countryCode) out.countryCode = input.countryCode;
   if (input.discount) {
     out.discountType = input.discount.type;
     out.discountValue = input.discount.value;

@@ -216,6 +216,23 @@
 
 /* Design utility components — rem-based for responsive scaling */
 @layer components {
+  /* Form inputs — voor checkout-/account-formulieren */
+  .input {
+    width: 100%;
+    border: 1px solid var(--border-soft);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    background: white;
+    color: var(--navy);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--navy-300, var(--navy));
+    box-shadow: 0 0 0 3px rgba(28, 51, 102, 0.08);
+  }
+
   /* Buttons — fluid scale via clamp() for mobile → desktop */
   .btn {
     display: inline-flex;

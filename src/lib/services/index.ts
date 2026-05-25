@@ -90,3 +90,35 @@ export {
   type PartnerOrgPatch,
   type PartnerActivationStats,
 } from "./partner";
+
+export {
+  getOrganization,
+  getOrganizationBilling,
+  getMembership,
+  listUserOrganizations,
+  listOrganizationMembers,
+  deriveOrganizationSlug,
+  upsertOrganizationBilling,
+  type OrganizationBillingInput,
+} from "./organization";
+
+export {
+  generateAffiliateCode,
+  getAffiliateByCode,
+  getAffiliateById,
+  getAffiliateByUserId,
+  getReferralForUser,
+  attributeUserToAffiliate,
+  markReferralConverted,
+  calculateCommissionCents,
+  recordCommission,
+  createAffiliate,
+  updateAffiliate,
+  listAffiliates,
+  getAffiliateStats,
+  updateCommissionStatus,
+  listAffiliateReferrals,
+  listAffiliateCommissions,
+  type CommissionType,
+  type AffiliateStatusValue,
+} from "./affiliate";
