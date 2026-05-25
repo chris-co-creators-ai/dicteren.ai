@@ -61,6 +61,13 @@ export default async function CheckoutSuccessPage({
 
   return (
     <SuccessShell>
+      {/*
+        Mollie webhook kan de order pas op `paid` zetten nadat de client al
+        op deze page is. Polling-light: vernieuw elke 3 sec zolang we nog
+        wachten. Zodra de webhook door is rendert er geen meta-refresh meer
+        en stopt het. Geen client JS nodig.
+      */}
+      {isPending && <meta httpEquiv="refresh" content="3" />}
       <div className="mb-6 inline-flex items-center gap-2 text-[color:var(--green)]">
         <CheckCircle2 className="size-7" strokeWidth={2} />
         <span className="text-sm font-bold uppercase tracking-[0.05em]">

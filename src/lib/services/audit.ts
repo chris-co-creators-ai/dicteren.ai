@@ -14,6 +14,7 @@ type AuditAction =
   | "order.paid"
   | "order.failed"
   | "order.refunded"
+  | "subscription.creation_failed"
   | "checkout.started"
   | "checkout.completed"
   | "discount.redeemed"

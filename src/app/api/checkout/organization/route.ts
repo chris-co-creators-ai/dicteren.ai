@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { authMember } from "@/lib/db/auth-schema";
 import { getSession } from "@/lib/auth/session";
 import {
   attachMolliePayment,
@@ -75,6 +78,41 @@ export async function POST(request: Request) {
       { success: false, error: "Plan niet beschikbaar" },
       { status: 400 },
     );
+  }
+
+  // Cross-tenant guard: als organizationId meegestuurd wordt, moet de session-user
+  // member van die org zijn en owner/admin-role hebben. Anders kan iemand een
+  // order voor een vreemde org aanmaken.
+  // Pattern: Better Auth org-plugin documentatie, sectie "Implement Authorization
+  // Check for Organization Subscriptions".
+  if (organizationId) {
+    const [membership] = await db
+      .select({ role: authMember.role })
+      .from(authMember)
+      .where(
+        and(
+          eq(authMember.userId, session.user.id),
+          eq(authMember.organizationId, organizationId),
+        ),
+      )
+      .limit(1);
+
+    if (!membership) {
+      return NextResponse.json(
+        { success: false, error: "Je bent geen lid van deze organisatie.", code: "NOT_A_MEMBER" },
+        { status: 403 },
+      );
+    }
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Alleen organisatie-beheerders kunnen aankopen doen.",
+          code: "INSUFFICIENT_ROLE",
+        },
+        { status: 403 },
+      );
+    }
   }
 
   await trackEvent("checkout_started", {

@@ -397,6 +397,28 @@ export async function POST(request: Request) {
               nextBillingAt: fulfilled.expiresAt,
             });
           } else {
+            // Klant heeft betaald + license is uitgegeven, maar de auto-renew
+            // subscription is NIET aangemaakt. Volgende incasso komt nooit en
+            // dit zou stilletjes wegglijden zonder audit-log. Hier hangt geld
+            // aan — admin moet dit kunnen oppakken via /admin/audit.
+            await logEvent({
+              action: "subscription.creation_failed",
+              entityType: "license",
+              entityId: fulfilled.licenseId,
+              metadata: {
+                reason: sub.error,
+                code: sub.code,
+                mollieCustomerId: customerId,
+                mollieFirstPaymentId: payment.data.paymentId,
+                planId: fulfilled.plan.id,
+                planSlug: fulfilled.plan.slug,
+                interval,
+              },
+            });
+            await trackEvent("subscription_creation_failed", {
+              planSlug: fulfilled.plan.slug,
+              code: sub.code ?? null,
+            });
             console.warn(
               "[webhook] subscription create failed",
               sub.error,
