@@ -286,7 +286,7 @@ export default function PrijzenPage() {
                         Math.min(60, Math.max(1, Number(e.target.value) || 1)),
                       )
                     }
-                    className="w-12 rounded-md bg-white/10 px-1.5 py-1 text-center text-sm font-bold text-white outline-none focus:bg-white/20"
+                    className="w-12 rounded-md bg-white/10 px-1.5 py-1 text-center text-sm font-bold text-white outline-none focus:bg-white/20 [appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <button
                     type="button"
