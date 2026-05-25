@@ -125,6 +125,7 @@ const SAFE_REDIRECT_TARGETS = new Set([
   "/trial/start",
   "/prijzen",
   "/download",
+  "/auth/reset-password",
 ]);
 
 function safeNext(raw: string | string[] | undefined): string {
@@ -279,17 +280,46 @@ export default async function AuthPage({
             </div>
 
             {path === "sign-in" && (
+              <>
+                <p
+                  className="mt-4 text-center text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  <Link
+                    href="/auth/forgot-password"
+                    className="font-semibold hover:underline"
+                    style={{ color: "var(--navy)" }}
+                  >
+                    Wachtwoord vergeten?
+                  </Link>
+                </p>
+                <p
+                  className="mt-3 text-center text-xs"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Nog geen account?{" "}
+                  <Link
+                    href="/auth/sign-up"
+                    className="font-semibold hover:underline"
+                    style={{ color: "var(--navy)" }}
+                  >
+                    Probeer veertien dagen gratis
+                  </Link>
+                </p>
+              </>
+            )}
+            {path === "forgot-password" && (
               <p
                 className="mt-6 text-center text-xs"
                 style={{ color: "var(--text-muted)" }}
               >
-                Nog geen account?{" "}
+                Weet je je wachtwoord weer?{" "}
                 <Link
-                  href="/auth/sign-up"
+                  href="/auth/sign-in"
                   className="font-semibold hover:underline"
                   style={{ color: "var(--navy)" }}
                 >
-                  Probeer veertien dagen gratis
+                  Inloggen
                 </Link>
               </p>
             )}
