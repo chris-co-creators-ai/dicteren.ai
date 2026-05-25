@@ -3,8 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Download, Edit, Pause, Play } from "lucide-react";
+import { Copy, Download, Edit, Pause, Play, Plus } from "lucide-react";
 import { EditAffiliateModal } from "./edit-affiliate-modal";
+import { CreateDiscountCodeModal } from "./create-discount-code-modal";
 
 type Affiliate = {
   id: string;
@@ -53,11 +54,25 @@ type Commission = {
   paidReference: string | null;
 };
 
+type DiscountCode = {
+  id: string;
+  code: string;
+  type: "percentage" | "fixed" | "free_months";
+  value: number;
+  appliesTo: "consumer" | "organization" | null;
+  redemptionCount: number;
+  maxRedemptions: number | null;
+  isActive: boolean;
+  validUntil: string | null;
+  createdAt: string;
+};
+
 type Props = {
   affiliate: Affiliate;
   stats: Stats;
   referrals: Referral[];
   commissions: Commission[];
+  discountCodes: DiscountCode[];
   formatEur: (cents: number) => string;
 };
 
@@ -66,12 +81,14 @@ export function AffiliateDetailClient({
   stats,
   referrals,
   commissions,
+  discountCodes,
   formatEur,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editOpen, setEditOpen] = useState(false);
+  const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [error, setError] = useState<string | null>(null);
 
@@ -276,6 +293,61 @@ export function AffiliateDetailClient({
             ? `${affiliate.commissionPct}% per order`
             : `${formatEur(affiliate.commissionFixedCents)} per seat`}
           {affiliate.payoutMethod && ` · payout via ${affiliate.payoutMethod}`}
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold">Discount-codes</h2>
+            <p className="text-xs text-muted-foreground">
+              Codes die deze affiliate aan klanten kan geven. Bij gebruik krijgt
+              de klant korting EN wordt de affiliate als account owner
+              geattribueerd.
+            </p>
+          </div>
+          <button
+            onClick={() => setDiscountModalOpen(true)}
+            className="btn btn-primary"
+          >
+            <Plus className="size-3.5" strokeWidth={2.2} />
+            Nieuwe code
+          </button>
+        </div>
+        <div className="overflow-x-auto rounded-2xl border bg-card">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-muted/40 text-left text-xs uppercase">
+              <tr>
+                <th className="px-4 py-3">Code</th>
+                <th className="px-4 py-3">Korting</th>
+                <th className="px-4 py-3">Doelgroep</th>
+                <th className="px-4 py-3">Gebruik</th>
+                <th className="px-4 py-3">Geldig tot</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {discountCodes.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-8 text-center text-muted-foreground"
+                  >
+                    Nog geen discount-codes. Klik op + Nieuwe code.
+                  </td>
+                </tr>
+              )}
+              {discountCodes.map((d) => (
+                <DiscountRow
+                  key={d.id}
+                  d={d}
+                  formatEur={formatEur}
+                  onChange={() => startTransition(() => router.refresh())}
+                />
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -489,7 +561,108 @@ export function AffiliateDetailClient({
           }}
         />
       )}
+
+      {discountModalOpen && (
+        <CreateDiscountCodeModal
+          affiliateId={affiliate.id}
+          affiliateName={affiliate.name}
+          onClose={() => setDiscountModalOpen(false)}
+          onCreated={() => {
+            setDiscountModalOpen(false);
+            startTransition(() => router.refresh());
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function DiscountRow({
+  d,
+  formatEur,
+  onChange,
+}: {
+  d: DiscountCode;
+  formatEur: (cents: number) => string;
+  onChange: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+
+  async function toggleActive() {
+    setPending(true);
+    await fetch(`/api/admin/discount-codes/${d.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ isActive: !d.isActive }),
+    });
+    setPending(false);
+    onChange();
+  }
+
+  async function copyCode() {
+    try {
+      await navigator.clipboard.writeText(d.code);
+    } catch {
+      // ignore
+    }
+  }
+
+  const kortingLabel =
+    d.type === "percentage"
+      ? `-${d.value}%`
+      : d.type === "fixed"
+        ? `-${formatEur(d.value)}`
+        : `${d.value} mnd gratis`;
+
+  return (
+    <tr className="hover:bg-muted/30">
+      <td className="px-4 py-3">
+        <button
+          onClick={copyCode}
+          className="font-mono text-xs font-semibold hover:underline"
+          title="Klik om te kopiëren"
+        >
+          {d.code}
+        </button>
+      </td>
+      <td className="px-4 py-3 text-xs">{kortingLabel}</td>
+      <td className="px-4 py-3 text-xs">
+        {d.appliesTo === "organization"
+          ? "Zakelijk"
+          : d.appliesTo === "consumer"
+            ? "Consumer"
+            : "Alle"}
+      </td>
+      <td className="px-4 py-3 text-xs">
+        {d.redemptionCount}
+        {d.maxRedemptions ? ` / ${d.maxRedemptions}` : " ·∞"}
+      </td>
+      <td className="px-4 py-3 text-xs">
+        {d.validUntil
+          ? new Date(d.validUntil).toLocaleDateString("nl-NL")
+          : "—"}
+      </td>
+      <td className="px-4 py-3 text-xs">
+        <span
+          className={`inline-flex rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${
+            d.isActive
+              ? "bg-green-100 text-green-800"
+              : "bg-gray-200 text-gray-700"
+          }`}
+        >
+          {d.isActive ? "Active" : "Inactief"}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <button
+          onClick={toggleActive}
+          disabled={pending}
+          className="text-xs font-semibold text-blue-600 hover:underline"
+        >
+          {d.isActive ? "Deactiveer" : "Activeer"}
+        </button>
+      </td>
+    </tr>
   );
 }
 

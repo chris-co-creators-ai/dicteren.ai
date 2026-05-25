@@ -5,16 +5,18 @@ import {
   listCustomerFunnel,
 } from "@/lib/services/identity";
 import { listAffiliates } from "@/lib/services/affiliate";
+import { listDiscounts } from "@/lib/services/commerce";
 import { CrmView } from "./crm-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCrmPage() {
-  const [rows, stages, kpis, affiliates] = await Promise.all([
+  const [rows, stages, kpis, affiliates, discounts] = await Promise.all([
     listCustomerFunnel(),
     funnelStageCounts(),
     identityKpis(),
     listAffiliates(),
+    listDiscounts(),
   ]);
 
   const conversionPct =
@@ -66,12 +68,25 @@ export default async function AdminCrmPage() {
                 r.accountOwner.convertedAt?.toISOString() ?? null,
             }
           : null,
+        discountCodeUsed: r.discountCodeUsed
+          ? {
+              id: r.discountCodeUsed.id,
+              code: r.discountCodeUsed.code,
+              affiliateId: r.discountCodeUsed.affiliateId,
+            }
+          : null,
       }))}
       affiliates={affiliates.map((a) => ({
         id: a.id,
         code: a.code,
         name: a.name,
         status: a.status,
+      }))}
+      discountCodes={discounts.map((d) => ({
+        id: d.id,
+        code: d.code,
+        affiliateId: d.affiliateId,
+        isActive: d.isActive,
       }))}
       stageCounts={stages}
       kpis={[

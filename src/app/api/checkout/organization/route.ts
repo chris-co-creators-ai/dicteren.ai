@@ -36,6 +36,7 @@ import {
   getAffiliateByCode,
   getReferralForUser,
 } from "@/lib/services/affiliate";
+import { validateDiscountCode } from "@/lib/services/discount";
 
 type BillingInput = {
   organizationName: string;
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
     organizationId?: string;
     billing?: BillingInput;
     affiliateCode?: string | null;
+    discountCode?: string | null;
   };
   try {
     body = await request.json();
@@ -84,7 +86,14 @@ export async function POST(request: Request) {
     return clientError(400, "Body ontbreekt", "INVALID_BODY");
   }
 
-  const { planSlug, seats, organizationId, billing, affiliateCode } = body;
+  const {
+    planSlug,
+    seats,
+    organizationId,
+    billing,
+    affiliateCode,
+    discountCode,
+  } = body;
 
   if (!planSlug) return clientError(400, "planSlug ontbreekt", "MISSING_PLAN");
 
@@ -243,6 +252,28 @@ export async function POST(request: Request) {
     }
   }
 
+  // ───── Discount-code validatie ─────
+  // Klant kan ofwel ?ref=AFF-CODE meegeven (URL-attribution), ofwel een
+  // discount-code in de form invullen (= ook attribution via discount_codes.
+  // affiliateId + korting). Beide tegelijk mag.
+  const listAmountCents = plan.priceCents * seatCount;
+  let payableAmountCents = listAmountCents;
+  let resolvedDiscountId: string | null = null;
+  if (discountCode) {
+    const validation = await validateDiscountCode({
+      code: discountCode,
+      basisAmountCents: listAmountCents,
+      planId: plan.id,
+      seats: seatCount,
+      audience: "organization",
+    });
+    if (!validation.success) {
+      return clientError(400, validation.error, `DISCOUNT_${validation.code}`);
+    }
+    payableAmountCents = validation.payableAmountCents;
+    resolvedDiscountId = validation.discount.id;
+  }
+
   await trackEvent("checkout_started", {
     planSlug,
     customerType: "organization",
@@ -262,6 +293,8 @@ export async function POST(request: Request) {
     planSlug,
     organizationId: resolvedOrgId,
     quantity: seatCount,
+    discountCodeId: resolvedDiscountId,
+    amountCentsOverride: payableAmountCents,
   });
 
   const base = appBase();

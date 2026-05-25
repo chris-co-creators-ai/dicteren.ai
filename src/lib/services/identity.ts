@@ -18,8 +18,10 @@ import {
   authMembers,
   authOrganizations,
   authUsers,
+  discountCodes,
   emailLogs,
   licenses,
+  orders,
   organizationBilling,
   subscriptions,
   userBilling,
@@ -196,6 +198,13 @@ export type CustomerFunnelRow = {
     code: string;
     name: string;
     convertedAt: Date | null;
+  } | null;
+  /** Discount-code die deze klant gebruikt heeft (laatste paid order).
+   *  affiliateId is gezet als de code aan een reseller gekoppeld is. */
+  discountCodeUsed: {
+    id: string;
+    code: string;
+    affiliateId: string | null;
   } | null;
 };
 
@@ -383,6 +392,35 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
     });
   }
 
+  // Discount-code per user — latest order met een discount-code wint.
+  // Lifetime-stijl: we tonen de meest recente, want klant kan meerdere
+  // orders met verschillende codes hebben.
+  const discountRows = await db
+    .select({
+      userId: orders.userId,
+      orderCreatedAt: orders.createdAt,
+      id: discountCodes.id,
+      code: discountCodes.code,
+      affiliateId: discountCodes.affiliateId,
+    })
+    .from(orders)
+    .innerJoin(discountCodes, eq(discountCodes.id, orders.discountCodeId))
+    .orderBy(desc(orders.createdAt));
+  const discountByUser = new Map<
+    string,
+    { id: string; code: string; affiliateId: string | null }
+  >();
+  for (const d of discountRows) {
+    if (!d.userId) continue;
+    if (!discountByUser.has(d.userId)) {
+      discountByUser.set(d.userId, {
+        id: d.id,
+        code: d.code,
+        affiliateId: d.affiliateId,
+      });
+    }
+  }
+
   // Email aggregates per user
   const emailAgg = await db
     .select({
@@ -439,6 +477,7 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       emailsClicked: em?.clicked ?? 0,
       emailsBounced: em?.bounced ?? 0,
       accountOwner: ownerByUser.get(u.id) ?? null,
+      discountCodeUsed: discountByUser.get(u.id) ?? null,
     };
   });
 }

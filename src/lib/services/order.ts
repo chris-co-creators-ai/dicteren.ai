@@ -48,6 +48,9 @@ type CreateOrderInput = {
   organizationId?: string | null;
   quantity?: number;
   discountCodeId?: string | null;
+  /** Overrule het berekende bedrag (cents). Voor checkouts met discount-code:
+   *  we slaan het BETAALDE bedrag op, niet het lijst-bedrag. */
+  amountCentsOverride?: number | null;
 };
 
 type CreatedOrder = {
@@ -75,7 +78,11 @@ export async function createOrder(
   if (!plan.isActive) throw new Error(`Plan inactive: ${input.planSlug}`);
 
   const quantity = Math.max(1, input.quantity ?? 1);
-  const amountCents = computeAmountCents(plan, quantity);
+  const listAmountCents = computeAmountCents(plan, quantity);
+  const amountCents =
+    typeof input.amountCentsOverride === "number"
+      ? Math.max(0, input.amountCentsOverride)
+      : listAmountCents;
 
   const [order] = await db
     .insert(orders)
@@ -133,6 +140,7 @@ export async function fulfillPaidOrder(args: {
   userId: string | null;
   paymentId: string;
   seats: number;
+  discountCodeId: string | null;
   expiresAt: Date;
   plan: Plan;
 } | null> {
@@ -218,6 +226,7 @@ export async function fulfillPaidOrder(args: {
     userId: order.userId,
     paymentId: paymentRow.id,
     seats,
+    discountCodeId: order.discountCodeId ?? null,
     expiresAt,
     plan,
   };

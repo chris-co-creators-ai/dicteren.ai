@@ -44,6 +44,11 @@ type Customer = {
     name: string;
     convertedAt: string | null;
   } | null;
+  discountCodeUsed: {
+    id: string;
+    code: string;
+    affiliateId: string | null;
+  } | null;
 };
 
 type AffiliateOption = {
@@ -51,6 +56,13 @@ type AffiliateOption = {
   code: string;
   name: string;
   status: string;
+};
+
+type DiscountOption = {
+  id: string;
+  code: string;
+  affiliateId: string | null;
+  isActive: boolean;
 };
 
 type Kpi = { label: string; value: string; detail: string };
@@ -145,17 +157,20 @@ function formatDate(iso: string): string {
 export function CrmView({
   customers,
   affiliates,
+  discountCodes,
   kpis,
   stageCounts,
 }: {
   customers: Customer[];
   affiliates: AffiliateOption[];
+  discountCodes: DiscountOption[];
   kpis: Kpi[];
   stageCounts: Record<Stage, number>;
 }) {
   const [tab, setTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [discountFilter, setDiscountFilter] = useState<string>("all");
 
   const counts: Record<TabKey, number> = useMemo(() => {
     const bySeg: Record<Segment, number> = {
@@ -198,6 +213,13 @@ export function CrmView({
             return false;
           }
         }
+        if (discountFilter !== "all") {
+          if (discountFilter === "none") {
+            if (r.discountCodeUsed) return false;
+          } else if (r.discountCodeUsed?.id !== discountFilter) {
+            return false;
+          }
+        }
         if (search) {
           const q = search.toLowerCase();
           return (
@@ -205,12 +227,13 @@ export function CrmView({
             r.email.toLowerCase().includes(q) ||
             (r.mollieCustomerId?.toLowerCase().includes(q) ?? false) ||
             (r.accountOwner?.name.toLowerCase().includes(q) ?? false) ||
-            (r.accountOwner?.code.toLowerCase().includes(q) ?? false)
+            (r.accountOwner?.code.toLowerCase().includes(q) ?? false) ||
+            (r.discountCodeUsed?.code.toLowerCase().includes(q) ?? false)
           );
         }
         return true;
       }),
-    [tab, search, ownerFilter, customers],
+    [tab, search, ownerFilter, discountFilter, customers],
   );
 
   return (
@@ -309,6 +332,23 @@ export function CrmView({
                   </option>
                 ))}
               </select>
+              <select
+                value={discountFilter}
+                onChange={(e) => setDiscountFilter(e.target.value)}
+                className="rounded-lg border border-[color:var(--border-soft)] py-2 px-3 text-sm outline-none focus:border-[color:var(--orange)]"
+                style={{ background: "var(--bg)" }}
+                title="Filter op discount-code"
+              >
+                <option value="all">Alle discount-codes</option>
+                <option value="none">Geen discount-code</option>
+                {discountCodes.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.code}
+                    {d.affiliateId ? " (reseller)" : ""}
+                    {!d.isActive ? " · inactief" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -330,6 +370,7 @@ export function CrmView({
                     "Lic.",
                     "Lid sinds",
                     "Account owner",
+                    "Discount-code",
                   ].map((h) => (
                     <th
                       key={h}
@@ -344,7 +385,7 @@ export function CrmView({
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={10}
+                      colSpan={11}
                       className="px-3 py-10 text-center text-sm text-[color:var(--text-muted)]"
                     >
                       Geen klanten in dit filter.
@@ -484,6 +525,34 @@ export function CrmView({
                                 {r.accountOwner.code}
                               </span>
                             </Link>
+                          ) : (
+                            <span className="text-[color:var(--text-soft)]">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-xs">
+                          {r.discountCodeUsed ? (
+                            r.discountCodeUsed.affiliateId ? (
+                              <Link
+                                href={`/admin/affiliates/${r.discountCodeUsed.affiliateId}`}
+                                className="inline-flex flex-col"
+                              >
+                                <span className="font-mono font-semibold text-[color:var(--navy)]">
+                                  {r.discountCodeUsed.code}
+                                </span>
+                                <span className="text-[0.6rem] text-[color:var(--text-soft)]">
+                                  reseller-link
+                                </span>
+                              </Link>
+                            ) : (
+                              <span className="inline-flex flex-col">
+                                <span className="font-mono font-semibold">
+                                  {r.discountCodeUsed.code}
+                                </span>
+                                <span className="text-[0.6rem] text-[color:var(--text-soft)]">
+                                  algemene code
+                                </span>
+                              </span>
+                            )
                           ) : (
                             <span className="text-[color:var(--text-soft)]">—</span>
                           )}

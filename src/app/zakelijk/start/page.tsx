@@ -10,6 +10,7 @@ type SearchParams = Promise<{
   plan?: string;
   seats?: string;
   ref?: string;
+  code?: string;
 }>;
 
 export default async function ZakelijkStartPage({
@@ -17,16 +18,22 @@ export default async function ZakelijkStartPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { plan: planSlug, seats: seatsParam, ref } = await searchParams;
+  const {
+    plan: planSlug,
+    seats: seatsParam,
+    ref,
+    code,
+  } = await searchParams;
   const session = await getSession();
 
   if (!session?.user) {
     const nextUrl = `/zakelijk/start${
-      planSlug || seatsParam || ref
+      planSlug || seatsParam || ref || code
         ? `?${new URLSearchParams({
             ...(planSlug ? { plan: planSlug } : {}),
             ...(seatsParam ? { seats: seatsParam } : {}),
             ...(ref ? { ref } : {}),
+            ...(code ? { code } : {}),
           }).toString()}`
         : ""
     }`;
@@ -79,6 +86,7 @@ export default async function ZakelijkStartPage({
           planPeriod={plan.period}
           initialSeats={seats}
           affiliateCode={ref ?? null}
+          initialDiscountCode={code ?? null}
           defaultBillingEmail={session.user.email}
         />
       </div>

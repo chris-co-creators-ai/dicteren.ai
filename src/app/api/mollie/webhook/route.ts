@@ -42,11 +42,15 @@ import {
   sendRenewalEmail,
 } from "@/lib/services/email";
 import {
+  attributeUserToAffiliate,
   getAffiliateById,
   getReferralForUser,
   markReferralConverted,
   recordCommission,
 } from "@/lib/services/affiliate";
+import { incrementDiscountRedemption } from "@/lib/services/discount";
+import { eq as drizzleEq } from "drizzle-orm";
+import { discountCodes } from "@/lib/db/schema";
 
 /** Lookup billing contact by license-id (used for recurring/refund mails). */
 async function contactForLicense(
@@ -349,6 +353,46 @@ export async function POST(request: Request) {
             emailResult.error,
             emailResult.code,
           );
+        }
+      }
+
+      // ───── Discount-code attributie + redemption ─────
+      // Klant heeft een discount-code gebruikt: increment redemption-count
+      // (idempotent op orderId — een retried webhook fulfilled = null, dus
+      // dit blok wordt alleen op de eerste call uitgevoerd) én als de code
+      // aan een affiliate hangt: attribueer user via discount-code path.
+      if (fulfilled.discountCodeId) {
+        await incrementDiscountRedemption(fulfilled.discountCodeId);
+        if (fulfilled.userId) {
+          const [discountRow] = await db
+            .select({
+              code: discountCodes.code,
+              affiliateId: discountCodes.affiliateId,
+            })
+            .from(discountCodes)
+            .where(drizzleEq(discountCodes.id, fulfilled.discountCodeId))
+            .limit(1);
+          if (discountRow?.affiliateId) {
+            const result = await attributeUserToAffiliate({
+              affiliateId: discountRow.affiliateId,
+              userId: fulfilled.userId,
+              organizationId: fulfilled.organizationId,
+              attributionSource: `discount:${discountRow.code}`,
+            });
+            if (result.created) {
+              await logEvent({
+                action: "affiliate.attributed",
+                entityType: "affiliate",
+                entityId: discountRow.affiliateId,
+                actorId: fulfilled.userId,
+                metadata: {
+                  source: "discount-code",
+                  discountCode: discountRow.code,
+                  orderId: fulfilled.orderId,
+                },
+              });
+            }
+          }
         }
       }
 

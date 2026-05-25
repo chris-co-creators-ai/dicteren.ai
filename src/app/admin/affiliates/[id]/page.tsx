@@ -7,6 +7,7 @@ import {
   listAffiliateReferrals,
   listAffiliateCommissions,
 } from "@/lib/services/affiliate";
+import { listDiscountCodesForAffiliate } from "@/lib/services/discount";
 import { AffiliateDetailClient } from "./affiliate-detail-client";
 
 export const dynamic = "force-dynamic";
@@ -29,10 +30,11 @@ export default async function AffiliateDetailPage({
   const affiliate = await getAffiliateById(id);
   if (!affiliate) notFound();
 
-  const [stats, referrals, commissions] = await Promise.all([
+  const [stats, referrals, commissions, discountCodes] = await Promise.all([
     getAffiliateStats(id),
     listAffiliateReferrals(id),
     listAffiliateCommissions(id),
+    listDiscountCodesForAffiliate(id),
   ]);
 
   return (
@@ -89,6 +91,18 @@ export default async function AffiliateDetailPage({
             status: commission.status,
             paidAt: commission.paidAt?.toISOString() ?? null,
             paidReference: commission.paidReference,
+          }))}
+          discountCodes={discountCodes.map((d) => ({
+            id: d.id,
+            code: d.code,
+            type: d.type,
+            value: d.value,
+            appliesTo: d.appliesTo,
+            redemptionCount: d.redemptionCount,
+            maxRedemptions: d.maxRedemptions,
+            isActive: d.isActive,
+            validUntil: d.validUntil?.toISOString() ?? null,
+            createdAt: d.createdAt.toISOString(),
           }))}
           formatEur={eur}
         />

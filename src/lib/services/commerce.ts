@@ -233,6 +233,7 @@ export type DiscountRow = {
   isActive: boolean;
   validFrom: Date | null;
   validUntil: Date | null;
+  affiliateId: string | null;
 };
 
 export async function listDiscounts(): Promise<DiscountRow[]> {
@@ -251,6 +252,7 @@ export async function listDiscounts(): Promise<DiscountRow[]> {
     isActive: r.isActive,
     validFrom: r.validFrom,
     validUntil: r.validUntil,
+    affiliateId: r.affiliateId,
   }));
 }
 

@@ -103,6 +103,18 @@ export {
 } from "./organization";
 
 export {
+  validateDiscountCode,
+  incrementDiscountRedemption,
+  createDiscountCodeForAffiliate,
+  listDiscountCodesForAffiliate,
+  setDiscountCodeActive,
+  discountCodesForUsers,
+  type DiscountValidation,
+  type DiscountValidationOk,
+  type DiscountValidationFail,
+} from "./discount";
+
+export {
   generateAffiliateCode,
   getAffiliateByCode,
   getAffiliateById,

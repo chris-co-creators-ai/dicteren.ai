@@ -9,6 +9,7 @@ type Props = {
   planPeriod: string;
   initialSeats: number;
   affiliateCode: string | null;
+  initialDiscountCode?: string | null;
   defaultBillingEmail: string;
 };
 
@@ -26,6 +27,7 @@ export function CheckoutForm({
   planPeriod,
   initialSeats,
   affiliateCode,
+  initialDiscountCode,
   defaultBillingEmail,
 }: Props) {
   const [seats, setSeats] = useState(initialSeats);
@@ -38,10 +40,14 @@ export function CheckoutForm({
   const [city, setCity] = useState("");
   const [countryCode, setCountryCode] = useState("NL");
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState("");
+  const [discountCode, setDiscountCode] = useState(
+    initialDiscountCode?.toUpperCase() ?? "",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const total = planPriceCents * seats;
+  const subtotal = planPriceCents * seats;
+  const total = subtotal; // het server-side payable bedrag wordt op de Mollie-page getoond
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +61,7 @@ export function CheckoutForm({
           planSlug,
           seats,
           affiliateCode,
+          discountCode: discountCode || null,
           billing: {
             organizationName,
             billingEmail,
@@ -217,15 +224,30 @@ export function CheckoutForm({
         />
       </Field>
 
+      <Field label="Kortingscode (optioneel)">
+        <input
+          value={discountCode}
+          onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+          className="input font-mono"
+          placeholder="bv. RESELLER-A1B2C3"
+          autoComplete="off"
+        />
+      </Field>
+
       <div className="flex flex-col gap-1 border-t border-[color:var(--border-soft)] pt-4">
         <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
           <span>{seats} × {eur(planPriceCents)}</span>
-          <span>{eur(total)}</span>
+          <span>{eur(subtotal)}</span>
         </div>
         <div className="flex items-center justify-between text-base font-bold">
-          <span>Totaal excl. btw</span>
+          <span>Subtotaal excl. btw</span>
           <span>{eur(total)}</span>
         </div>
+        {discountCode && (
+          <div className="mt-1 text-[0.6875rem] text-[color:var(--green)]">
+            Kortingscode {discountCode} wordt op de volgende pagina toegepast.
+          </div>
+        )}
         {affiliateCode && (
           <div className="mt-1 text-[0.6875rem] text-[color:var(--text-soft)]">
             Affiliate-referentie: {affiliateCode}
