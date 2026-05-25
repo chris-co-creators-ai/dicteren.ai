@@ -45,6 +45,14 @@ export const auth = betterAuth({
   // Hergebruik bestaande NEON_AUTH_COOKIE_SECRET (32+ bytes hex) zodat we
   // geen nieuwe secret hoeven uit te delen aan Vercel.
   secret: process.env.NEON_AUTH_COOKIE_SECRET!,
+  // Belangrijk: onze schema heeft `id uuid PRIMARY KEY DEFAULT gen_random_uuid()`.
+  // Default genereert better-auth een nanoid (string) — dat rejecteert postgres
+  // op een uuid-kolom (→ 500). `generateId: false` laat de DB de id genereren.
+  advanced: {
+    database: {
+      generateId: false,
+    },
+  },
   database: drizzleAdapter(dbAuth, {
     provider: "pg",
     schema: {
