@@ -5,14 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Building2,
+  Columns3,
   Eye,
   EyeOff,
   GripVertical,
+  Kanban,
+  List,
   Plus,
   Search,
   Settings2,
   Trash2,
   User,
+  UserPlus,
   X,
 } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
@@ -23,6 +27,17 @@ import {
   type ColumnKey,
   type ColumnPrefs,
 } from "@/lib/services/columnPrefsShared";
+import { KanbanView } from "./kanban-view";
+import { AddProspectModal } from "./add-prospect-modal";
+
+type CustomColumnDef = {
+  id: string;
+  key: string;
+  name: string;
+  type: "text" | "number" | "date" | "select";
+  options: string[] | null;
+  position: number;
+};
 
 type Stage =
   | "lead"
@@ -80,6 +95,7 @@ type Customer = {
   crmTemperature: Temperature;
   assignedToUserId: string | null;
   notes: string | null;
+  customFields: Record<string, string | number | null> | null;
   listIds: string[];
 };
 
@@ -226,6 +242,7 @@ export function CrmView({
   lists,
   adminUsers,
   columnPrefs,
+  customColumns,
   kpis,
 }: {
   currentUserId: string;
@@ -235,6 +252,7 @@ export function CrmView({
   lists: LeadListOption[];
   adminUsers: AdminUser[];
   columnPrefs: ColumnPrefs;
+  customColumns: CustomColumnDef[];
   stageCounts: Record<Stage, number>;
   kpis: Kpi[];
 }) {
@@ -242,6 +260,7 @@ export function CrmView({
   const [, startTransition] = useTransition();
 
   const [activeListId, setActiveListId] = useState<string | "all">("all");
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [tempFilter, setTempFilter] = useState<string>("all");
@@ -252,12 +271,25 @@ export function CrmView({
   const [showColumnManager, setShowColumnManager] = useState(false);
   const [showCreateList, setShowCreateList] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
+  const [showAddProspect, setShowAddProspect] = useState(false);
   const [notesFor, setNotesFor] = useState<Customer | null>(null);
 
-  const [visible, setVisible] = useState<ColumnKey[]>(
-    columnPrefs.visibleColumns,
+  // Visible/order werken nu met (built-in + custom) ColumnKey-strings.
+  // Custom-column keys hebben prefix "custom:" (zie services/customColumns.ts).
+  const allKeys = useMemo<string[]>(
+    () => [
+      ...DEFAULT_VISIBLE_COLUMNS,
+      ...customColumns.map((c) => c.key),
+    ],
+    [customColumns],
   );
-  const [order, setOrder] = useState<ColumnKey[]>(columnPrefs.columnOrder);
+
+  const [visible, setVisible] = useState<string[]>(
+    columnPrefs.visibleColumns as string[],
+  );
+  const [order, setOrder] = useState<string[]>(
+    columnPrefs.columnOrder as string[],
+  );
 
   // Persistier prefs bij wijziging (debounced via 500ms).
   useEffect(() => {
@@ -409,13 +441,13 @@ export function CrmView({
     startTransition(() => router.refresh());
   }
 
-  // Visible kolommen in juiste volgorde.
+  // Visible kolommen in juiste volgorde. Combineer built-in + custom keys.
   const visibleSet = useMemo(() => new Set(visible), [visible]);
   const orderedColumns = useMemo(() => {
     const known = new Set(order);
-    const tail = DEFAULT_VISIBLE_COLUMNS.filter((c) => !known.has(c));
+    const tail = allKeys.filter((c) => !known.has(c));
     return [...order, ...tail].filter((c) => visibleSet.has(c));
-  }, [order, visibleSet]);
+  }, [order, visibleSet, allKeys]);
 
   const activeList = lists.find((l) => l.id === activeListId);
 
@@ -555,15 +587,50 @@ export function CrmView({
                 label: d.code,
               }))}
             />
-            <button
-              onClick={() => setShowColumnManager(true)}
-              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
-              style={{ background: "var(--bg)" }}
-              title="Kolommen beheren"
-            >
-              <Settings2 className="size-3.5" strokeWidth={2.2} />
-              Kolommen
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="inline-flex rounded-lg border border-[color:var(--border-soft)] bg-white p-0.5">
+                <button
+                  onClick={() => setViewMode("table")}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold",
+                    viewMode === "table"
+                      ? "bg-[color:var(--bg-deep)] text-[color:var(--navy)]"
+                      : "text-[color:var(--text-muted)]",
+                  )}
+                >
+                  <List className="size-3.5" strokeWidth={2.2} />
+                  Tabel
+                </button>
+                <button
+                  onClick={() => setViewMode("kanban")}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold",
+                    viewMode === "kanban"
+                      ? "bg-[color:var(--bg-deep)] text-[color:var(--navy)]"
+                      : "text-[color:var(--text-muted)]",
+                  )}
+                >
+                  <Kanban className="size-3.5" strokeWidth={2.2} />
+                  Kanban
+                </button>
+              </div>
+              <button
+                onClick={() => setShowAddProspect(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--orange)] px-3 py-2 text-xs font-semibold text-white hover:bg-[color:var(--orange-600)]"
+              >
+                <UserPlus className="size-3.5" strokeWidth={2.2} />
+                Prospect
+              </button>
+              <button
+                onClick={() => setShowColumnManager(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
+                style={{ background: "var(--bg)" }}
+                title="Kolommen beheren"
+              >
+                <Columns3 className="size-3.5" strokeWidth={2.2} />
+                Kolommen
+              </button>
+            </div>
           </div>
 
           {/* Bulk-toolbar */}
@@ -621,7 +688,35 @@ export function CrmView({
             </div>
           )}
 
+          {/* Kanban-view */}
+          {viewMode === "kanban" && (
+            <KanbanView
+              customers={filtered.map((c) => ({
+                id: c.id,
+                name: c.name,
+                email: c.email,
+                crmStage: c.crmStage,
+                crmTemperature: c.crmTemperature,
+                segment: c.segment,
+                assignedToUserId: c.assignedToUserId,
+                paidLicenseCount: c.paidLicenseCount,
+                trialStatus: c.trialStatus,
+                accountOwner: c.accountOwner
+                  ? {
+                      name: c.accountOwner.name,
+                      code: c.accountOwner.code,
+                    }
+                  : null,
+              }))}
+              adminUsers={adminUsers}
+              onStageChange={(userId, stage) =>
+                rowUpdate(userId, { stage })
+              }
+            />
+          )}
+
           {/* Tabel */}
+          {viewMode === "table" && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[80rem] border-separate border-spacing-0 text-sm">
               <thead>
@@ -642,14 +737,22 @@ export function CrmView({
                       aria-label="Select all visible"
                     />
                   </th>
-                  {orderedColumns.map((col) => (
-                    <th
-                      key={col}
-                      className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-[0.05em]"
-                    >
-                      {COLUMN_LABELS[col]}
-                    </th>
-                  ))}
+                  {orderedColumns.map((col) => {
+                    const isCustom = col.startsWith("custom:");
+                    const customDef = isCustom
+                      ? customColumns.find((c) => c.key === col)
+                      : null;
+                    return (
+                      <th
+                        key={col}
+                        className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-[0.05em]"
+                      >
+                        {customDef
+                          ? customDef.name
+                          : COLUMN_LABELS[col as ColumnKey] ?? col}
+                      </th>
+                    );
+                  })}
                   <th className="w-10 px-3 py-2.5"></th>
                 </tr>
               </thead>
@@ -680,14 +783,38 @@ export function CrmView({
                       </td>
                       {orderedColumns.map((col) => (
                         <td key={col} className="px-3 py-3 align-top">
-                          <CellRenderer
-                            col={col}
-                            row={r}
-                            adminUsers={adminUsers}
-                            lists={lists}
-                            onUpdate={(p) => rowUpdate(r.id, p)}
-                            onOpenNotes={() => setNotesFor(r)}
-                          />
+                          {col.startsWith("custom:") ? (
+                            <CustomCell
+                              colKey={col}
+                              def={customColumns.find((c) => c.key === col)}
+                              value={r.customFields?.[col] ?? null}
+                              onChange={async (v) => {
+                                await fetch(
+                                  `/api/admin/customers/${r.id}/custom-field`,
+                                  {
+                                    method: "PATCH",
+                                    headers: {
+                                      "content-type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      key: col,
+                                      value: v,
+                                    }),
+                                  },
+                                );
+                                startTransition(() => router.refresh());
+                              }}
+                            />
+                          ) : (
+                            <CellRenderer
+                              col={col as ColumnKey}
+                              row={r}
+                              adminUsers={adminUsers}
+                              lists={lists}
+                              onUpdate={(p) => rowUpdate(r.id, p)}
+                              onOpenNotes={() => setNotesFor(r)}
+                            />
+                          )}
                         </td>
                       ))}
                       <td className="px-3 py-3 align-top">
@@ -704,6 +831,8 @@ export function CrmView({
               </tbody>
             </table>
           </div>
+
+          )}
 
           <div className="border-t border-[color:var(--border-soft)] px-4 py-3 text-xs text-[color:var(--text-muted)]">
             1–{filtered.length} van {filtered.length}
@@ -727,11 +856,26 @@ export function CrmView({
         <ColumnManagerModal
           visible={visible}
           order={order}
+          customColumns={customColumns}
+          allKeys={allKeys}
           onChange={(v, o) => {
             setVisible(v);
             setOrder(o);
           }}
           onClose={() => setShowColumnManager(false)}
+          onCustomChange={() => startTransition(() => router.refresh())}
+        />
+      )}
+
+      {showAddProspect && (
+        <AddProspectModal
+          adminUsers={adminUsers}
+          lists={lists.map((l) => ({ id: l.id, name: l.name, color: l.color }))}
+          onClose={() => setShowAddProspect(false)}
+          onDone={() => {
+            setShowAddProspect(false);
+            startTransition(() => router.refresh());
+          }}
         />
       )}
 
@@ -916,6 +1060,89 @@ function TempChip({
         </option>
       ))}
     </select>
+  );
+}
+
+function CustomCell({
+  colKey,
+  def,
+  value,
+  onChange,
+}: {
+  colKey: string;
+  def: CustomColumnDef | undefined;
+  value: string | number | null;
+  onChange: (v: string | number | null) => void | Promise<void>;
+}) {
+  const [local, setLocal] = useState<string>(
+    value === null || value === undefined ? "" : String(value),
+  );
+  const [editing, setEditing] = useState(false);
+
+  if (!def) return <span className="text-[color:var(--text-soft)]">—</span>;
+
+  async function commit() {
+    setEditing(false);
+    const trimmed = local.trim();
+    if (trimmed === (value === null ? "" : String(value))) return;
+    if (def!.type === "number") {
+      const n = Number(trimmed);
+      await onChange(isFinite(n) && trimmed ? n : null);
+    } else {
+      await onChange(trimmed ? trimmed : null);
+    }
+  }
+
+  if (def.type === "select") {
+    return (
+      <select
+        value={value === null ? "" : String(value)}
+        onChange={(e) => onChange(e.target.value || null)}
+        className="rounded-md border border-[color:var(--border-soft)] bg-white px-2 py-1 text-xs"
+      >
+        <option value="">—</option>
+        {(def.options ?? []).map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type={def.type === "number" ? "number" : def.type === "date" ? "date" : "text"}
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setLocal(value === null ? "" : String(value));
+            setEditing(false);
+          }
+        }}
+        className="w-full rounded-md border border-[color:var(--orange)] bg-white px-2 py-1 text-xs"
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="rounded px-1 text-left text-xs hover:bg-[color:var(--bg)]"
+    >
+      {value === null || value === "" ? (
+        <span className="text-[color:var(--text-soft)]">—</span>
+      ) : def.type === "date" ? (
+        new Date(value as string).toLocaleDateString("nl-NL")
+      ) : (
+        String(value)
+      )}
+    </button>
   );
 }
 
@@ -1251,36 +1478,47 @@ function CreateListModal({
 function ColumnManagerModal({
   visible,
   order,
+  customColumns,
+  allKeys,
   onChange,
   onClose,
+  onCustomChange,
 }: {
-  visible: ColumnKey[];
-  order: ColumnKey[];
-  onChange: (visible: ColumnKey[], order: ColumnKey[]) => void;
+  visible: string[];
+  order: string[];
+  customColumns: CustomColumnDef[];
+  allKeys: string[];
+  onChange: (visible: string[], order: string[]) => void;
   onClose: () => void;
+  onCustomChange: () => void;
 }) {
-  const [localOrder, setLocalOrder] = useState<ColumnKey[]>(() => {
+  const [localOrder, setLocalOrder] = useState<string[]>(() => {
     const known = new Set(order);
-    const tail = DEFAULT_VISIBLE_COLUMNS.filter((c) => !known.has(c));
+    const tail = allKeys.filter((c) => !known.has(c));
     return [...order, ...tail];
   });
-  const [localVisible, setLocalVisible] = useState<Set<ColumnKey>>(
+  const [localVisible, setLocalVisible] = useState<Set<string>>(
     new Set(visible),
   );
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [showAddCustom, setShowAddCustom] = useState(false);
 
-  function toggle(col: ColumnKey) {
+  function toggle(col: string) {
     const next = new Set(localVisible);
     if (next.has(col)) next.delete(col);
     else next.add(col);
     setLocalVisible(next);
   }
 
-  function move(idx: number, dir: -1 | 1) {
-    const newOrder = [...localOrder];
-    const target = idx + dir;
-    if (target < 0 || target >= newOrder.length) return;
-    [newOrder[idx], newOrder[target]] = [newOrder[target], newOrder[idx]];
-    setLocalOrder(newOrder);
+  function onDragOver(idx: number, e: React.DragEvent) {
+    e.preventDefault();
+    if (!dragKey) return;
+    const fromIdx = localOrder.indexOf(dragKey);
+    if (fromIdx === -1 || fromIdx === idx) return;
+    const next = [...localOrder];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(idx, 0, moved);
+    setLocalOrder(next);
   }
 
   function apply() {
@@ -1291,21 +1529,60 @@ function ColumnManagerModal({
     onClose();
   }
 
+  async function deleteCustomColumn(id: string) {
+    if (!confirm("Verwijder deze custom kolom? Waarden in bestaande klanten blijven bewaard in custom_fields.")) return;
+    await fetch(`/api/admin/crm/custom-columns/${id}`, {
+      method: "DELETE",
+    });
+    onCustomChange();
+  }
+
+  function getLabel(key: string): string {
+    if (key.startsWith("custom:")) {
+      const cc = customColumns.find((c) => c.key === key);
+      return cc?.name ?? key;
+    }
+    return COLUMN_LABELS[key as ColumnKey] ?? key;
+  }
+
   return (
     <Modal onClose={onClose} title="Kolommen beheren">
       <p className="mb-3 text-xs text-[color:var(--text-muted)]">
-        Toggle zichtbaarheid en sleep met de pijlen om volgorde aan te passen.
-        Wordt automatisch opgeslagen.
+        Toggle zichtbaarheid met het oog. Sleep een rij om de volgorde te
+        wijzigen. Auto-save naar je profiel.
       </p>
+      <button
+        type="button"
+        onClick={() => setShowAddCustom(true)}
+        className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[color:var(--border-soft)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
+      >
+        <Plus className="size-3.5" strokeWidth={2.2} />
+        Custom kolom toevoegen
+      </button>
       <ul className="divide-y divide-[color:var(--border-soft)] rounded-xl border border-[color:var(--border-soft)]">
         {localOrder.map((col, idx) => {
           const isVisible = localVisible.has(col);
+          const isCustom = col.startsWith("custom:");
+          const customDef = isCustom
+            ? customColumns.find((c) => c.key === col)
+            : null;
           return (
             <li
               key={col}
-              className="flex items-center justify-between gap-2 px-3 py-2"
+              draggable
+              onDragStart={() => setDragKey(col)}
+              onDragEnd={() => setDragKey(null)}
+              onDragOver={(e) => onDragOver(idx, e)}
+              className={cn(
+                "flex items-center justify-between gap-2 px-3 py-2 cursor-grab",
+                dragKey === col && "opacity-50",
+              )}
             >
               <div className="flex items-center gap-2">
+                <GripVertical
+                  className="size-4 text-[color:var(--text-soft)]"
+                  strokeWidth={2.2}
+                />
                 <button
                   onClick={() => toggle(col)}
                   className="text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
@@ -1317,32 +1594,27 @@ function ColumnManagerModal({
                     <EyeOff className="size-4" strokeWidth={2.2} />
                   )}
                 </button>
-                <span className="text-sm font-medium">
-                  {COLUMN_LABELS[col]}
-                </span>
+                <span className="text-sm font-medium">{getLabel(col)}</span>
+                {isCustom && (
+                  <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[0.6rem] font-semibold text-purple-800">
+                    custom
+                  </span>
+                )}
+                {customDef && (
+                  <span className="text-[0.6rem] text-[color:var(--text-soft)]">
+                    {customDef.type}
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-1">
+              {customDef && (
                 <button
-                  onClick={() => move(idx, -1)}
-                  disabled={idx === 0}
-                  className="rounded p-1 text-[color:var(--text-muted)] hover:text-[color:var(--navy)] disabled:opacity-30"
-                  aria-label="Omhoog"
+                  onClick={() => deleteCustomColumn(customDef.id)}
+                  className="text-[color:var(--text-soft)] hover:text-red-700"
+                  title="Verwijder custom kolom"
                 >
-                  ↑
+                  <Trash2 className="size-3.5" />
                 </button>
-                <button
-                  onClick={() => move(idx, 1)}
-                  disabled={idx === localOrder.length - 1}
-                  className="rounded p-1 text-[color:var(--text-muted)] hover:text-[color:var(--navy)] disabled:opacity-30"
-                  aria-label="Omlaag"
-                >
-                  ↓
-                </button>
-                <GripVertical
-                  className="size-3.5 text-[color:var(--text-soft)]"
-                  strokeWidth={2.2}
-                />
-              </div>
+              )}
             </li>
           );
         })}
@@ -1355,7 +1627,142 @@ function ColumnManagerModal({
           Toepassen
         </button>
       </div>
+
+      {showAddCustom && (
+        <AddCustomColumnInlineModal
+          onClose={() => setShowAddCustom(false)}
+          onCreated={() => {
+            setShowAddCustom(false);
+            onCustomChange();
+          }}
+        />
+      )}
     </Modal>
+  );
+}
+
+function AddCustomColumnInlineModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<"text" | "number" | "date" | "select">(
+    "text",
+  );
+  const [optionsText, setOptionsText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    const options =
+      type === "select"
+        ? optionsText
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : null;
+    const res = await fetch("/api/admin/crm/custom-columns", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, type, options }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      setError(data.error ?? "Aanmaken mislukt.");
+      setSubmitting(false);
+      return;
+    }
+    onCreated();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 grid size-8 place-items-center rounded-full hover:bg-[color:var(--bg)]"
+          aria-label="Sluiten"
+        >
+          <X className="size-4" />
+        </button>
+        <h3 className="text-lg font-bold">Custom kolom toevoegen</h3>
+        <form onSubmit={submit} className="mt-4 grid gap-3">
+          <label className="grid gap-1">
+            <span className="text-xs font-semibold">Naam</span>
+            <input
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input"
+              placeholder="bv. Industrie"
+            />
+          </label>
+          <label className="grid gap-1">
+            <span className="text-xs font-semibold">Type</span>
+            <select
+              value={type}
+              onChange={(e) =>
+                setType(
+                  e.target.value as "text" | "number" | "date" | "select",
+                )
+              }
+              className="input"
+            >
+              <option value="text">Tekst</option>
+              <option value="number">Getal</option>
+              <option value="date">Datum</option>
+              <option value="select">Keuze-lijst</option>
+            </select>
+          </label>
+          {type === "select" && (
+            <label className="grid gap-1">
+              <span className="text-xs font-semibold">
+                Opties (komma-gescheiden)
+              </span>
+              <input
+                value={optionsText}
+                onChange={(e) => setOptionsText(e.target.value)}
+                className="input"
+                placeholder="Tech, Finance, Legal, Health"
+              />
+            </label>
+          )}
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-secondary"
+            >
+              Annuleer
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary disabled:opacity-50"
+            >
+              {submitting ? "Aanmaken…" : "Aanmaken"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

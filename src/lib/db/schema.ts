@@ -763,6 +763,33 @@ export const crmColumnPrefs = pgTable("crm_column_prefs", {
     .defaultNow(),
 });
 
+/** Custom CRM-kolommen (door admin gedefinieerd). Waardes worden opgeslagen
+ *  in customer_attributes.custom_fields als { [key]: value }. */
+export const crmCustomColumns = pgTable(
+  "crm_custom_columns",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    /** "text" | "number" | "date" | "select" */
+    type: text("type").notNull(),
+    /** Voor type=select: array van opties. */
+    options: jsonb("options"),
+    ownerUserId: uuid("owner_user_id").references(() => authUsers.id, {
+      onDelete: "set null",
+    }),
+    isShared: boolean("is_shared").notNull().default(true),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("crm_custom_columns_key_unique").on(t.key)],
+);
+
 export const events = pgTable(
   "events",
   {
@@ -824,3 +851,5 @@ export type NewLeadList = typeof leadLists.$inferInsert;
 export type LeadListMember = typeof leadListMembers.$inferSelect;
 export type NewLeadListMember = typeof leadListMembers.$inferInsert;
 export type CrmColumnPrefs = typeof crmColumnPrefs.$inferSelect;
+export type CrmCustomColumn = typeof crmCustomColumns.$inferSelect;
+export type NewCrmCustomColumn = typeof crmCustomColumns.$inferInsert;

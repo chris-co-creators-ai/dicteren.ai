@@ -138,6 +138,22 @@ export {
 } from "./columnPrefs";
 
 export {
+  listCustomColumns,
+  createCustomColumn,
+  updateCustomColumn,
+  deleteCustomColumn,
+  type CustomColumnDef,
+  type CustomColumnType,
+} from "./customColumns";
+
+export {
+  addProspect,
+  bulkImportProspects,
+  type ProspectInput,
+  type ProspectImportResult,
+} from "./prospect";
+
+export {
   validateDiscountCode,
   incrementDiscountRedemption,
   createDiscountCodeForAffiliate,

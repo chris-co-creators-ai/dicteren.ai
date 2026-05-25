@@ -18,6 +18,7 @@ import {
   defaultTemperatureFor,
 } from "@/lib/services/customerCrm";
 import { getColumnPrefs } from "@/lib/services/columnPrefs";
+import { listCustomColumns } from "@/lib/services/customColumns";
 import { getSession } from "@/lib/auth/session";
 import { CrmView } from "./crm-view";
 
@@ -27,7 +28,7 @@ export default async function AdminCrmPage() {
   const session = await getSession();
   if (!session?.user) redirect("/auth/sign-in?next=/admin/crm");
 
-  const [rows, stages, kpis, affiliates, discounts, lists, admins, prefs] =
+  const [rows, stages, kpis, affiliates, discounts, lists, admins, prefs, customColumns] =
     await Promise.all([
       listCustomerFunnel(),
       funnelStageCounts(),
@@ -37,6 +38,7 @@ export default async function AdminCrmPage() {
       listLeadLists({ userId: session.user.id }),
       listAdminUsers(),
       getColumnPrefs(session.user.id),
+      listCustomColumns(),
     ]);
 
   const userIds = rows.map((r) => r.id);
@@ -113,9 +115,13 @@ export default async function AdminCrmPage() {
             defaultTemperatureFor(r.trialStatus, r.paidLicenseCount),
           assignedToUserId: attr?.assignedToUserId ?? null,
           notes: attr?.notes ?? null,
+          customFields:
+            (attr?.customFields as Record<string, string | number | null>) ??
+            null,
           listIds: memberships.get(r.id) ?? [],
         };
       })}
+      customColumns={customColumns}
       affiliates={affiliates.map((a) => ({
         id: a.id,
         code: a.code,
