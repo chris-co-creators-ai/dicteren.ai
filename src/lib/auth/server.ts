@@ -16,7 +16,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, organization } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
-import { db } from "@/lib/db";
+import { dbAuth } from "@/lib/db";
 import {
   authUser,
   authAccount,
@@ -45,7 +45,7 @@ export const auth = betterAuth({
   // Hergebruik bestaande NEON_AUTH_COOKIE_SECRET (32+ bytes hex) zodat we
   // geen nieuwe secret hoeven uit te delen aan Vercel.
   secret: process.env.NEON_AUTH_COOKIE_SECRET!,
-  database: drizzleAdapter(db, {
+  database: drizzleAdapter(dbAuth, {
     provider: "pg",
     schema: {
       user: authUser,
