@@ -28,7 +28,7 @@ const COMPARE: { feature: string; beta: boolean | string; persoonlijk: boolean |
   { feature: "Facturatie & inkoop-PO", beta: false, persoonlijk: false, zakelijk: true },
 ];
 
-const SEAT_BASE_PRICE = 84;
+const SEAT_BASE_PRICE = 120;
 const CUSTOM_QUOTE_FROM = 50;
 
 function getSeatDiscount(seats: number): number | "custom" {
@@ -358,6 +358,93 @@ export default function PrijzenPage() {
               ))}
             </ul>
           </article>
+        </div>
+      </section>
+
+      {/* Vergelijking met buitenlandse concurrenten */}
+      <section className="px-4 pb-12 sm:px-6 lg:px-14">
+        <div className="mx-auto max-w-4xl rounded-2xl border border-[color:var(--border-soft)] bg-white p-7">
+          <div className="text-center">
+            <span className="chip">Vergelijking</span>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+              Goedkoper én Nederlands.
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-[color:var(--text-muted)]">
+              Vergelijking met Wispr Flow (US-based, cloud-verwerking) — de
+              meest gebruikte AI-dicteer-tool in NL-bedrijven.
+            </p>
+          </div>
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[color:var(--border-soft)] text-left text-[0.6875rem] uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+                  <th className="py-3 pr-4">Wat krijg je</th>
+                  <th className="py-3 pr-4">Dicteren.ai</th>
+                  <th className="py-3">Wispr Flow Pro</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {[
+                  {
+                    feature: "Per gebruiker per jaar",
+                    dicteren: "vanaf €96 (consumer) / €120 (zakelijk)",
+                    wispr: "~€132 ($144)",
+                  },
+                  {
+                    feature: "Volumekorting zakelijk",
+                    dicteren: "tot −20% vanaf 5 seats",
+                    wispr: "geen — alleen enterprise op aanvraag",
+                  },
+                  {
+                    feature: "Audio-verwerking",
+                    dicteren: "100% lokaal op je device",
+                    wispr: "cloud (US-server)",
+                  },
+                  {
+                    feature: "Nederlandse interface + support",
+                    dicteren: "ja, eerste taal",
+                    wispr: "Engels, geen NL-support",
+                  },
+                  {
+                    feature: "DPA Nederlands recht",
+                    dicteren: "ja, op aanvraag",
+                    wispr: "US — Schrems II-onzeker",
+                  },
+                  {
+                    feature: "Inkoop-PO + Mollie iDEAL",
+                    dicteren: "ja",
+                    wispr: "credit card / Stripe",
+                  },
+                ].map((row) => (
+                  <tr
+                    key={row.feature}
+                    className="border-b border-[color:var(--border-soft)] last:border-b-0"
+                  >
+                    <td className="py-3 pr-4 font-medium">{row.feature}</td>
+                    <td className="py-3 pr-4 font-semibold text-[color:var(--navy)]">
+                      {row.dicteren}
+                    </td>
+                    <td className="py-3 text-[color:var(--text-muted)]">
+                      {row.wispr}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-4 text-[0.6875rem] text-[color:var(--text-soft)]">
+            Wispr Flow-prijzen omgerekend van USD ($144/jaar) naar EUR (~€132).
+            Bron:{" "}
+            <a
+              href="https://wisprflow.ai/pricing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              wisprflow.ai/pricing
+            </a>
+            .
+          </p>
         </div>
       </section>
 
