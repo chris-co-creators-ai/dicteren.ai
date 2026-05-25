@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FlaskConical, Sparkles } from "lucide-react";
+import { FlaskConical, KeyRound, Sparkles } from "lucide-react";
 import DicterenTextLogo from "./icons/DicterenTextLogo";
 import { useSettings } from "../hooks/useSettings";
 import generalIcon from "@/assets/branding/menu-icons/general-32.png";
@@ -16,6 +16,7 @@ import {
   AboutSettings,
   PostProcessingSettings,
   ModelsSettings,
+  SubscriptionSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -68,6 +69,12 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.history",
     icon: historyIcon,
     component: HistorySettings,
+    enabled: () => true,
+  },
+  subscription: {
+    labelKey: "sidebar.subscription",
+    icon: KeyRound,
+    component: SubscriptionSettings,
     enabled: () => true,
   },
   postprocessing: {

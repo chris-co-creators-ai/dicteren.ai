@@ -14,6 +14,7 @@
     "advanced": "Geavanceerd",
     "postProcessing": "Nabewerking",
     "history": "Geschiedenis",
+    "subscription": "Abonnement",
     "debug": "Debug",
     "about": "Over"
   },
@@ -92,6 +93,57 @@
     "cancelDownload": "Download annuleren"
   },
   "settings": {
+    "subscription": {
+      "heroActive": "Je licentie is actief",
+      "heroInactive": "Nog geen licentie",
+      "heroInactiveHint": "Activeer een code of bestel een licentie om te beginnen.",
+      "validUntil": "Geldig tot {{date}}",
+      "noExpiry": "Geen einddatum",
+      "status": {
+        "active": "Actief",
+        "trial": "Proefperiode",
+        "pastDue": "Betaling achter",
+        "expired": "Verlopen",
+        "canceled": "Geannuleerd",
+        "refunded": "Terugbetaald",
+        "revoked": "Ingetrokken",
+        "unknown": "Onbekend"
+      },
+      "activateSection": "Licentie",
+      "activate": {
+        "title": "Licentie activeren",
+        "description": "Voer je code in om Dicteren.ai te ontgrendelen.",
+        "button": "Activeer code"
+      },
+      "buy": {
+        "title": "Licentie kopen",
+        "description": "Maand, kwartaal of jaar. Opzeggen wanneer je wil.",
+        "button": "Open prijzen"
+      },
+      "upgrade": {
+        "title": "Upgrade je trial",
+        "description": "Koop een volledige licentie om door te gaan na je trial.",
+        "button": "Bekijk prijzen"
+      },
+      "accountSection": "Account",
+      "account": {
+        "title": "Mijn account",
+        "description": "Beheer je profiel, licenties en facturen op dicteren.ai",
+        "button": "Open account"
+      },
+      "billing": {
+        "title": "Mijn abonnement",
+        "description": "Bekijk of pas je lopende abonnement aan",
+        "button": "Open facturering"
+      },
+      "deactivate": {
+        "title": "Licentie deactiveren",
+        "description": "Verwijder de licentie van dit apparaat zodat je een andere code kunt activeren.",
+        "button": "Deactiveren",
+        "confirmTitle": "Licentie deactiveren?",
+        "confirmBody": "Je licentie wordt van dit apparaat verwijderd. Je kunt later opnieuw activeren met dezelfde of een andere code."
+      }
+    },
     "modelSettings": {
       "title": "{{model}} instellingen",
       "noSettingsNeeded": "Dit model werkt automatisch en heeft geen configuratie nodig."
@@ -434,6 +486,7 @@
     "about": {
       "title": "Over Dicteren.ai",
       "licenseSection": "Je licentie",
+      "subscriptionSection": "Abonnement",
       "accountSection": "Mijn account",
       "supportSection": "Hulp en juridisch",
       "appInfoSection": "App-info",
@@ -450,8 +503,22 @@
         "description": "Bekijk dicteren.ai voor product- en updateinformatie",
         "button": "Website openen"
       },
+      "activateLicense": {
+        "title": "Licentie activeren",
+        "description": "Voer je licentiecode in om Dicteren.ai te ontgrendelen.",
+        "button": "Activeer code",
+        "dialogTitle": "Activeer je licentie",
+        "dialogSubtitle": "Vul je code in om door te gaan. Geen code? Bestel hieronder een licentie of start een gratis trial.",
+        "label": "Licentiecode",
+        "placeholder": "DIC-PRO-2026-XXXX-XXXX",
+        "submit": "Activeer",
+        "submitting": "Activeren…",
+        "cancel": "Annuleer",
+        "notActive": "Code geldig maar licentie is niet actief. Controleer je facturering.",
+        "failed": "Activatie mislukt. Controleer de code en probeer opnieuw."
+      },
       "buyLicense": {
-        "title": "Bekijk licenties",
+        "title": "Licentie kopen",
         "description": "Maand, kwartaal of jaar. Opzeggen wanneer je wil.",
         "button": "Open prijzen"
       },

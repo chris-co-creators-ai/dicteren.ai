@@ -55,9 +55,9 @@ hound = "3.5.1"
 log = "0.4.25"
 env_filter = "0.1.0"
 tokio = "1.43.0"
-vad-rs = { git = "https://github.com/cjpais/vad-rs", default-features = false }
+vad-rs = { git = "https://github.com/dicterenai/vad-rs", default-features = false }
 enigo = "0.6.1"
-rodio = { git = "https://github.com/cjpais/rodio.git" }
+rodio = { git = "https://github.com/dicterenai/rodio.git" }
 reqwest = { version = "0.12", features = ["json", "stream"] }
 futures-util = "0.3"
 rustfft = "6.4.0"
@@ -69,6 +69,7 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 tar = "0.4.44"
 flate2 = "1.0"
 sha2 = "0.10"
+base64 = "0.22"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 machine-uid = "0.5"
 transcribe-rs = { version = "0.3.8", features = ["whisper-cpp", "onnx"] }
@@ -110,9 +111,9 @@ gtk = "0.18"
 transcribe-rs = { version = "0.3.3", features = ["whisper-vulkan"] }
 
 [patch.crates-io]
-tauri-runtime = { git = "https://github.com/cjpais/tauri.git", rev = "ad9ba9448b82b1a1628333ae06459e4def470db3" }
-tauri-runtime-wry = { git = "https://github.com/cjpais/tauri.git", rev = "ad9ba9448b82b1a1628333ae06459e4def470db3" }
-tauri-utils = { git = "https://github.com/cjpais/tauri.git", rev = "ad9ba9448b82b1a1628333ae06459e4def470db3" }
+tauri-runtime = { git = "https://github.com/dicterenai/tauri.git", rev = "ad9ba9448b82b1a1628333ae06459e4def470db3" }
+tauri-runtime-wry = { git = "https://github.com/dicterenai/tauri.git", rev = "ad9ba9448b82b1a1628333ae06459e4def470db3" }
+tauri-utils = { git = "https://github.com/dicterenai/tauri.git", rev = "ad9ba9448b82b1a1628333ae06459e4def470db3" }
 
 [dev-dependencies]
 tempfile = "3"

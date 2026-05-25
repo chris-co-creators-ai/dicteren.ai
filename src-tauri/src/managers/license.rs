@@ -7,13 +7,14 @@
 //! mirror those.
 
 use anyhow::{anyhow, Context, Result};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// Production API base. Override at runtime via `DICTEREN_API_BASE` for testing
 /// against a dev server.
-const DEFAULT_API_BASE: &str = "https://dicteren.ai";
+const DEFAULT_API_BASE: &str = "https://www.dicteren.ai";
 const KEYCHAIN_SERVICE: &str = "ai.dicteren";
 const KEYCHAIN_TOKEN_USER: &str = "license_token";
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -54,6 +55,20 @@ pub struct LicenseInfo {
     pub is_unlocked: bool,
     /// Set when we last successfully reached the server.
     pub last_verified_at: Option<String>,
+    /// Plan-naam ("Persoonlijk maand", "Zakelijk jaar", ...). Null = trial of
+    /// onbekend. Komt uit `plans.label` op de server.
+    pub plan_label: Option<String>,
+    /// "monthly" | "quarterly" | "yearly" | "lifetime" | null.
+    pub period: Option<String>,
+    /// Hoe de license is uitgegeven (`self-signup`, `admin-grant`, `partner:ORG-X`).
+    pub source: Option<String>,
+    /// Discount-snapshot bij issue (`free_months`, `lifetime`, `percentage`, `fixed`).
+    pub discount_type: Option<String>,
+    pub discount_value: Option<i64>,
+    /// Status van de Mollie subscription (`active`, `canceled`, ...). Null = geen sub.
+    pub subscription_status: Option<String>,
+    /// Volgende incasso (ISO). Null = lifetime / geen sub.
+    pub next_billing_at: Option<String>,
 }
 
 impl LicenseInfo {
@@ -64,6 +79,13 @@ impl LicenseInfo {
             expires_at: None,
             is_unlocked: false,
             last_verified_at: None,
+            plan_label: None,
+            period: None,
+            source: None,
+            discount_type: None,
+            discount_value: None,
+            subscription_status: None,
+            next_billing_at: None,
         }
     }
 }
@@ -234,6 +256,22 @@ struct StatusLicenseSection {
     type_: String,
     #[serde(rename = "expiresAt")]
     expires_at: Option<String>,
+    // Nieuwe velden — Tauri abonnement-pagina toont plan-label + discount +
+    // subscription-state. Allemaal optioneel zodat oudere servers werken.
+    #[serde(rename = "planLabel", default)]
+    plan_label: Option<String>,
+    #[serde(default)]
+    period: Option<String>,
+    #[serde(default)]
+    source: Option<String>,
+    #[serde(rename = "discountType", default)]
+    discount_type: Option<String>,
+    #[serde(rename = "discountValue", default)]
+    discount_value: Option<i64>,
+    #[serde(rename = "subscriptionStatus", default)]
+    subscription_status: Option<String>,
+    #[serde(rename = "nextBillingAt", default)]
+    next_billing_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -290,6 +328,13 @@ pub async fn activate(license_code: &str) -> Result<LicenseInfo> {
         license_type: parse_type(&license.type_),
         expires_at: license.expires_at,
         last_verified_at: Some(chrono::Utc::now().to_rfc3339()),
+        plan_label: None,
+        period: None,
+        source: None,
+        discount_type: None,
+        discount_value: None,
+        subscription_status: None,
+        next_billing_at: None,
     })
 }
 
@@ -341,6 +386,13 @@ pub async fn start_trial() -> Result<LicenseInfo> {
         license_type: parse_type(&license.type_),
         expires_at: license.expires_at,
         last_verified_at: Some(chrono::Utc::now().to_rfc3339()),
+        plan_label: None,
+        period: None,
+        source: None,
+        discount_type: None,
+        discount_value: None,
+        subscription_status: None,
+        next_billing_at: None,
     })
 }
 
@@ -400,26 +452,116 @@ pub async fn fetch_status() -> Result<LicenseInfo> {
         license_type: parse_type(&license.type_),
         expires_at: license.expires_at,
         last_verified_at: Some(chrono::Utc::now().to_rfc3339()),
+        plan_label: license.plan_label,
+        period: license.period,
+        source: license.source,
+        discount_type: license.discount_type,
+        discount_value: license.discount_value,
+        subscription_status: license.subscription_status,
+        next_billing_at: license.next_billing_at,
     })
 }
 
-/// Try a status check. On network failure fall back to "what we last knew",
-/// which for us is just "has token" → assume still unlocked (server will
-/// catch up on next call). On a definitive server "not valid" we lock.
+/// Server-signed token payload. We deserialize it offline to enforce expiry
+/// when the network is unreachable. HMAC signature is NOT verified here —
+/// the server validates it on every reconnect (mismatch → 401 → wipe token).
+/// Field names mirror `web/src/lib/services/token.ts`.
+#[derive(Debug, Deserialize)]
+struct TokenPayload {
+    #[serde(rename = "expiresAt")]
+    expires_at: Option<String>,
+    status: String,
+    #[serde(rename = "type")]
+    type_: Option<String>,
+}
+
+/// Decode a server-issued license token (base64url of `{json}.{hmac_hex}`)
+/// and return the payload. Returns None on any decode/parse failure — caller
+/// should then treat the token as untrustworthy and force re-activation.
+fn decode_token_payload(token: &str) -> Option<TokenPayload> {
+    let decoded = URL_SAFE_NO_PAD.decode(token.as_bytes()).ok()?;
+    let utf8 = std::str::from_utf8(&decoded).ok()?;
+    let last_dot = utf8.rfind('.')?;
+    let json = &utf8[..last_dot];
+    serde_json::from_str::<TokenPayload>(json).ok()
+}
+
+/// Returns true if the ISO-8601 string lies in the past.
+fn is_iso_in_past(iso: &str) -> bool {
+    chrono::DateTime::parse_from_rfc3339(iso)
+        .map(|dt| chrono::Utc::now() >= dt.with_timezone(&chrono::Utc))
+        .unwrap_or(false)
+}
+
+/// Try a status check. On network failure fall back to the cached token:
+/// decode its payload locally and honor the embedded `expiresAt`. If expired,
+/// lock the app even offline — the user cannot dodge expiry by switching
+/// off WiFi. If a token cannot be decoded at all, force re-activation.
 pub async fn current_state() -> LicenseInfo {
     match fetch_status().await {
         Ok(info) => info,
         Err(e) => {
             log::warn!("License status fetch failed: {e}");
-            match load_token() {
-                Ok(Some(_)) => LicenseInfo {
-                    status: LicenseStatus::Active,
-                    license_type: None,
-                    expires_at: None,
-                    is_unlocked: true,
+            let Ok(Some(token)) = load_token() else {
+                return LicenseInfo::unknown();
+            };
+
+            // Token unreadable / corrupted → don't silently unlock.
+            let Some(payload) = decode_token_payload(&token) else {
+                log::warn!("Offline fallback: token payload undecodable, locking");
+                return LicenseInfo::unknown();
+            };
+
+            // Expired per token? Lock.
+            if payload
+                .expires_at
+                .as_deref()
+                .map(is_iso_in_past)
+                .unwrap_or(false)
+            {
+                log::warn!("Offline fallback: token expiresAt is past, locking");
+                return LicenseInfo {
+                    status: LicenseStatus::Expired,
+                    license_type: payload.type_.as_deref().and_then(parse_type),
+                    expires_at: payload.expires_at,
+                    is_unlocked: false,
                     last_verified_at: None,
-                },
-                _ => LicenseInfo::unknown(),
+                    plan_label: None,
+                    period: None,
+                    source: None,
+                    discount_type: None,
+                    discount_value: None,
+                    subscription_status: None,
+                    next_billing_at: None,
+                };
+            }
+
+            // Server-reported status at last sign was unlocked? Trust it
+            // until the next online round-trip.
+            let token_status = parse_status(&payload.status);
+            let unlocked = status_unlocks(&token_status);
+            let final_status = if unlocked {
+                token_status
+            } else {
+                // Last known server status was already locked — keep locked.
+                LicenseStatus::Expired
+            };
+            LicenseInfo {
+                is_unlocked: unlocked,
+                status: final_status,
+                license_type: payload.type_.as_deref().and_then(parse_type),
+                expires_at: payload.expires_at,
+                last_verified_at: None,
+                // Offline: server-zijdige velden zijn niet bekend. Tauri UI
+                // toont een placeholder (zie SubscriptionSettings.tsx) als
+                // discount/subscription_status null is.
+                plan_label: None,
+                period: None,
+                source: None,
+                discount_type: None,
+                discount_value: None,
+                subscription_status: None,
+                next_billing_at: None,
             }
         }
     }

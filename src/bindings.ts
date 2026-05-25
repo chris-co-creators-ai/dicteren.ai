@@ -936,16 +936,32 @@ export type ImplementationChangeResult = { success: boolean;
 reset_bindings: string[] }
 export type KeyboardImplementation = "tauri" | "dicteren_keys"
 export type LLMPrompt = { id: string; name: string; prompt: string }
-export type LicenseInfo = { status: LicenseStatus; license_type: LicenseType | null; expires_at: string | null; 
+export type LicenseInfo = { status: LicenseStatus; license_type: LicenseType | null; expires_at: string | null;
 /**
  * True when token verifies & status is one of: Active, Trial, PastDue
  * (PastDue is grace-period — app stays unlocked).
  */
-is_unlocked: boolean; 
+is_unlocked: boolean;
 /**
  * Set when we last successfully reached the server.
  */
-last_verified_at: string | null }
+last_verified_at: string | null;
+/**
+ * Plan-naam ("Persoonlijk maand", "Zakelijk jaar", ...). Null = trial of
+ * onbekend. Komt uit `plans.label` op de server.
+ */
+plan_label: string | null;
+/** "monthly" | "quarterly" | "yearly" | "lifetime" | null. */
+period: string | null;
+/** Hoe de license is uitgegeven (`self-signup`, `admin-grant`, `partner:ORG-X`). */
+source: string | null;
+/** Discount-snapshot bij issue (`free_months`, `lifetime`, `percentage`, `fixed`). */
+discount_type: string | null;
+discount_value: number | null;
+/** Status van Mollie subscription (`active`, `canceled`, ...). Null = geen sub. */
+subscription_status: string | null;
+/** Volgende incasso (ISO). Null = lifetime / geen sub. */
+next_billing_at: string | null }
 export type LicenseStatus = 
 /**
  * No token in keychain — user must activate.
