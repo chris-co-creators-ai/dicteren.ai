@@ -74,11 +74,11 @@ export default function ZakelijkPage() {
               op het apparaat van je collega.
             </p>
             <div className="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <Link href="/zakelijk/start?plan=team-jaar&seats=5" className="btn btn-primary btn-lg">
+              <Link href="/zakelijk/start?plan=org-yearly&seats=5" className="btn btn-primary btn-lg">
                 Start zakelijke licenties
               </Link>
-              <Link href="/contact" className="btn btn-secondary btn-lg">
-                Plan een demo
+              <Link href="/word-partner" className="btn btn-secondary btn-lg">
+                Word reseller-partner
               </Link>
             </div>
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[color:var(--text-muted)]">
@@ -258,15 +258,17 @@ export default function ZakelijkPage() {
           Klaar voor jouw team?
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-base text-[#bccbed]">
-          Plan een korte demo van 20 minuten of vraag direct een zakelijke beta
-          aan.
+          Start direct met zakelijke licenties of word reseller-partner.
         </p>
         <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap">
-          <Link href="/contact" className="btn btn-primary btn-lg">
-            Vraag zakelijke beta aan
+          <Link
+            href="/zakelijk/start?plan=org-yearly&seats=5"
+            className="btn btn-primary btn-lg"
+          >
+            Start zakelijke licenties
           </Link>
           <Link
-            href="/contact"
+            href="/word-partner"
             className="btn btn-lg"
             style={{
               background: "rgba(255, 255, 255, 0.08)",
@@ -274,7 +276,7 @@ export default function ZakelijkPage() {
               border: "1px solid rgba(255, 255, 255, 0.18)",
             }}
           >
-            Plan een demo
+            Word reseller-partner
           </Link>
         </div>
       </section>

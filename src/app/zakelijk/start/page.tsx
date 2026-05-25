@@ -40,7 +40,7 @@ export default async function ZakelijkStartPage({
     redirect(`/auth/sign-up?next=${encodeURIComponent(nextUrl)}`);
   }
 
-  const requestedSlug = planSlug ?? "team-jaar";
+  const requestedSlug = planSlug ?? "org-yearly";
   const plan = await getPlanBySlug(requestedSlug);
   const seats = Math.min(49, Math.max(1, Number(seatsParam ?? 1) || 1));
 

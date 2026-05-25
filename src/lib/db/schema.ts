@@ -505,6 +505,7 @@ export const emailLogs = pgTable(
 // op userId). Bij elke paid order van een referred user → commission record.
 
 export const affiliateStatus = pgEnum("affiliate_status", [
+  "pending",
   "active",
   "paused",
   "disabled",
@@ -763,6 +764,88 @@ export const crmColumnPrefs = pgTable("crm_column_prefs", {
     .defaultNow(),
 });
 
+// ─────────────────────────── Contact / partnership messages ───────────
+
+export const contactMessageStatus = pgEnum("contact_message_status", [
+  "new",
+  "in_progress",
+  "closed",
+  "spam",
+]);
+
+export const contactMessageKind = pgEnum("contact_message_kind", [
+  "general",
+  "sales",
+  "support",
+  "partnership",
+  "quote_request",
+]);
+
+/** Inkomende berichten vanaf publieke pagina's (contact, word-partner,
+ *  offerte-aanvraag). Worden in /admin/messages verwerkt door account-managers.
+ *  IP wordt gehashed (SHA-256) zodat we GDPR-conform throttle/spam-detectie
+ *  doen zonder raw-IP op te slaan. */
+export const contactMessages = pgTable(
+  "contact_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    kind: contactMessageKind("kind").notNull().default("general"),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    company: text("company"),
+    phone: text("phone"),
+    subject: text("subject"),
+    message: text("message").notNull(),
+    metadata: jsonb("metadata"),
+    ipHash: text("ip_hash"),
+    userAgent: text("user_agent"),
+    status: contactMessageStatus("status").notNull().default("new"),
+    assignedToUserId: uuid("assigned_to_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" },
+    ),
+    linkedUserId: uuid("linked_user_id").references(() => authUsers.id, {
+      onDelete: "set null",
+    }),
+    linkedAffiliateId: uuid("linked_affiliate_id").references(
+      () => affiliates.id,
+      { onDelete: "set null" },
+    ),
+    adminNotes: text("admin_notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("contact_messages_status_idx").on(t.status),
+    index("contact_messages_kind_idx").on(t.kind),
+  ],
+);
+
+/** Append-only rate-limit log per bucket+ip. Tabel-based throttling werkt
+ *  multi-instance op Vercel (Upstash/Redis is overhead voor lage volumes). */
+export const rateLimitEvents = pgTable(
+  "rate_limit_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    bucketKey: text("bucket_key").notNull(),
+    ipHash: text("ip_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("rate_limit_events_lookup_idx").on(
+      t.bucketKey,
+      t.ipHash,
+      t.createdAt,
+    ),
+  ],
+);
+
 /** Custom CRM-kolommen (door admin gedefinieerd). Waardes worden opgeslagen
  *  in customer_attributes.custom_fields als { [key]: value }. */
 export const crmCustomColumns = pgTable(
@@ -853,3 +936,5 @@ export type NewLeadListMember = typeof leadListMembers.$inferInsert;
 export type CrmColumnPrefs = typeof crmColumnPrefs.$inferSelect;
 export type CrmCustomColumn = typeof crmCustomColumns.$inferSelect;
 export type NewCrmCustomColumn = typeof crmCustomColumns.$inferInsert;
+export type ContactMessage = typeof contactMessages.$inferSelect;
+export type NewContactMessage = typeof contactMessages.$inferInsert;

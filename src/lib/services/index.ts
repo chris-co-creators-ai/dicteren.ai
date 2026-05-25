@@ -154,6 +154,24 @@ export {
 } from "./prospect";
 
 export {
+  hashIp,
+  getClientIp,
+  checkRateLimit,
+  pruneRateLimitEvents,
+  type RateLimitResult,
+} from "./rateLimit";
+
+export {
+  createContactMessage,
+  listContactMessages,
+  getContactMessage,
+  updateContactMessage,
+  contactMessageKpis,
+  type ContactMessageKind,
+  type ContactMessageStatus,
+} from "./contactMessage";
+
+export {
   validateDiscountCode,
   incrementDiscountRedemption,
   createDiscountCodeForAffiliate,
