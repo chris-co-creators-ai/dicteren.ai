@@ -13,6 +13,8 @@ import {
 } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  affiliateReferrals,
+  affiliates,
   authMembers,
   authOrganizations,
   authUsers,
@@ -187,6 +189,14 @@ export type CustomerFunnelRow = {
   emailsOpened: number;
   emailsClicked: number;
   emailsBounced: number;
+  /** Account owner = de affiliate-reseller die deze klant heeft aangedragen.
+   *  Null = self-signup zonder ?ref=... of self-served door admin. */
+  accountOwner: {
+    affiliateId: string;
+    code: string;
+    name: string;
+    convertedAt: Date | null;
+  } | null;
 };
 
 export type FunnelStage =
@@ -343,6 +353,36 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
     }
   }
 
+  // Account owner per user — JOIN op affiliate_referrals + affiliates.
+  // First-touch lifetime attributie (uniek op userId in referrals-tabel).
+  const ownerRows = await db
+    .select({
+      userId: affiliateReferrals.userId,
+      affiliateId: affiliates.id,
+      code: affiliates.code,
+      name: affiliates.name,
+      convertedAt: affiliateReferrals.convertedAt,
+    })
+    .from(affiliateReferrals)
+    .innerJoin(affiliates, eq(affiliates.id, affiliateReferrals.affiliateId));
+  const ownerByUser = new Map<
+    string,
+    {
+      affiliateId: string;
+      code: string;
+      name: string;
+      convertedAt: Date | null;
+    }
+  >();
+  for (const o of ownerRows) {
+    ownerByUser.set(o.userId, {
+      affiliateId: o.affiliateId,
+      code: o.code,
+      name: o.name,
+      convertedAt: o.convertedAt,
+    });
+  }
+
   // Email aggregates per user
   const emailAgg = await db
     .select({
@@ -398,6 +438,7 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       emailsOpened: em?.opened ?? 0,
       emailsClicked: em?.clicked ?? 0,
       emailsBounced: em?.bounced ?? 0,
+      accountOwner: ownerByUser.get(u.id) ?? null,
     };
   });
 }

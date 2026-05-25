@@ -38,6 +38,19 @@ type Customer = {
   mollieCustomerId: string | null;
   subscriptionStatus: string | null;
   nextBillingAt: string | null;
+  accountOwner: {
+    affiliateId: string;
+    code: string;
+    name: string;
+    convertedAt: string | null;
+  } | null;
+};
+
+type AffiliateOption = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
 };
 
 type Kpi = { label: string; value: string; detail: string };
@@ -131,15 +144,18 @@ function formatDate(iso: string): string {
 
 export function CrmView({
   customers,
+  affiliates,
   kpis,
   stageCounts,
 }: {
   customers: Customer[];
+  affiliates: AffiliateOption[];
   kpis: Kpi[];
   stageCounts: Record<Stage, number>;
 }) {
   const [tab, setTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState<string>("all");
 
   const counts: Record<TabKey, number> = useMemo(() => {
     const bySeg: Record<Segment, number> = {
@@ -175,17 +191,26 @@ export function CrmView({
             return false;
           }
         }
+        if (ownerFilter !== "all") {
+          if (ownerFilter === "none") {
+            if (r.accountOwner) return false;
+          } else if (r.accountOwner?.affiliateId !== ownerFilter) {
+            return false;
+          }
+        }
         if (search) {
           const q = search.toLowerCase();
           return (
             r.name.toLowerCase().includes(q) ||
             r.email.toLowerCase().includes(q) ||
-            (r.mollieCustomerId?.toLowerCase().includes(q) ?? false)
+            (r.mollieCustomerId?.toLowerCase().includes(q) ?? false) ||
+            (r.accountOwner?.name.toLowerCase().includes(q) ?? false) ||
+            (r.accountOwner?.code.toLowerCase().includes(q) ?? false)
           );
         }
         return true;
       }),
-    [tab, search, customers],
+    [tab, search, ownerFilter, customers],
   );
 
   return (
@@ -264,15 +289,26 @@ export function CrmView({
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Zoek naam of e-mail…"
+                  placeholder="Zoek naam, e-mail of partner…"
                   className="w-full rounded-lg border border-[color:var(--border-soft)] py-2 pl-8 pr-3 text-sm outline-none focus:border-[color:var(--orange)]"
                   style={{ background: "var(--bg)" }}
                 />
               </div>
-              <button className="btn btn-secondary btn-sm hidden sm:inline-flex">
-                <Filter className="size-3" strokeWidth={2.2} />
-                Filter
-              </button>
+              <select
+                value={ownerFilter}
+                onChange={(e) => setOwnerFilter(e.target.value)}
+                className="rounded-lg border border-[color:var(--border-soft)] py-2 px-3 text-sm outline-none focus:border-[color:var(--orange)]"
+                style={{ background: "var(--bg)" }}
+                title="Filter op account owner"
+              >
+                <option value="all">Alle account owners</option>
+                <option value="none">Geen account owner</option>
+                {affiliates.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.code})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -293,6 +329,7 @@ export function CrmView({
                     "Mails",
                     "Lic.",
                     "Lid sinds",
+                    "Account owner",
                   ].map((h) => (
                     <th
                       key={h}
@@ -307,7 +344,7 @@ export function CrmView({
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       className="px-3 py-10 text-center text-sm text-[color:var(--text-muted)]"
                     >
                       Geen klanten in dit filter.
@@ -433,6 +470,23 @@ export function CrmView({
                         </td>
                         <td className="px-3 py-3 text-xs text-[color:var(--text-muted)]">
                           {formatDate(r.createdAt)}
+                        </td>
+                        <td className="px-3 py-3 text-xs">
+                          {r.accountOwner ? (
+                            <Link
+                              href={`/admin/affiliates/${r.accountOwner.affiliateId}`}
+                              className="inline-flex flex-col"
+                            >
+                              <span className="font-semibold text-[color:var(--navy)]">
+                                {r.accountOwner.name}
+                              </span>
+                              <span className="font-mono text-[0.625rem] text-[color:var(--text-soft)]">
+                                {r.accountOwner.code}
+                              </span>
+                            </Link>
+                          ) : (
+                            <span className="text-[color:var(--text-soft)]">—</span>
+                          )}
                         </td>
                       </tr>
                     );
