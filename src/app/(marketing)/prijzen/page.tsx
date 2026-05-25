@@ -433,17 +433,8 @@ export default function PrijzenPage() {
             </table>
           </div>
           <p className="mt-4 text-[0.6875rem] text-[color:var(--text-soft)]">
-            Wispr Flow-prijzen omgerekend van USD ($144/jaar) naar EUR (~€132).
-            Bron:{" "}
-            <a
-              href="https://wisprflow.ai/pricing"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
-              wisprflow.ai/pricing
-            </a>
-            .
+            Bedragen omgerekend van USD ($144/jaar) naar EUR (~€132).
+            Vergelijking publiekelijk gepubliceerde prijzen, mei 2026.
           </p>
         </div>
       </section>
