@@ -103,6 +103,41 @@ export {
 } from "./organization";
 
 export {
+  listLeadLists,
+  createLeadList,
+  updateLeadList,
+  deleteLeadList,
+  getLeadList,
+  addMembersToList,
+  removeMembersFromList,
+  membershipsByUser,
+  userIdsInList,
+  listAdminUsers,
+  type LeadListWithCount,
+  type ListColorValue,
+} from "./leadList";
+
+export {
+  setCustomerAttributes,
+  bulkSetCustomerAttributes,
+  attributesByUser,
+  defaultStageFor,
+  defaultTemperatureFor,
+  type CustomerStageValue,
+  type CustomerTemperatureValue,
+  type CustomerAttrPatch,
+} from "./customerCrm";
+
+export {
+  getColumnPrefs,
+  setColumnPrefs,
+  DEFAULT_VISIBLE_COLUMNS,
+  COLUMN_LABELS,
+  type ColumnKey,
+  type ColumnPrefs,
+} from "./columnPrefs";
+
+export {
   validateDiscountCode,
   incrementDiscountRedemption,
   createDiscountCodeForAffiliate,
