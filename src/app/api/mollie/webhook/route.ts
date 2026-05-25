@@ -29,9 +29,11 @@ import {
   isRecurringPlan,
   markOrderStatus,
   markSubscriptionPastDue,
+  recordLicenseDiscount,
   recordSubscription,
   renewSubscriptionLicense,
 } from "@/lib/services/order";
+import type { DiscountSnapshot, LicenseSource } from "@/lib/services/mollie-metadata";
 import { logEvent, trackEvent } from "@/lib/services/audit";
 import {
   sendLicenseEmail,
@@ -152,7 +154,30 @@ export async function POST(request: Request) {
   }
 
   const orderStatus = mapMollieStatus(payment.data.status);
-  const metadata = payment.data.metadata as { orderId?: string; email?: string; name?: string } | null;
+  const metadata = payment.data.metadata as
+    | {
+        orderId?: string;
+        internalRef?: string;
+        userId?: string;
+        email?: string;
+        name?: string;
+        source?: LicenseSource;
+        discountType?: string;
+        discountValue?: number;
+      }
+    | null;
+
+  // Snapshot van source + discount uit metadata (we kopieren naar licenses-row
+  // bij issue zodat CRM/admin niet hoeft te queriën aan Mollie API).
+  const sourceFromMeta: LicenseSource =
+    (metadata?.source as LicenseSource | undefined) ?? "self-signup";
+  const discountFromMeta: DiscountSnapshot =
+    metadata?.discountType && typeof metadata.discountValue === "number"
+      ? ({
+          type: metadata.discountType,
+          value: metadata.discountValue,
+        } as DiscountSnapshot)
+      : null;
 
   // ───────── Recurring charge from an existing subscription ─────────
   if (payment.data.subscriptionId) {
@@ -276,6 +301,13 @@ export async function POST(request: Request) {
     });
 
     if (fulfilled) {
+      // Snapshot source + discount op de license-row (CRM-vriendelijk).
+      await recordLicenseDiscount({
+        licenseId: fulfilled.licenseId,
+        source: sourceFromMeta,
+        discount: discountFromMeta,
+      });
+
       await logEvent({
         action: "order.paid",
         entityType: "order",
@@ -284,6 +316,9 @@ export async function POST(request: Request) {
           paymentId: payment.data.paymentId,
           method: payment.data.method,
           amountCents: payment.data.amount,
+          source: sourceFromMeta,
+          discountType: discountFromMeta?.type ?? null,
+          discountValue: discountFromMeta?.value ?? null,
         },
       });
       await trackEvent("payment_completed", {
@@ -323,6 +358,20 @@ export async function POST(request: Request) {
         const interval = periodToMollieInterval(fulfilled.plan.period);
         if (interval) {
           const base = appBase();
+          const subMetadata: Record<string, string | number | null> = {
+            // Spiegel het standaard metadata-schema (zie mollie-metadata.ts).
+            userId: metadata?.userId ?? null,
+            segment: fulfilled.plan.customerType === "organization" ? "team" : "consumer",
+            source: sourceFromMeta,
+            licenseType: fulfilled.plan.customerType === "organization" ? "team" : "consumer",
+            period: fulfilled.plan.period,
+            internalRef: fulfilled.licenseId,
+            licenseId: fulfilled.licenseId,
+          };
+          if (discountFromMeta) {
+            subMetadata.discountType = discountFromMeta.type;
+            subMetadata.discountValue = discountFromMeta.value;
+          }
           const sub = await createMollieSubscription({
             customerId,
             amountCents: fulfilled.plan.priceCents,
@@ -331,7 +380,7 @@ export async function POST(request: Request) {
             description: `Dicteren.ai · ${fulfilled.plan.label} (auto-renew)`,
             webhookUrl: webhookUrlFor(base),
             startDate: fulfilled.expiresAt.toISOString().slice(0, 10),
-            metadata: { licenseId: fulfilled.licenseId },
+            metadata: subMetadata,
           });
           if (sub.success) {
             await recordSubscription({

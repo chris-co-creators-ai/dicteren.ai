@@ -12,6 +12,14 @@ import {
   type Plan,
 } from "@/lib/db/schema";
 import { generateLicenseCode, hashLicenseCode } from "./license";
+import { createMollieCustomer } from "./mollie";
+import {
+  buildMollieMetadata,
+  segmentForLicenseType,
+  type DiscountSnapshot,
+  type LicenseSource,
+  type MollieMetadataInput,
+} from "./mollie-metadata";
 import type { LicenseType } from "@/lib/types";
 
 /** Days the desktop app keeps working after a recurring charge fails. */
@@ -419,6 +427,10 @@ export async function ensureMollieCustomerId(args: {
   userId: string;
   name: string;
   email: string;
+  /** Default "consumer"; checkout/organization route overschrijft naar "team". */
+  segment?: "consumer" | "team";
+  /** Default "self-signup"; admin-grant of partner kunnen overschrijven. */
+  source?: LicenseSource;
 }): Promise<string | null> {
   const existingRows = await db
     .select()
@@ -428,24 +440,27 @@ export async function ensureMollieCustomerId(args: {
   const existing = existingRows[0];
   if (existing?.mollieCustomerId) return existing.mollieCustomerId;
 
-  const apiKey = process.env.MOLLIE_API_KEY;
-  if (!apiKey) return null;
+  const segment = args.segment ?? "consumer";
+  const source = args.source ?? "self-signup";
 
-  const res = await fetch("https://api.mollie.com/v2/customers", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+  // Mollie customer met standaard metadata-schema (zie mollie-metadata.ts).
+  // licenseType + period zijn placeholders — bij eerste order wordt het echte
+  // payment/subscription opnieuw met juiste metadata aangemaakt.
+  const created = await createMollieCustomer({
+    name: args.name,
+    email: args.email,
+    metadata: {
+      userId: args.userId,
+      segment,
+      source,
+      // op customer-niveau weten we plan nog niet, zetten "unknown" zodat
+      // de filter-key tenminste bestaat.
+      licenseType: segment === "team" ? "team" : "consumer",
+      period: "unknown",
     },
-    body: JSON.stringify({
-      name: args.name,
-      email: args.email,
-      metadata: { userId: args.userId },
-    }),
   });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const customerId: string = data.id;
+  if (!created.success) return null;
+  const customerId = created.data.customerId;
 
   await db
     .insert(userBilling)
@@ -460,6 +475,66 @@ export async function ensureMollieCustomerId(args: {
     });
 
   return customerId;
+}
+
+/** Bouwt het Mollie-metadata object voor een payment/subscription op basis
+ *  van een order + plan + user-context. Centraal zodat alle checkout-routes
+ *  en webhook hetzelfde schema produceren. */
+export function mollieMetadataForOrder(args: {
+  order: Order;
+  plan: Plan;
+  user: { id: string; email: string; name: string };
+  source?: LicenseSource;
+  discount?: DiscountSnapshot;
+}): MollieMetadataInput {
+  const licenseType: LicenseType =
+    args.plan.customerType === "organization" ? "team" : "consumer";
+  return {
+    userId: args.user.id,
+    segment: segmentForLicenseType(licenseType),
+    source: args.source ?? "self-signup",
+    licenseType,
+    period: args.plan.period,
+    internalRef: args.order.id,
+    discount: args.discount ?? null,
+    organizationId: args.order.organizationId,
+    email: args.user.email,
+    name: args.user.name,
+  };
+}
+
+/** Update license-row met discount + source na issue. Idempotent — als er al
+ *  een discount-record staat (bv. door admin-grant), niet overschrijven. */
+export async function recordLicenseDiscount(args: {
+  licenseId: string;
+  source: LicenseSource;
+  discount: DiscountSnapshot;
+}): Promise<void> {
+  await db
+    .update(licenses)
+    .set({
+      source: args.source,
+      discountType: args.discount?.type ?? null,
+      discountValue: args.discount?.value ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(licenses.id, args.licenseId));
+}
+
+/** Lookup user-billing (mollieCustomerId + billing-email) voor één user. */
+export async function getUserBilling(userId: string): Promise<{
+  mollieCustomerId: string | null;
+  billingEmail: string | null;
+} | null> {
+  const [row] = await db
+    .select({
+      mollieCustomerId: userBilling.mollieCustomerId,
+      billingEmail: userBilling.billingEmail,
+    })
+    .from(userBilling)
+    .where(eq(userBilling.userId, userId))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function getOrderById(orderId: string): Promise<Order | null> {

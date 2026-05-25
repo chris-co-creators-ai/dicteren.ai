@@ -24,6 +24,12 @@ export default async function AdminCrmPage() {
         )
       : 0;
 
+  // KPI: hoeveel users hebben Mollie customer + actieve subscription.
+  const mollieCount = rows.filter((r) => r.mollieCustomerId).length;
+  const activeSubCount = rows.filter(
+    (r) => r.subscriptionStatus === "active",
+  ).length;
+
   return (
     <CrmView
       customers={rows.map((r) => ({
@@ -42,6 +48,13 @@ export default async function AdminCrmPage() {
         emailsClicked: r.emailsClicked,
         emailsBounced: r.emailsBounced,
         stage: classifyStage(r),
+        segment: r.segment,
+        licenseSource: r.licenseSource,
+        discountType: r.discountType,
+        discountValue: r.discountValue,
+        mollieCustomerId: r.mollieCustomerId,
+        subscriptionStatus: r.subscriptionStatus,
+        nextBillingAt: r.nextBillingAt?.toISOString() ?? null,
       }))}
       stageCounts={stages}
       kpis={[
@@ -61,9 +74,9 @@ export default async function AdminCrmPage() {
           detail: `${conversionPct}% van trial-gebruikers`,
         },
         {
-          label: "Leads zonder trial",
-          value: String(stages.lead),
-          detail: "Account, nog niet gestart",
+          label: "Mollie customers",
+          value: String(mollieCount),
+          detail: `${activeSubCount} actieve subscription`,
         },
       ]}
     />

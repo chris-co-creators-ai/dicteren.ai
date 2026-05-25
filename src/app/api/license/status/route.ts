@@ -8,7 +8,13 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { devices, licenseActivations, licenses } from "@/lib/db/schema";
+import {
+  devices,
+  licenseActivations,
+  licenses,
+  plans,
+  subscriptions,
+} from "@/lib/db/schema";
 import { isExpired, signLicenseToken, verifyLicenseToken } from "@/lib/services";
 import type { LicenseStatus, LicenseType } from "@/lib/types";
 
@@ -20,6 +26,19 @@ type StatusResponse =
         status: LicenseStatus;
         type: LicenseType;
         expiresAt: string | null;
+        /** Plan-naam, bv. "Persoonlijk maand" — null voor trial/partner. */
+        planLabel: string | null;
+        /** "monthly" | "quarterly" | "yearly" | "lifetime" | null */
+        period: string | null;
+        /** Bron van uitgifte: self-signup | admin-grant | partner:ORG-X */
+        source: string | null;
+        /** Discount-snapshot bij issue (uit Mollie metadata). */
+        discountType: string | null;
+        discountValue: number | null;
+        /** Status van Mollie subscription (active/canceled/...), null = geen. */
+        subscriptionStatus: string | null;
+        /** Volgende incasso (ISO), null = lifetime / geen sub. */
+        nextBillingAt: string | null;
       };
     }
   | { success: false; error: string; code?: string };
@@ -123,6 +142,31 @@ export async function GET(request: Request) {
     );
   }
 
+  // Plan-label (cosmetic — voor "Persoonlijk maand" in Tauri abonnement-page).
+  let planLabel: string | null = null;
+  let planPeriod: string | null = null;
+  if (license.planId) {
+    const [p] = await db
+      .select({ label: plans.label, period: plans.period })
+      .from(plans)
+      .where(eq(plans.id, license.planId))
+      .limit(1);
+    if (p) {
+      planLabel = p.label;
+      planPeriod = p.period;
+    }
+  }
+
+  // Subscription-state (voor "Volgende incasso DD-MM-YYYY" in Tauri).
+  const [sub] = await db
+    .select({
+      status: subscriptions.status,
+      nextBillingAt: subscriptions.nextBillingAt,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.licenseId, license.id))
+    .limit(1);
+
   return NextResponse.json<StatusResponse>({
     success: true,
     token: fresh.data,
@@ -130,6 +174,13 @@ export async function GET(request: Request) {
       status: currentStatus,
       type: license.type,
       expiresAt: license.expiresAt ? license.expiresAt.toISOString() : null,
+      planLabel,
+      period: planPeriod,
+      source: license.source ?? null,
+      discountType: license.discountType ?? null,
+      discountValue: license.discountValue ?? null,
+      subscriptionStatus: sub?.status ?? null,
+      nextBillingAt: sub?.nextBillingAt?.toISOString() ?? null,
     },
   });
 }

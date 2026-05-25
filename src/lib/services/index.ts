@@ -23,7 +23,20 @@ export {
   verifyWebhookPayment,
   formatMollieAmount,
   mapMollieStatus,
+  createMollieCustomer,
+  getMollieSubscription,
+  type MollieMetadataRecord,
 } from "./mollie";
+
+export {
+  buildMollieMetadata,
+  segmentForLicenseType,
+  startDateForFreeMonths,
+  type CustomerSegment,
+  type LicenseSource,
+  type DiscountSnapshot,
+  type MollieMetadataInput,
+} from "./mollie-metadata";
 
 export {
   sendEmail,
@@ -59,9 +72,11 @@ export {
   listUserLicenses,
   listUserPaidLicenses,
   getUserActiveSubscription,
+  getUserSubscriptionView,
   type UserTrial,
   type UserLicense,
   type UserSubscription,
+  type SubscriptionView,
 } from "./account";
 
 export {

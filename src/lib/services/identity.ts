@@ -19,7 +19,10 @@ import {
   emailLogs,
   licenses,
   organizationBilling,
+  subscriptions,
+  userBilling,
 } from "@/lib/db/schema";
+import type { LicenseType } from "@/lib/types";
 
 /** Filter dat race-condition duplicate-trials uitsluit (artefact van
  *  trial-service dedupe-fix). Zelfde patroon als in services/account.ts. */
@@ -152,6 +155,8 @@ export async function identityKpis() {
 
 // ───── Trial-funnel view for /admin/crm ───────────────────────
 
+export type CustomerSegment = "consumer" | "team" | "partner" | "trial" | "lead";
+
 export type CustomerFunnelRow = {
   id: string;
   name: string;
@@ -163,6 +168,21 @@ export type CustomerFunnelRow = {
   trialExpiresAt: Date | null;
   trialStatus: string | null;
   paidLicenseCount: number;
+  /** Segment afgeleid uit actieve license: team > consumer > partner > trial > lead. */
+  segment: CustomerSegment;
+  /** Type van laatste paid license (consumer/team/partner) — null voor lead/trial. */
+  paidLicenseType: LicenseType | null;
+  /** Source van laatste license (self-signup, partner:ORG-X, admin-grant, ...). */
+  licenseSource: string | null;
+  /** Discount-snapshot van laatste license (uit Mollie metadata bij issue). */
+  discountType: string | null;
+  discountValue: number | null;
+  /** Mollie customer-id (uit user_billing), null = nooit in Mollie. */
+  mollieCustomerId: string | null;
+  /** Status van actieve Mollie subscription (active/canceled/...), null = geen. */
+  subscriptionStatus: string | null;
+  /** Volgende incasso (vanuit subscriptions tabel). */
+  nextBillingAt: Date | null;
   emailsSent: number;
   emailsOpened: number;
   emailsClicked: number;
@@ -246,6 +266,83 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
     .groupBy(licenses.userId);
   const paidByUser = new Map(paidCounts.map((p) => [p.userId, p.n]));
 
+  // Snapshot van laatste paid license per user (type / source / discount).
+  const paidLicenseRows = await db
+    .select({
+      userId: licenses.userId,
+      type: licenses.type,
+      source: licenses.source,
+      discountType: licenses.discountType,
+      discountValue: licenses.discountValue,
+      issuedAt: licenses.issuedAt,
+    })
+    .from(licenses)
+    .where(and(notLike(licenses.code, "DIC-TRIAL-%"), NOT_RACE_DUPLICATE));
+  const paidLicenseByUser = new Map<
+    string,
+    {
+      type: LicenseType;
+      source: string | null;
+      discountType: string | null;
+      discountValue: number | null;
+    }
+  >();
+  for (const r of paidLicenseRows) {
+    if (!r.userId) continue;
+    const prev = paidLicenseByUser.get(r.userId);
+    const ordering: Record<LicenseType, number> = {
+      team: 4,
+      consumer: 3,
+      partner: 2,
+      beta: 1,
+    };
+    if (!prev || ordering[r.type] > ordering[prev.type]) {
+      paidLicenseByUser.set(r.userId, {
+        type: r.type,
+        source: r.source ?? null,
+        discountType: r.discountType ?? null,
+        discountValue: r.discountValue ?? null,
+      });
+    }
+  }
+
+  // Mollie customer-id per user (uit user_billing).
+  const billingRows = await db
+    .select({
+      userId: userBilling.userId,
+      mollieCustomerId: userBilling.mollieCustomerId,
+    })
+    .from(userBilling);
+  const mollieByUser = new Map(
+    billingRows.map((b) => [b.userId, b.mollieCustomerId ?? null]),
+  );
+
+  // Actieve / past_due subscription per user.
+  const subRows = await db
+    .select({
+      userId: subscriptions.userId,
+      status: subscriptions.status,
+      nextBillingAt: subscriptions.nextBillingAt,
+    })
+    .from(subscriptions);
+  const subByUser = new Map<
+    string,
+    { status: string; nextBillingAt: Date | null }
+  >();
+  for (const s of subRows) {
+    if (!s.userId) continue;
+    const prev = subByUser.get(s.userId);
+    // active > past_due > canceled > anders
+    const rank = (st: string) =>
+      st === "active" ? 4 : st === "past_due" ? 3 : st === "canceled" ? 2 : 1;
+    if (!prev || rank(s.status) > rank(prev.status)) {
+      subByUser.set(s.userId, {
+        status: s.status,
+        nextBillingAt: s.nextBillingAt,
+      });
+    }
+  }
+
   // Email aggregates per user
   const emailAgg = await db
     .select({
@@ -272,12 +369,31 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
   return users.map((u) => {
     const t = trialByUser.get(u.id);
     const em = emailByUser.get(u.id);
+    const paidLic = paidLicenseByUser.get(u.id) ?? null;
+    const sub = subByUser.get(u.id) ?? null;
+    const paidCount = paidByUser.get(u.id) ?? 0;
+
+    let segment: CustomerSegment;
+    if (paidLic?.type === "team") segment = "team";
+    else if (paidLic?.type === "consumer") segment = "consumer";
+    else if (paidLic?.type === "partner") segment = "partner";
+    else if (t?.status === "active") segment = "trial";
+    else segment = "lead";
+
     return {
       ...u,
       trialStartedAt: t?.issuedAt ?? null,
       trialExpiresAt: t?.expiresAt ?? null,
       trialStatus: t?.status ?? null,
-      paidLicenseCount: paidByUser.get(u.id) ?? 0,
+      paidLicenseCount: paidCount,
+      segment,
+      paidLicenseType: paidLic?.type ?? null,
+      licenseSource: paidLic?.source ?? null,
+      discountType: paidLic?.discountType ?? null,
+      discountValue: paidLic?.discountValue ?? null,
+      mollieCustomerId: mollieByUser.get(u.id) ?? null,
+      subscriptionStatus: sub?.status ?? null,
+      nextBillingAt: sub?.nextBillingAt ?? null,
       emailsSent: em?.sent ?? 0,
       emailsOpened: em?.opened ?? 0,
       emailsClicked: em?.clicked ?? 0,

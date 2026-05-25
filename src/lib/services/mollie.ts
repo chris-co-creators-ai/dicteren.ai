@@ -1,10 +1,19 @@
 // Dicteren.ai — Mollie Payment Service
 // Shared mechanics: payment creation, status fetch, webhook verification, mapping.
 // Domain logic (order creation, license generation after payment) stays in actions.
+//
+// Tagging-strategie: Mollie heeft geen native tags/labels. Wij gebruiken het
+// `metadata` veld (~1kB JSON) als tagging-mechanisme. ALLE create-calls
+// accepteren een gestructureerde `MollieMetadataInput` via buildMollieMetadata
+// uit `./mollie-metadata`. Direct losse keys doorgeven mag ook (voor backwards
+// compat), maar nieuwe code moet de builder gebruiken.
 
 import type { ServiceResult } from "@/lib/types";
 
 const MOLLIE_BASE = "https://api.mollie.com/v2";
+
+/** Mollie metadata accepteert strings, numbers, null en (geserialiseerd) objects. */
+export type MollieMetadataRecord = Record<string, string | number | boolean | null>;
 
 interface CreatePaymentParams {
   /** Amount in eurocents (e.g. 1200 = €12.00) */
@@ -14,7 +23,7 @@ interface CreatePaymentParams {
   description: string;
   redirectUrl: string;
   webhookUrl?: string;
-  metadata?: Record<string, string | number | null>;
+  metadata?: MollieMetadataRecord;
   locale?: string;
   /** Optional Mollie method id (e.g. 'ideal', 'creditcard'); omitted = customer chooses */
   method?: string;
@@ -56,9 +65,23 @@ interface CreateSubscriptionParams {
   interval: string;
   description: string;
   webhookUrl?: string;
-  /** ISO date string; first charge happens then. Default: immediately. */
+  /** ISO date string (yyyy-MM-dd); first charge happens then. Default: immediately.
+   * Gebruik dit voor "X maanden gratis" voor de paid periode begint. */
   startDate?: string;
-  metadata?: Record<string, string | number | null>;
+  /** Optional. Aantal afschrijvingen voor subscription eindigt (lifetime = weglaten). */
+  times?: number;
+  metadata?: MollieMetadataRecord;
+}
+
+interface CreateCustomerParams {
+  name: string;
+  email: string;
+  locale?: string;
+  metadata?: MollieMetadataRecord;
+}
+
+interface CustomerResult {
+  customerId: string;
 }
 
 interface SubscriptionResult {
@@ -285,6 +308,7 @@ export async function createMollieSubscription(
   };
   if (params.webhookUrl) body.webhookUrl = params.webhookUrl;
   if (params.startDate) body.startDate = params.startDate;
+  if (params.times && params.times > 0) body.times = params.times;
   if (params.metadata) body.metadata = params.metadata;
 
   try {
@@ -313,6 +337,104 @@ export async function createMollieSubscription(
         subscriptionId: data.id,
         status: data.status,
         nextPaymentDate: data.nextPaymentDate ?? null,
+      },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: (err as Error).message,
+      code: "MOLLIE_NETWORK_ERROR",
+    };
+  }
+}
+
+/** POST /v2/customers — create a Mollie customer with our standard metadata. */
+export async function createMollieCustomer(
+  params: CreateCustomerParams,
+): Promise<ServiceResult<CustomerResult>> {
+  const auth = authHeader();
+  if (!auth) {
+    return {
+      success: false,
+      error: "Mollie API key ontbreekt",
+      code: "MOLLIE_NOT_CONFIGURED",
+    };
+  }
+
+  const body: Record<string, unknown> = {
+    name: params.name,
+    email: params.email,
+    locale: params.locale ?? "nl_NL",
+  };
+  if (params.metadata) body.metadata = params.metadata;
+
+  try {
+    const res = await fetch(`${MOLLIE_BASE}/customers`, {
+      method: "POST",
+      headers: { ...auth, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        error: detail.detail || `Mollie returned ${res.status}`,
+        code: "MOLLIE_ERROR",
+      };
+    }
+    const data = await res.json();
+    return { success: true, data: { customerId: data.id } };
+  } catch (err) {
+    return {
+      success: false,
+      error: (err as Error).message,
+      code: "MOLLIE_NETWORK_ERROR",
+    };
+  }
+}
+
+/** GET /v2/customers/{customerId}/subscriptions/{subscriptionId} — voor sync naar Tauri. */
+export async function getMollieSubscription(args: {
+  customerId: string;
+  subscriptionId: string;
+}): Promise<
+  ServiceResult<{
+    status: string;
+    nextPaymentDate: string | null;
+    amountCents: number;
+    interval: string;
+    canceledAt: string | null;
+  }>
+> {
+  const auth = authHeader();
+  if (!auth) {
+    return {
+      success: false,
+      error: "Mollie API key ontbreekt",
+      code: "MOLLIE_NOT_CONFIGURED",
+    };
+  }
+  try {
+    const res = await fetch(
+      `${MOLLIE_BASE}/customers/${args.customerId}/subscriptions/${args.subscriptionId}`,
+      { headers: auth },
+    );
+    if (!res.ok) {
+      return {
+        success: false,
+        error: `Mollie returned ${res.status}`,
+        code: res.status === 404 ? "MOLLIE_NOT_FOUND" : "MOLLIE_ERROR",
+      };
+    }
+    const data = await res.json();
+    return {
+      success: true,
+      data: {
+        status: data.status,
+        nextPaymentDate: data.nextPaymentDate ?? null,
+        amountCents: Math.round(parseFloat(data.amount?.value ?? "0") * 100),
+        interval: data.interval ?? "",
+        canceledAt: data.canceledAt ?? null,
       },
     };
   } catch (err) {

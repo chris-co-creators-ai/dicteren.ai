@@ -6,8 +6,10 @@ import {
   ensureMollieCustomerId,
   getPlanBySlug,
   isRecurringPlan,
+  mollieMetadataForOrder,
 } from "@/lib/services/order";
 import { createCustomerPayment, createPayment } from "@/lib/services/mollie";
+import { buildMollieMetadata } from "@/lib/services/mollie-metadata";
 import { trackEvent } from "@/lib/services/audit";
 
 function webhookUrlFor(base: string): string | undefined {
@@ -85,6 +87,8 @@ export async function POST(request: Request) {
     userId: session.user.id,
     name: session.user.name,
     email: session.user.email,
+    segment: "team",
+    source: "self-signup",
   }).catch(() => null);
 
   const { order, plan: planRow, amountCents, description } = await createOrder({
@@ -98,15 +102,23 @@ export async function POST(request: Request) {
   const fullDescription = `${description}${organizationName ? ` — ${organizationName}` : ""}`;
   const redirectUrl = `${base}/checkout/success?order=${order.id}`;
   const webhookUrl = webhookUrlFor(base);
-  const metadata = {
-    orderId: order.id,
-    userId: session.user.id,
-    planSlug,
+  const baseMetadata = buildMollieMetadata(
+    mollieMetadataForOrder({
+      order,
+      plan: planRow,
+      user: {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      },
+      source: "self-signup",
+    }),
+  );
+  // team-specifieke extra keys op metadata zetten (binnen ~1kB ruim genoeg).
+  const metadata: Record<string, string | number | null> = {
+    ...baseMetadata,
     seats: seatCount,
     organizationName: organizationName ?? null,
-    organizationId: organizationId ?? null,
-    email: session.user.email,
-    name: session.user.name,
   };
 
   const mollie =

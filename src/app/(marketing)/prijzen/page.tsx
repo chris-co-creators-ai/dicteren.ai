@@ -16,14 +16,6 @@ const PLANS: Record<
   year: { price: 96, sub: "per jaar", save: "bespaar 33%", label: "Per jaar" },
 };
 
-const DISCOUNT_TIERS: { range: string; pct: string; from: number; to: number | null }[] = [
-  { range: "1–4 zitplaatsen", pct: "0%", from: 1, to: 4 },
-  { range: "5–9 zitplaatsen", pct: "10%", from: 5, to: 9 },
-  { range: "10–24 zitplaatsen", pct: "15%", from: 10, to: 24 },
-  { range: "25–49 zitplaatsen", pct: "20%", from: 25, to: 49 },
-  { range: "50+ zitplaatsen", pct: "op maat", from: 50, to: null },
-];
-
 const COMPARE: { feature: string; beta: boolean | string; persoonlijk: boolean | string; zakelijk: boolean | string }[] = [
   { feature: "Lokaal Nederlands V3-model", beta: true, persoonlijk: true, zakelijk: true },
   { feature: "Mac & Windows", beta: true, persoonlijk: true, zakelijk: true },
@@ -32,18 +24,29 @@ const COMPARE: { feature: string; beta: boolean | string; persoonlijk: boolean |
   { feature: "Prioriteits-support", beta: false, persoonlijk: true, zakelijk: true },
   { feature: "Admin-dashboard", beta: false, persoonlijk: false, zakelijk: true },
   { feature: "Seat-management", beta: false, persoonlijk: false, zakelijk: true },
-  { feature: "Volumekorting", beta: false, persoonlijk: false, zakelijk: true },
+  { feature: "Volumekorting vanaf 5 seats", beta: false, persoonlijk: false, zakelijk: true },
   { feature: "Facturatie & inkoop-PO", beta: false, persoonlijk: false, zakelijk: true },
 ];
 
 const SEAT_BASE_PRICE = 84;
+const CUSTOM_QUOTE_FROM = 50;
 
 function getSeatDiscount(seats: number): number | "custom" {
-  if (seats >= 50) return "custom";
+  if (seats >= CUSTOM_QUOTE_FROM) return "custom";
   if (seats >= 25) return 0.2;
   if (seats >= 10) return 0.15;
   if (seats >= 5) return 0.1;
   return 0;
+}
+
+/** Volgende staffel-mijlpaal — voor "Nog X seats voor 15%" nudge. */
+function nextTier(
+  seats: number,
+): { atSeats: number; pct: number } | null {
+  if (seats < 5) return { atSeats: 5, pct: 10 };
+  if (seats < 10) return { atSeats: 10, pct: 15 };
+  if (seats < 25) return { atSeats: 25, pct: 20 };
+  return null;
 }
 
 export default function PrijzenPage() {
@@ -60,8 +63,7 @@ export default function PrijzenPage() {
     <>
       {/* Header */}
       <section className="px-4 pt-12 pb-6 text-center sm:px-6 sm:pt-16 sm:pb-8 lg:px-14 lg:pt-20">
-        <span className="chip chip-orange">Concept · prijzen kunnen wijzigen</span>
-        <h1 className="mt-5 text-balance text-4xl font-bold leading-[1.05] tracking-tight text-[color:var(--navy)] sm:text-5xl lg:text-6xl">
+        <h1 className="text-balance text-4xl font-bold leading-[1.05] tracking-tight text-[color:var(--navy)] sm:text-5xl lg:text-6xl">
           Een eerlijke prijs zonder verrassingen.
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-[color:var(--text-muted)] sm:text-lg">
@@ -207,9 +209,9 @@ export default function PrijzenPage() {
             </ul>
           </article>
 
-          {/* Zakelijk */}
+          {/* Zakelijk — met ingebouwde seat-calculator */}
           <article
-            className="brand-card p-7 text-white"
+            className="brand-card relative overflow-hidden p-7 text-white"
             style={{
               background: "var(--navy)",
               borderColor: "var(--navy)",
@@ -217,26 +219,130 @@ export default function PrijzenPage() {
           >
             <h3 className="text-lg font-semibold">Zakelijk</h3>
             <p className="mt-1 text-sm text-[#9db1d6]">
-              Voor teams en organisaties
+              Voor teams en organisaties · aftrekbaar
             </p>
-            <div className="mt-4 flex items-baseline gap-1.5">
-              <span className="text-5xl font-bold tracking-tight">€84</span>
-              <span className="text-sm text-[#9db1d6]">per gebruiker / jaar</span>
+
+            {/* Live prijs op basis van seats */}
+            {discount === "custom" ? (
+              <>
+                <div className="mt-4 text-3xl font-bold leading-tight tracking-tight">
+                  Offerte op maat
+                </div>
+                <p className="mt-1 text-sm text-[#9db1d6]">
+                  Vanaf {CUSTOM_QUOTE_FROM} gebruikers
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="mt-4 flex items-baseline gap-1.5">
+                  <span className="text-5xl font-bold tracking-tight">
+                    €{annualPerSeat}
+                  </span>
+                  <span className="text-sm text-[#9db1d6]">
+                    per gebruiker / jaar
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[#9db1d6]">
+                  €{(total ?? 0).toLocaleString("nl-NL")} totaal voor {seats}{" "}
+                  {seats === 1 ? "gebruiker" : "gebruikers"} · excl. btw
+                </p>
+                {typeof discount === "number" && discount > 0 && (
+                  <p
+                    className="mt-1 text-xs font-semibold"
+                    style={{ color: "var(--aqua)" }}
+                  >
+                    {Math.round(discount * 100)}% volumekorting actief
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* Seat-stepper + slider */}
+            <div className="mt-5">
+              <div className="flex items-center justify-between gap-3">
+                <label
+                  htmlFor="seat-input"
+                  className="text-xs font-semibold text-[#9db1d6]"
+                >
+                  Aantal gebruikers
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSeats((s) => Math.max(1, s - 1))}
+                    className="grid size-7 place-items-center rounded-full bg-white/10 text-base font-bold leading-none text-white hover:bg-white/20"
+                    aria-label="Minder gebruikers"
+                  >
+                    −
+                  </button>
+                  <input
+                    id="seat-input"
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={seats}
+                    onChange={(e) =>
+                      setSeats(
+                        Math.min(60, Math.max(1, Number(e.target.value) || 1)),
+                      )
+                    }
+                    className="w-12 rounded-md bg-white/10 px-1.5 py-1 text-center text-sm font-bold text-white outline-none focus:bg-white/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSeats((s) => Math.min(60, s + 1))}
+                    className="grid size-7 place-items-center rounded-full bg-white/10 text-base font-bold leading-none text-white hover:bg-white/20"
+                    aria-label="Meer gebruikers"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={60}
+                value={seats}
+                onChange={(e) => setSeats(Number(e.target.value))}
+                className="mt-2 w-full"
+                style={{ accentColor: "var(--aqua)" }}
+              />
+              {nextTier(seats) && discount !== "custom" && (
+                <p className="mt-1 text-[0.6875rem] text-[#9db1d6]">
+                  Nog {nextTier(seats)!.atSeats - seats}{" "}
+                  {nextTier(seats)!.atSeats - seats === 1 ? "seat" : "seats"} →{" "}
+                  {nextTier(seats)!.pct}% korting
+                </p>
+              )}
             </div>
-            <Link
-              href="/zakelijk"
-              className="btn mt-5 w-full"
-              style={{ background: "var(--aqua)", color: "var(--navy)" }}
-            >
-              Vraag zakelijke beta aan
-            </Link>
+
+            {/* Smart CTA: <50 = afrekenen, 50+ = offerte */}
+            {discount === "custom" ? (
+              <Link
+                href="/contact?onderwerp=zakelijke-offerte"
+                className="btn mt-5 w-full"
+                style={{ background: "var(--aqua)", color: "var(--navy)" }}
+              >
+                <Send className="size-3.5" strokeWidth={2.2} />
+                Vraag offerte aan
+              </Link>
+            ) : (
+              <Link
+                href="/auth/sign-up?next=/trial/start"
+                className="btn mt-5 w-full"
+                style={{ background: "var(--aqua)", color: "var(--navy)" }}
+              >
+                Start zakelijke trial
+              </Link>
+            )}
+
             <ul className="mt-5 flex flex-col gap-2.5">
               {[
-                "Teamlicenties",
-                "Admin-dashboard",
-                "Seat-management",
-                "Volumekorting (zie onder)",
-                "Facturatie & support",
+                "Teamlicenties · 2 apparaten per gebruiker",
+                "Admin-dashboard met seat-management",
+                "Volumekorting vanaf 5 gebruikers",
+                "Facturatie met PO-nummer",
+                "Prioriteits-support",
               ].map((item) => (
                 <li
                   key={item}
@@ -252,117 +358,6 @@ export default function PrijzenPage() {
               ))}
             </ul>
           </article>
-        </div>
-      </section>
-
-      {/* Seat calculator */}
-      <section className="px-4 pb-16 sm:px-6 sm:pb-20 lg:px-14 lg:pb-24">
-        <div className="brand-card mx-auto grid max-w-5xl gap-9 p-7 sm:p-9 lg:grid-cols-2 lg:items-center">
-          <div>
-            <span className="chip chip-navy">Zakelijke calculator</span>
-            <h3 className="mt-3.5 text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-              Hoeveel zou jouw team kosten?
-            </h3>
-            <p className="mt-2 text-sm text-[color:var(--text-muted)]">
-              Volumekorting vanaf 5 zitplaatsen. Voor 50+ maken we een offerte op
-              maat.
-            </p>
-
-            <div className="mt-7">
-              <label
-                htmlFor="seat-slider"
-                className="text-sm font-semibold text-[color:var(--text-muted)]"
-              >
-                Aantal gebruikers:{" "}
-                <span className="text-[color:var(--orange)]">{seats}</span>
-              </label>
-              <input
-                id="seat-slider"
-                type="range"
-                min={1}
-                max={60}
-                value={seats}
-                onChange={(e) => setSeats(Number(e.target.value))}
-                className="mt-2.5 w-full"
-                style={{ accentColor: "var(--orange)" }}
-              />
-              <div className="mt-1 flex justify-between font-mono text-[0.6875rem] text-[color:var(--text-soft)]">
-                <span>1</span>
-                <span>5</span>
-                <span>10</span>
-                <span>25</span>
-                <span>50+</span>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
-              {DISCOUNT_TIERS.map((tier) => {
-                const active =
-                  tier.to === null
-                    ? seats >= tier.from
-                    : seats >= tier.from && seats <= tier.to;
-                return (
-                  <div
-                    key={tier.range}
-                    className={cn(
-                      "flex justify-between rounded-xl border px-3 py-2.5 text-sm",
-                      active
-                        ? "border-[color:var(--orange)] bg-[color:var(--orange-50)] font-bold"
-                        : "border-[color:var(--border-soft)] bg-white font-medium",
-                    )}
-                  >
-                    <span>{tier.range}</span>
-                    <span>{tier.pct}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Result panel */}
-          <div
-            className="rounded-2xl border border-[color:var(--border-soft)] p-7"
-            style={{ background: "var(--bg)" }}
-          >
-            {total !== null && annualPerSeat !== null ? (
-              <>
-                <div className="text-sm font-semibold text-[color:var(--text-muted)]">
-                  Geschatte jaarlijkse kosten
-                </div>
-                <div className="mt-2 text-5xl font-bold leading-none tracking-tight sm:text-6xl">
-                  €{total.toLocaleString("nl-NL")}
-                </div>
-                <div className="mt-2 text-sm text-[color:var(--text-muted)]">
-                  €{annualPerSeat}/gebruiker · {seats} zitplaatsen
-                </div>
-                {typeof discount === "number" && discount > 0 && (
-                  <div className="mt-2 text-sm font-semibold text-[color:var(--orange-600)]">
-                    Inclusief {Math.round(discount * 100)}% volumekorting
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="text-sm font-semibold text-[color:var(--text-muted)]">
-                  50+ zitplaatsen
-                </div>
-                <div className="mt-2 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-                  Offerte op maat
-                </div>
-                <p className="mt-3 text-sm text-[color:var(--text-muted)]">
-                  We maken een voorstel inclusief implementatieondersteuning en
-                  aangepaste betalingsvoorwaarden.
-                </p>
-              </>
-            )}
-            <Link href="/contact" className="btn btn-navy mt-6 w-full">
-              <Send className="size-3.5" strokeWidth={2.2} />
-              Vraag offerte aan
-            </Link>
-            <p className="mt-3 text-center text-[0.6875rem] text-[color:var(--text-soft)]">
-              Excl. btw · concept-tarieven
-            </p>
-          </div>
         </div>
       </section>
 

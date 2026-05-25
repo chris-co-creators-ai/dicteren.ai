@@ -13,6 +13,7 @@ import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { cn } from "@/lib/utils";
 
 type Stage = "lead" | "trial_active" | "trial_expired" | "converted";
+type Segment = "consumer" | "team" | "partner" | "trial" | "lead";
 
 type Customer = {
   id: string;
@@ -30,11 +31,18 @@ type Customer = {
   emailsClicked: number;
   emailsBounced: number;
   stage: Stage;
+  segment: Segment;
+  licenseSource: string | null;
+  discountType: string | null;
+  discountValue: number | null;
+  mollieCustomerId: string | null;
+  subscriptionStatus: string | null;
+  nextBillingAt: string | null;
 };
 
 type Kpi = { label: string; value: string; detail: string };
 
-type TabKey = "all" | Stage;
+type TabKey = "all" | Stage | `seg:${Segment}`;
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "Alle" },
@@ -42,6 +50,9 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "trial_expired", label: "Trial verlopen" },
   { key: "converted", label: "Geconverteerd" },
   { key: "lead", label: "Lead" },
+  { key: "seg:consumer", label: "Consumer" },
+  { key: "seg:team", label: "Team" },
+  { key: "seg:partner", label: "Partner" },
 ];
 
 const STAGE_META: Record<
@@ -70,6 +81,46 @@ const STAGE_META: Record<
   },
 };
 
+const SEGMENT_META: Record<
+  Segment,
+  { label: string; chipBg: string; chipFg: string }
+> = {
+  team: {
+    label: "Team",
+    chipBg: "color-mix(in srgb, var(--navy) 14%, white)",
+    chipFg: "var(--navy)",
+  },
+  consumer: {
+    label: "Consumer",
+    chipBg: "color-mix(in srgb, var(--aqua) 18%, white)",
+    chipFg: "var(--navy)",
+  },
+  partner: {
+    label: "Partner",
+    chipBg: "color-mix(in srgb, var(--orange) 14%, white)",
+    chipFg: "var(--orange-600)",
+  },
+  trial: {
+    label: "Trial",
+    chipBg: "color-mix(in srgb, var(--green) 14%, white)",
+    chipFg: "var(--green)",
+  },
+  lead: {
+    label: "Lead",
+    chipBg: "var(--surface-2)",
+    chipFg: "var(--text-muted)",
+  },
+};
+
+function formatDiscount(type: string | null, value: number | null): string | null {
+  if (!type || value === null) return null;
+  if (type === "free_months") return `${value} mnd gratis`;
+  if (type === "lifetime") return "Lifetime gratis";
+  if (type === "percentage") return `-${value}%`;
+  if (type === "fixed") return `-€${(value / 100).toFixed(2)}`;
+  return `${type}: ${value}`;
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("nl-NL", {
     day: "2-digit",
@@ -90,26 +141,46 @@ export function CrmView({
   const [tab, setTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
 
-  const counts: Record<TabKey, number> = useMemo(
-    () => ({
+  const counts: Record<TabKey, number> = useMemo(() => {
+    const bySeg: Record<Segment, number> = {
+      consumer: 0,
+      team: 0,
+      partner: 0,
+      trial: 0,
+      lead: 0,
+    };
+    for (const c of customers) bySeg[c.segment] += 1;
+    return {
       all: customers.length,
       lead: stageCounts.lead,
       trial_active: stageCounts.trial_active,
       trial_expired: stageCounts.trial_expired,
       converted: stageCounts.converted,
-    }),
-    [customers.length, stageCounts],
-  );
+      "seg:consumer": bySeg.consumer,
+      "seg:team": bySeg.team,
+      "seg:partner": bySeg.partner,
+      "seg:trial": bySeg.trial,
+      "seg:lead": bySeg.lead,
+    };
+  }, [customers, stageCounts]);
 
   const filtered = useMemo(
     () =>
       customers.filter((r) => {
-        if (tab !== "all" && r.stage !== tab) return false;
+        if (tab !== "all") {
+          if (tab.startsWith("seg:")) {
+            const seg = tab.slice(4) as Segment;
+            if (r.segment !== seg) return false;
+          } else if (r.stage !== tab) {
+            return false;
+          }
+        }
         if (search) {
           const q = search.toLowerCase();
           return (
             r.name.toLowerCase().includes(q) ||
-            r.email.toLowerCase().includes(q)
+            r.email.toLowerCase().includes(q) ||
+            (r.mollieCustomerId?.toLowerCase().includes(q) ?? false)
           );
         }
         return true;
@@ -206,7 +277,7 @@ export function CrmView({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[52rem] border-separate border-spacing-0 text-sm">
+            <table className="w-full min-w-[68rem] border-separate border-spacing-0 text-sm">
               <thead>
                 <tr
                   className="text-[color:var(--text-muted)]"
@@ -214,10 +285,13 @@ export function CrmView({
                 >
                   {[
                     "Klant",
+                    "Segment",
                     "Stage",
                     "Trial",
+                    "Mollie",
+                    "Discount / bron",
                     "Mails",
-                    "Licenties",
+                    "Lic.",
                     "Lid sinds",
                   ].map((h) => (
                     <th
@@ -233,7 +307,7 @@ export function CrmView({
                 {filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={9}
                       className="px-3 py-10 text-center text-sm text-[color:var(--text-muted)]"
                     >
                       Geen klanten in dit filter.
@@ -243,6 +317,11 @@ export function CrmView({
                   filtered.map((r) => {
                     const Icon = r.role === "admin" ? Building2 : User;
                     const stage = STAGE_META[r.stage];
+                    const seg = SEGMENT_META[r.segment];
+                    const discountLabel = formatDiscount(
+                      r.discountType,
+                      r.discountValue,
+                    );
                     return (
                       <tr
                         key={r.id}
@@ -279,6 +358,17 @@ export function CrmView({
                           <span
                             className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold"
                             style={{
+                              background: seg.chipBg,
+                              color: seg.chipFg,
+                            }}
+                          >
+                            {seg.label}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold"
+                            style={{
                               background: stage.chipBg,
                               color: stage.chipFg,
                             }}
@@ -299,6 +389,35 @@ export function CrmView({
                           ) : (
                             "—"
                           )}
+                        </td>
+                        <td className="px-3 py-3 font-mono text-[0.6875rem] text-[color:var(--text-muted)]">
+                          {r.mollieCustomerId ? (
+                            <>
+                              <div className="truncate" style={{ maxWidth: 110 }}>
+                                {r.mollieCustomerId}
+                              </div>
+                              {r.subscriptionStatus && (
+                                <div className="text-[0.625rem] text-[color:var(--text-soft)]">
+                                  sub {r.subscriptionStatus}
+                                  {r.nextBillingAt
+                                    ? ` · ${formatDate(r.nextBillingAt)}`
+                                    : ""}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-xs text-[color:var(--text-muted)]">
+                          {discountLabel ? (
+                            <div className="font-semibold text-[color:var(--orange-600)]">
+                              {discountLabel}
+                            </div>
+                          ) : null}
+                          <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
+                            {r.licenseSource ?? "—"}
+                          </div>
                         </td>
                         <td className="px-3 py-3 text-xs">
                           <div className="font-semibold">

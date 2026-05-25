@@ -185,3 +185,110 @@ export async function getUserActiveSubscription(
   );
   return active ?? null;
 }
+
+/** Unified subscription-view voor /account én Tauri abonnement-pagina.
+ *  Geeft alles wat de UI moet tonen: license, plan, discount, mollie sub. */
+export type SubscriptionView = {
+  /** Bestaat er ueberhaupt een actieve/trial license voor deze user? */
+  hasLicense: boolean;
+  license: {
+    id: string;
+    code: string;
+    type: License["type"];
+    status: License["status"];
+    issuedAt: string;
+    expiresAt: string | null;
+    source: string | null;
+    /** Bv. "free_months" | "lifetime" — null = geen korting */
+    discountType: string | null;
+    /** 3 (= maanden), 20 (= %), etc. */
+    discountValue: number | null;
+  } | null;
+  plan: {
+    slug: string;
+    label: string;
+    period: string;
+    priceCents: number;
+    currency: string;
+  } | null;
+  subscription: {
+    status: string;
+    nextBillingAt: string | null;
+    intervalLabel: string;
+    amountCents: number;
+    mollieSubscriptionId: string;
+  } | null;
+};
+
+export async function getUserSubscriptionView(
+  userId: string,
+): Promise<SubscriptionView> {
+  // Pak de actieve/trial license met hoogste prioriteit (paid > trial).
+  const rows = await db
+    .select({
+      lic: licenses,
+      plan: plans,
+    })
+    .from(licenses)
+    .leftJoin(plans, eq(licenses.planId, plans.id))
+    .where(and(eq(licenses.userId, userId), NOT_RACE_DUPLICATE))
+    .orderBy(desc(licenses.issuedAt));
+
+  if (rows.length === 0) {
+    return { hasLicense: false, license: null, plan: null, subscription: null };
+  }
+
+  // Voorkeur: status active/past_due/trial, daarbij paid > trial.
+  const ranked = rows.slice().sort((a, b) => {
+    const score = (r: typeof rows[number]) => {
+      const isPaid = !r.lic.code.startsWith("DIC-TRIAL-");
+      const s = r.lic.status;
+      const live =
+        s === "active" || s === "past_due" || s === "trial" ? 1 : 0;
+      return (isPaid ? 10 : 0) + live * 5 + (r.lic.issuedAt.getTime() / 1e13);
+    };
+    return score(b) - score(a);
+  });
+  const primary = ranked[0];
+  const lic = primary.lic;
+  const plan = primary.plan;
+
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.licenseId, lic.id))
+    .limit(1);
+
+  return {
+    hasLicense: true,
+    license: {
+      id: lic.id,
+      code: lic.code,
+      type: lic.type,
+      status: lic.status,
+      issuedAt: lic.issuedAt.toISOString(),
+      expiresAt: lic.expiresAt?.toISOString() ?? null,
+      source: lic.source ?? null,
+      discountType: lic.discountType ?? null,
+      discountValue: lic.discountValue ?? null,
+    },
+    plan: plan
+      ? {
+          slug: plan.slug,
+          label: plan.label,
+          period: plan.period,
+          priceCents: plan.priceCents,
+          currency: plan.currency,
+        }
+      : null,
+    subscription: sub
+      ? {
+          status: sub.status,
+          nextBillingAt: sub.nextBillingAt?.toISOString() ?? null,
+          intervalLabel: sub.intervalLabel,
+          amountCents: sub.amountCents,
+          mollieSubscriptionId: sub.mollieSubscriptionId,
+        }
+      : null,
+  };
+}

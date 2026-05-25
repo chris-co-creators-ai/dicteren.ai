@@ -303,6 +303,13 @@ export const licenses = pgTable(
       .notNull()
       .default(2),
     activationCount: integer("activation_count").notNull().default(0),
+    // Discount snapshot — gekopieerd uit Mollie metadata bij issue.
+    // discountType: "free_months" | "lifetime" | "percentage" | "fixed" | null
+    discountType: text("discount_type"),
+    discountValue: integer("discount_value"),
+    // Bron van uitgifte: "self-signup" | "partner:ORG-XXX" | "affiliate:CODE"
+    // | "admin-grant" — gespiegeld in Mollie metadata.source.
+    source: text("source").default("self-signup"),
     issuedAt: timestamp("issued_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -324,6 +331,7 @@ export const licenses = pgTable(
     index("licenses_email_idx").on(t.customerEmail),
     index("licenses_user_idx").on(t.userId),
     index("licenses_org_idx").on(t.organizationId),
+    index("licenses_source_idx").on(t.source),
   ],
 );
 
