@@ -1,20 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { authClient } from "./client";
+// Deprecated — pre-better-auth client-side redirect helper. AuthForms doet
+// nu de redirect zelf via router.replace na signIn/signUp success. Behouden
+// als pass-through zodat oude imports geen build-breaks geven.
 
 export function RedirectAfterAuth({
-  to,
   children,
 }: {
   to: string;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const { data, isPending } = authClient.useSession();
-  useEffect(() => {
-    if (!isPending && data?.user) router.replace(to);
-  }, [isPending, data, router, to]);
   return <>{children}</>;
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "./server";
 
@@ -13,7 +14,7 @@ export type AuthSession = {
   };
   session: {
     id: string;
-    expiresAt: string;
+    expiresAt: Date | string;
     token: string;
   };
 };
@@ -26,8 +27,25 @@ export type AuthSession = {
  */
 export async function getSession(): Promise<AuthSession | null> {
   try {
-    const result = await auth.getSession();
-    return (result?.data ?? null) as AuthSession | null;
+    const result = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!result?.user) return null;
+    return {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name ?? "",
+        role: (result.user as { role?: string | null }).role ?? null,
+        emailVerified: result.user.emailVerified ?? false,
+        image: result.user.image ?? null,
+      },
+      session: {
+        id: result.session.id,
+        expiresAt: result.session.expiresAt,
+        token: result.session.token,
+      },
+    };
   } catch {
     return null;
   }
@@ -35,8 +53,6 @@ export async function getSession(): Promise<AuthSession | null> {
 
 /**
  * Require any authenticated session. Redirects to sign-in if missing.
- * Use in server components/actions for routes that should not be public
- * but don't need an admin role.
  */
 export async function requireAuth(): Promise<AuthSession> {
   const session = await getSession();
@@ -46,8 +62,7 @@ export async function requireAuth(): Promise<AuthSession> {
 
 /**
  * Require an admin session. Non-admin users are sent to the homepage
- * with an `admin_only` error flag. Use in server components/actions
- * and admin-only API routes.
+ * with an `admin_only` error flag.
  */
 export async function requireAdmin(): Promise<AuthSession> {
   const session = await getSession();

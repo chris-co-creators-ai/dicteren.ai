@@ -1,8 +1,11 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "./schema";
+import * as authSchema from "./auth-schema";
 
 const sql = neon(process.env.DATABASE_URL!);
 
-export const db = drizzle(sql, { schema });
-export { schema };
+// Beide schemas exposeren zodat better-auth's drizzle-adapter de auth.*
+// tabellen kan vinden naast onze public.* business tables.
+export const db = drizzle(sql, { schema: { ...schema, ...authSchema } });
+export { schema, authSchema };

@@ -11,55 +11,20 @@ import {
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
+// Re-export auth-schema tables onder oude namen zodat bestaande imports
+// `authUsers` / `authOrganizations` / etc. door blijven werken na de
+// migratie van neon_auth → auth schema (per 0006_better_auth_self_host).
+import {
+  authUser as betterAuthUser,
+  authOrg as betterAuthOrg,
+  authMember as betterAuthMember,
+  authInvitation as betterAuthInvitation,
+} from "./auth-schema";
 
-// ─────────────────────────── Neon Auth schema (read-only, managed by Neon) ───────────────────────────
-// These tables are created and owned by Neon Auth (Better Auth). We define them
-// here only so Drizzle can write type-safe FKs to them. They are excluded from
-// migrations via `schemaFilter: ['public']` in drizzle.config.ts.
-
-export const neonAuth = pgSchema("neon_auth");
-
-export const authUsers = neonAuth.table("user", {
-  id: uuid("id").primaryKey(),
-  email: text("email").notNull(),
-  name: text("name").notNull(),
-  emailVerified: boolean("emailVerified").notNull().default(false),
-  image: text("image"),
-  role: text("role"),
-  banned: boolean("banned").default(false),
-  banReason: text("banReason"),
-  banExpires: timestamp("banExpires", { withTimezone: true }),
-  createdAt: timestamp("createdAt", { withTimezone: true }).notNull(),
-  updatedAt: timestamp("updatedAt", { withTimezone: true }).notNull(),
-});
-
-export const authOrganizations = neonAuth.table("organization", {
-  id: uuid("id").primaryKey(),
-  name: text("name").notNull(),
-  slug: text("slug"),
-  logo: text("logo"),
-  metadata: text("metadata"),
-  createdAt: timestamp("createdAt", { withTimezone: true }).notNull(),
-});
-
-export const authMembers = neonAuth.table("member", {
-  id: uuid("id").primaryKey(),
-  organizationId: uuid("organizationId").notNull(),
-  userId: uuid("userId").notNull(),
-  role: text("role").notNull(),
-  createdAt: timestamp("createdAt", { withTimezone: true }).notNull(),
-});
-
-export const authInvitations = neonAuth.table("invitation", {
-  id: uuid("id").primaryKey(),
-  organizationId: uuid("organizationId").notNull(),
-  email: text("email").notNull(),
-  role: text("role"),
-  status: text("status").notNull(),
-  inviterId: uuid("inviterId").notNull(),
-  expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
-  createdAt: timestamp("createdAt", { withTimezone: true }).notNull(),
-});
+export const authUsers = betterAuthUser;
+export const authOrganizations = betterAuthOrg;
+export const authMembers = betterAuthMember;
+export const authInvitations = betterAuthInvitation;
 
 // ─────────────────────────── Enums ───────────────────────────
 

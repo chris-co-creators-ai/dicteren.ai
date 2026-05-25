@@ -876,3 +876,158 @@ function trialExpiredText(params: { name?: string }): string {
     "Dicteren.ai",
   ].join("\n");
 }
+
+// ───── Auth: password-reset / email-verification / org-invite ──────
+
+export async function sendPasswordResetEmail(params: {
+  to: string;
+  name?: string;
+  resetUrl: string;
+  userId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: "Stel een nieuw wachtwoord in voor Dicteren.ai",
+    html: passwordResetHtml(params),
+    text: passwordResetText(params),
+    tags: [{ name: "category", value: "auth_password_reset" }],
+    log: { category: "other", userId: params.userId ?? null },
+  });
+}
+
+export async function sendEmailVerificationEmail(params: {
+  to: string;
+  name?: string;
+  verifyUrl: string;
+  userId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: "Bevestig je e-mailadres voor Dicteren.ai",
+    html: emailVerificationHtml(params),
+    text: emailVerificationText(params),
+    tags: [{ name: "category", value: "auth_email_verify" }],
+    log: { category: "other", userId: params.userId ?? null },
+  });
+}
+
+export async function sendOrganizationInviteEmail(params: {
+  to: string;
+  inviterName: string;
+  organizationName: string;
+  inviteUrl: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: `Uitnodiging voor ${params.organizationName} op Dicteren.ai`,
+    html: organizationInviteHtml(params),
+    text: organizationInviteText(params),
+    tags: [{ name: "category", value: "auth_org_invite" }],
+    log: { category: "other" },
+  });
+}
+
+// ───── Auth: HTML/text templates ───────────────────────────────────
+
+function passwordResetHtml(params: { name?: string; resetUrl: string }): string {
+  return shellHtml(
+    "Stel een nieuw wachtwoord in",
+    `
+    <p style="margin:0 0 14px 0;">${greet(params.name)}</p>
+    <p style="margin:0 0 14px 0;">Je hebt een aanvraag gedaan om je wachtwoord voor Dicteren.ai opnieuw in te stellen.</p>
+    <p style="margin:0 0 22px 0;">Klik op de knop hieronder om een nieuw wachtwoord te kiezen. De link werkt 1 uur.</p>
+    <p style="margin:0 0 22px 0;">
+      <a href="${params.resetUrl}" style="display:inline-block;background:#ff6a2c;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;">
+        Nieuw wachtwoord instellen
+      </a>
+    </p>
+    <p style="margin:0 0 14px 0;font-size:13px;color:#5a6478;">Werkt de knop niet? Plak deze link in je browser:</p>
+    <p style="margin:0 0 22px 0;font-size:13px;word-break:break-all;color:#5a6478;">${params.resetUrl}</p>
+    <p style="margin:22px 0 0 0;font-size:13px;color:#8d97a8;">Heb je geen wachtwoord-herstel aangevraagd? Negeer deze mail dan — je wachtwoord blijft hetzelfde.</p>
+    `,
+  );
+}
+
+function passwordResetText(params: { name?: string; resetUrl: string }): string {
+  return [
+    greet(params.name),
+    "",
+    "Je hebt een aanvraag gedaan om je wachtwoord voor Dicteren.ai opnieuw in te stellen.",
+    "Klik op de link hieronder om een nieuw wachtwoord te kiezen. De link werkt 1 uur.",
+    "",
+    params.resetUrl,
+    "",
+    "Heb je geen herstel aangevraagd? Negeer deze mail — je wachtwoord blijft hetzelfde.",
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}
+
+function emailVerificationHtml(params: { name?: string; verifyUrl: string }): string {
+  return shellHtml(
+    "Bevestig je e-mailadres",
+    `
+    <p style="margin:0 0 14px 0;">${greet(params.name)}</p>
+    <p style="margin:0 0 14px 0;">Welkom bij Dicteren.ai. Bevestig je e-mailadres om je account te activeren.</p>
+    <p style="margin:0 0 22px 0;">
+      <a href="${params.verifyUrl}" style="display:inline-block;background:#ff6a2c;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;">
+        Bevestig e-mailadres
+      </a>
+    </p>
+    <p style="margin:0 0 14px 0;font-size:13px;color:#5a6478;">Of plak deze link in je browser:</p>
+    <p style="margin:0 0 22px 0;font-size:13px;word-break:break-all;color:#5a6478;">${params.verifyUrl}</p>
+    <p style="margin:22px 0 0 0;font-size:13px;color:#8d97a8;">Niet door jou aangevraagd? Negeer deze mail.</p>
+    `,
+  );
+}
+
+function emailVerificationText(params: { name?: string; verifyUrl: string }): string {
+  return [
+    greet(params.name),
+    "",
+    "Welkom bij Dicteren.ai. Bevestig je e-mailadres om je account te activeren.",
+    "",
+    params.verifyUrl,
+    "",
+    "Niet door jou aangevraagd? Negeer deze mail.",
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}
+
+function organizationInviteHtml(params: {
+  inviterName: string;
+  organizationName: string;
+  inviteUrl: string;
+}): string {
+  return shellHtml(
+    `Uitnodiging voor ${params.organizationName}`,
+    `
+    <p style="margin:0 0 14px 0;">Hoi,</p>
+    <p style="margin:0 0 14px 0;"><strong>${params.inviterName}</strong> heeft je uitgenodigd voor <strong>${params.organizationName}</strong> op Dicteren.ai.</p>
+    <p style="margin:0 0 22px 0;">
+      <a href="${params.inviteUrl}" style="display:inline-block;background:#ff6a2c;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;">
+        Uitnodiging bekijken
+      </a>
+    </p>
+    <p style="margin:0 0 14px 0;font-size:13px;color:#5a6478;">Of plak deze link in je browser:</p>
+    <p style="margin:0 0 22px 0;font-size:13px;word-break:break-all;color:#5a6478;">${params.inviteUrl}</p>
+    `,
+  );
+}
+
+function organizationInviteText(params: {
+  inviterName: string;
+  organizationName: string;
+  inviteUrl: string;
+}): string {
+  return [
+    "Hoi,",
+    "",
+    `${params.inviterName} heeft je uitgenodigd voor ${params.organizationName} op Dicteren.ai.`,
+    "",
+    params.inviteUrl,
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}

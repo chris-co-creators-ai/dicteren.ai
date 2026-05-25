@@ -1,16 +1,22 @@
 import Link from "next/link";
 import { Apple, Check, Lock, Shield } from "lucide-react";
-import { AuthView } from "@neondatabase/auth-ui";
-import { authViewPaths } from "@neondatabase/auth-ui/server";
 import { LogoIcon } from "@/components/shared/logo";
 import { VoiceWave } from "@/components/shared/voice-wave";
-import { AuthProvider } from "@/lib/auth/AuthProvider";
-import { RedirectAfterAuth } from "@/lib/auth/RedirectAfterAuth";
+import { AuthForms } from "@/components/auth/auth-forms";
+
+const KNOWN_PATHS = new Set([
+  "sign-in",
+  "sign-up",
+  "forgot-password",
+  "reset-password",
+  "verify-email",
+  "callback",
+]);
 
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return Object.values(authViewPaths).map((path) => ({ path }));
+  return Array.from(KNOWN_PATHS).map((path) => ({ path }));
 }
 
 type Copy = {
@@ -81,6 +87,16 @@ const COPY: Record<string, Copy> = {
       ],
     },
   },
+  "verify-email": {
+    title: "Bevestig je e-mailadres",
+    subtitle: "Check je inbox voor de verificatielink.",
+    sidebar: {
+      heading: "Bijna binnen.",
+      intro:
+        "We sturen je een mail met een link. Klik erop en je account is actief.",
+      bullets: [{ icon: Shield, label: "Eenmalig, daarna ben je klaar" }],
+    },
+  },
   callback: {
     title: "Eén moment",
     subtitle: "We loggen je in.",
@@ -88,19 +104,6 @@ const COPY: Record<string, Copy> = {
       heading: "Bijna binnen.",
       intro: "Een ogenblik geduld.",
       bullets: [],
-    },
-  },
-  "email-otp": {
-    title: "Controleer je e-mail",
-    subtitle: "Vul de code in die we je hebben gestuurd.",
-    sidebar: {
-      heading: "Eén code\nen je bent erin.",
-      intro:
-        "We hebben een tijdelijke code naar je e-mail gestuurd. Vul hem hieronder in.",
-      bullets: [
-        { icon: Shield, label: "Code is vijftien minuten geldig" },
-        { icon: Check, label: "Geen wachtwoord nodig" },
-      ],
     },
   },
 };
@@ -272,11 +275,7 @@ export default async function AuthPage({
             )}
 
             <div className="mt-6">
-              <AuthProvider>
-                <RedirectAfterAuth to={redirectTo}>
-                  <AuthView path={path} redirectTo={redirectTo} />
-                </RedirectAfterAuth>
-              </AuthProvider>
+              <AuthForms path={path} redirectTo={redirectTo} />
             </div>
 
             {path === "sign-in" && (
@@ -308,12 +307,12 @@ export default async function AuthPage({
                 </p>
               </>
             )}
-            {path === "forgot-password" && (
+            {path === "sign-up" && (
               <p
                 className="mt-6 text-center text-xs"
                 style={{ color: "var(--text-muted)" }}
               >
-                Weet je je wachtwoord weer?{" "}
+                Al een account?{" "}
                 <Link
                   href="/auth/sign-in"
                   className="font-semibold hover:underline"
@@ -323,12 +322,12 @@ export default async function AuthPage({
                 </Link>
               </p>
             )}
-            {path === "sign-up" && (
+            {path === "forgot-password" && (
               <p
                 className="mt-6 text-center text-xs"
                 style={{ color: "var(--text-muted)" }}
               >
-                Al een account?{" "}
+                Weet je je wachtwoord weer?{" "}
                 <Link
                   href="/auth/sign-in"
                   className="font-semibold hover:underline"
