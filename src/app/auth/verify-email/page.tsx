@@ -1,16 +1,17 @@
 // Dicteren.ai — Verify-email landing
 //
 // Better Auth stuurt een mail met een link met ?token=... naar deze page.
-// We doen een server-redirect naar /api/auth/verify-email (Better Auth's
-// catch-all route), die het token verifieert en daarna redirect naar de
-// callbackURL. Bij missing token vallen we terug op een informatie-page.
+// Bij aanwezig token: client component roept /api/auth/verify-email aan
+// met credentials zodat de session-cookie gezet wordt. Bij 4xx redirect
+// de client naar ?error=expired zodat de gebruiker onze eigen
+// "Bevestiging mislukt"-page ziet (geen Next.js 404).
 //
 // Specifieke route, wint van /auth/[path]/page.tsx voor deze URL.
 
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { LogoIcon } from "@/components/shared/logo";
+import { VerifyClient } from "./verify-client";
 
 type SearchParams = Promise<{
   token?: string;
@@ -41,10 +42,7 @@ export default async function VerifyEmailLandingPage({
   const { token, callbackURL, error } = await searchParams;
 
   if (token && !error) {
-    const cb = safeCallback(callbackURL);
-    redirect(
-      `/api/auth/verify-email?token=${encodeURIComponent(token)}&callbackURL=${encodeURIComponent(cb)}`,
-    );
+    return <VerifyClient token={token} callbackURL={safeCallback(callbackURL)} />;
   }
 
   return (
@@ -57,16 +55,22 @@ export default async function VerifyEmailLandingPage({
         className="pointer-events-none absolute -top-40 -right-32 size-[40rem] rounded-full opacity-50"
         style={{ background: "radial-gradient(circle, var(--aqua-200), transparent 70%)" }}
       />
-      <div className="relative w-full max-w-md rounded-3xl border bg-white px-8 py-10 text-center"
-        style={{ borderColor: "var(--border-soft)", boxShadow: "var(--shadow-lg)" }}>
+      <div
+        className="relative w-full max-w-md rounded-3xl border bg-white px-8 py-10 text-center"
+        style={{ borderColor: "var(--border-soft)", boxShadow: "var(--shadow-lg)" }}
+      >
         <LogoIcon size={56} className="mx-auto" />
         {error ? (
           <>
-            <h1 className="mt-6 text-2xl font-bold tracking-tight" style={{ color: "var(--navy)" }}>
+            <div className="mx-auto mt-6 grid size-12 place-items-center rounded-full"
+              style={{ background: "var(--orange-50)" }}>
+              <AlertCircle className="size-6" strokeWidth={2.2} style={{ color: "var(--orange-600)" }} />
+            </div>
+            <h1 className="mt-5 text-2xl font-bold tracking-tight" style={{ color: "var(--navy)" }}>
               Bevestiging mislukt
             </h1>
             <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>
-              De link is verlopen of al gebruikt. Vraag een nieuwe verificatie aan via je accountpagina.
+              De link is verlopen of al gebruikt. Log in en vraag op je accountpagina een nieuwe verificatie aan.
             </p>
           </>
         ) : (
