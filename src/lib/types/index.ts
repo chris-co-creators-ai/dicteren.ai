@@ -24,7 +24,9 @@ export type LicenseStatus =
   | "canceled"
   | "expired"
   | "refunded"
-  | "revoked";
+  | "revoked"
+  | "unassigned"
+  | "pending_payment";
 export type LicensePeriod = "monthly" | "quarterly" | "yearly" | "lifetime";
 
 // ============================================================

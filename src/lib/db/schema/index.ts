@@ -23,3 +23,4 @@ export * from "./partner";
 export * from "./affiliate";
 export * from "./communication";
 export * from "./audit";
+export * from "./orgSeats";

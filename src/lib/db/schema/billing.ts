@@ -112,6 +112,12 @@ export const subscriptions = pgTable(
     seats: integer("seats").notNull().default(1),
     nextBillingAt: timestamp("next_billing_at", { withTimezone: true }),
     canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    // Gezet bij elke cancel-and-replace cycle (seat-upgrade/downgrade van een
+    // recurring sub). Voor admin-debug en het aantonen van een tier-overgang
+    // in de history-tab.
+    mollieIntervalChangedAt: timestamp("mollie_interval_changed_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

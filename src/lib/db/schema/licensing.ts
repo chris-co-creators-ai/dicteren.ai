@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
-import { authUsers, authOrganizations } from "./auth-bridge";
+import { authUsers, authOrganizations, authInvitations } from "./auth-bridge";
 
 export const licenseStatus = pgEnum("license_status", [
   "trial",
@@ -20,6 +20,8 @@ export const licenseStatus = pgEnum("license_status", [
   "expired",
   "refunded",
   "revoked",
+  "unassigned",
+  "pending_payment",
 ]);
 
 export const licenseType = pgEnum("license_type", [
@@ -83,6 +85,15 @@ export const licenses = pgTable(
     discountType: text("discount_type"),
     discountValue: integer("discount_value"),
     source: text("source").default("self-signup"),
+    // Per-seat tracking: invitationId koppelt deze unassigned seat aan een
+    // pending invite. Bij accept: userId wordt gezet + invitationId → null +
+    // status flipt naar "active". Bij invite-cancel: invitationId → null,
+    // status blijft "unassigned" (= seat in pool, klaar voor nieuwe invite).
+    invitationId: uuid("invitation_id").references(() => authInvitations.id, {
+      onDelete: "set null",
+    }),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }),
+    seatLabel: text("seat_label"),
     issuedAt: timestamp("issued_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -105,6 +116,8 @@ export const licenses = pgTable(
     index("licenses_user_idx").on(t.userId),
     index("licenses_org_idx").on(t.organizationId),
     index("licenses_source_idx").on(t.source),
+    index("licenses_invitation_idx").on(t.invitationId),
+    index("licenses_org_status_idx").on(t.organizationId, t.status),
   ],
 );
 
