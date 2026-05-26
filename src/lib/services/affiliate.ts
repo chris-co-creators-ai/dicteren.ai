@@ -74,14 +74,18 @@ export async function getReferralForUser(
   return row ?? null;
 }
 
-/** First-touch attribution: koppel user aan affiliate. Geen-op als al gekoppeld. */
+/** First-touch attribution: koppel user aan affiliate. Geen-op op affiliateId
+ *  als al gekoppeld (lifetime first-touch), maar VUL organizationId in als
+ *  die bij de bestaande referral nog leeg is en nu wel meegegeven wordt
+ *  (= user kocht eerst consumer met ?ref=, daarna zakelijk met dezelfde
+ *  affiliate — org-level rapportage krijgt zo nog het orgId). */
 export async function attributeUserToAffiliate(args: {
   affiliateId: string;
   userId: string;
   organizationId?: string | null;
   attributionSource?: string;
 }): Promise<{ created: boolean; referralId: string }> {
-  // Onconflict op userId — lifetime first-touch.
+  // Onconflict op userId — lifetime first-touch op affiliateId.
   const [row] = await db
     .insert(affiliateReferrals)
     .values({
@@ -95,8 +99,18 @@ export async function attributeUserToAffiliate(args: {
 
   if (row) return { created: true, referralId: row.id };
 
-  // Niet ingevoegd → er bestaat al een referral voor deze user.
+  // Bestaande referral. Update organizationId als nu pas bekend.
   const existing = await getReferralForUser(args.userId);
+  if (
+    existing &&
+    args.organizationId &&
+    !existing.organizationId
+  ) {
+    await db
+      .update(affiliateReferrals)
+      .set({ organizationId: args.organizationId })
+      .where(eq(affiliateReferrals.id, existing.id));
+  }
   return { created: false, referralId: existing!.id };
 }
 

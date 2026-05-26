@@ -79,6 +79,22 @@ export async function POST(request: Request) {
     source: "self-signup",
   }).catch(() => null);
 
+  // Recurring plans VEREISEN een Mollie customer (anders geen mandate, geen
+  // auto-renew). Bij customer-creation failure tijdens checkout: stoppen.
+  // Zonder deze guard zou de user eenmalig betalen en daarna geen incasso
+  // krijgen — stille downgrade van subscription naar one-off.
+  if (isRecurringPlan(plan) && !customerId) {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Tijdelijk probleem bij onze betaalprovider. Probeer over een minuut opnieuw.",
+        code: "MOLLIE_CUSTOMER_UNAVAILABLE",
+      },
+      { status: 502 },
+    );
+  }
+
   const { order, plan: planRow, amountCents, description } = await createOrder({
     userId: session.user.id,
     planSlug,

@@ -252,8 +252,15 @@ export async function POST(request: Request) {
           });
         }
       } else if (!existing.organizationId && resolvedOrgId) {
-        // Koppel orgId aan bestaande referral als nog leeg.
-        // (Defensive — niet kritiek voor commission-berekening.)
+        // Koppel orgId aan bestaande referral. Service-functie doet de
+        // conditional update — niet inline omdat we de regel "user-pages
+        // / routes raken DB alleen via services" volgen.
+        await attributeUserToAffiliate({
+          affiliateId: existing.affiliateId,
+          userId: session.user.id,
+          organizationId: resolvedOrgId,
+          attributionSource: existing.attributionSource ?? "url-ref",
+        });
       }
     }
   }
@@ -293,6 +300,16 @@ export async function POST(request: Request) {
     segment: "team",
     source: "self-signup",
   }).catch(() => null);
+
+  // Recurring plan zonder Mollie customer = geen mandate. Stop voor we de
+  // user een one-off afschrijven zonder auto-renew.
+  if (isRecurringPlan(plan) && !customerId) {
+    return clientError(
+      502,
+      "Tijdelijk probleem bij onze betaalprovider. Probeer over een minuut opnieuw.",
+      "MOLLIE_CUSTOMER_UNAVAILABLE",
+    );
+  }
 
   const { order, plan: planRow, amountCents, description } = await createOrder({
     userId: session.user.id,
