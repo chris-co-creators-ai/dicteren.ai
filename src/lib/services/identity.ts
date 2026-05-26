@@ -482,6 +482,72 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
   });
 }
 
+// ───── Single-entity contact lookups (gebruikt door webhook + cron) ──
+
+export type BillingContactByLicense = {
+  email: string;
+  name: string;
+  userId: string | null;
+};
+
+export async function getContactByLicenseId(
+  licenseId: string,
+): Promise<BillingContactByLicense | null> {
+  const [row] = await db
+    .select({
+      email: authUsers.email,
+      name: authUsers.name,
+      userId: licenses.userId,
+    })
+    .from(licenses)
+    .leftJoin(authUsers, eq(licenses.userId, authUsers.id))
+    .where(eq(licenses.id, licenseId))
+    .limit(1);
+  if (!row?.email) return null;
+  return { email: row.email, name: row.name ?? "", userId: row.userId };
+}
+
+export type BillingContactByPayment = {
+  email: string;
+  name: string;
+  orderId: string;
+  userId: string | null;
+};
+
+export async function getContactByMolliePaymentId(
+  molliePaymentId: string,
+): Promise<BillingContactByPayment | null> {
+  const [row] = await db
+    .select({
+      email: authUsers.email,
+      name: authUsers.name,
+      orderId: orders.id,
+      userId: orders.userId,
+    })
+    .from(orders)
+    .leftJoin(authUsers, eq(orders.userId, authUsers.id))
+    .where(eq(orders.molliePaymentId, molliePaymentId))
+    .limit(1);
+  if (!row?.email) return null;
+  return {
+    email: row.email,
+    name: row.name ?? "",
+    orderId: row.orderId,
+    userId: row.userId,
+  };
+}
+
+export async function getUserIdByMollieCustomerId(
+  customerId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ userId: userBilling.userId })
+    .from(userBilling)
+    .where(eq(userBilling.mollieCustomerId, customerId))
+    .limit(1);
+  return row?.userId ?? null;
+}
+
 export async function funnelStageCounts(): Promise<Record<FunnelStage, number>> {
   const rows = await listCustomerFunnel();
   const counts: Record<FunnelStage, number> = {

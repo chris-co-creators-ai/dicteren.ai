@@ -188,6 +188,24 @@ export {
 } from "./discount";
 
 export {
+  listCustomers,
+  listOrganizations,
+  identityKpis,
+  listCustomerFunnel,
+  classifyStage,
+  funnelStageCounts,
+  getContactByLicenseId,
+  getContactByMolliePaymentId,
+  getUserIdByMollieCustomerId,
+  type CustomerRow,
+  type OrganizationRow,
+  type CustomerFunnelRow,
+  type FunnelStage,
+  type BillingContactByLicense,
+  type BillingContactByPayment,
+} from "./identity";
+
+export {
   generateAffiliateCode,
   getAffiliateByCode,
   getAffiliateById,

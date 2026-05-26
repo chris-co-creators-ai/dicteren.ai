@@ -17,13 +17,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import {
-  authUsers,
-  discountCodes,
-  licenses,
-  orders,
-  userBilling,
-} from "@/lib/db/schema";
+import { discountCodes } from "@/lib/db/schema";
 import {
   createMollieSubscription,
   mapMollieStatus,
@@ -55,53 +49,11 @@ import {
   recordCommission,
 } from "@/lib/services/affiliate";
 import { incrementDiscountRedemption } from "@/lib/services/discount";
-
-/** Lookup billing contact by license-id (used for recurring/refund mails). */
-async function contactForLicense(
-  licenseId: string,
-): Promise<{ email: string; name: string; userId: string | null } | null> {
-  const [row] = await db
-    .select({
-      email: authUsers.email,
-      name: authUsers.name,
-      userId: licenses.userId,
-    })
-    .from(licenses)
-    .leftJoin(authUsers, eq(licenses.userId, authUsers.id))
-    .where(eq(licenses.id, licenseId))
-    .limit(1);
-  if (!row?.email) return null;
-  return { email: row.email, name: row.name ?? "", userId: row.userId };
-}
-
-/** Lookup billing contact by mollie payment id (used for refund of one-off). */
-async function contactForPayment(
-  molliePaymentId: string,
-): Promise<{
-  email: string;
-  name: string;
-  orderId: string;
-  userId: string | null;
-} | null> {
-  const [row] = await db
-    .select({
-      email: authUsers.email,
-      name: authUsers.name,
-      orderId: orders.id,
-      userId: orders.userId,
-    })
-    .from(orders)
-    .leftJoin(authUsers, eq(orders.userId, authUsers.id))
-    .where(eq(orders.molliePaymentId, molliePaymentId))
-    .limit(1);
-  if (!row?.email) return null;
-  return {
-    email: row.email,
-    name: row.name ?? "",
-    orderId: row.orderId,
-    userId: row.userId,
-  };
-}
+import {
+  getContactByLicenseId,
+  getContactByMolliePaymentId,
+  getUserIdByMollieCustomerId,
+} from "@/lib/services/identity";
 
 function appBase(): string {
   return (
@@ -217,7 +169,7 @@ export async function POST(request: Request) {
           amountCents: payment.data.amount,
         });
 
-        const contact = await contactForLicense(renewed.licenseId);
+        const contact = await getContactByLicenseId(renewed.licenseId);
         if (contact) {
           const mail = await sendRenewalEmail({
             to: contact.email,
@@ -259,7 +211,7 @@ export async function POST(request: Request) {
           },
         });
 
-        const contact = await contactForLicense(past.licenseId);
+        const contact = await getContactByLicenseId(past.licenseId);
         if (contact) {
           const mail = await sendPastDueEmail({
             to: contact.email,
@@ -284,7 +236,7 @@ export async function POST(request: Request) {
     if (orderStatus === "refunded") {
       // A refund on a recurring charge: lock immediately via order route.
       await markOrderStatus(payment.data.paymentId, "refunded");
-      const contact = await contactForPayment(payment.data.paymentId);
+      const contact = await getContactByMolliePaymentId(payment.data.paymentId);
       if (contact) {
         const mail = await sendRefundEmail({
           to: contact.email,
@@ -480,7 +432,7 @@ export async function POST(request: Request) {
             await recordSubscription({
               mollieSubscriptionId: sub.data.subscriptionId,
               mollieCustomerId: customerId,
-              userId: fulfilled.userId ?? (await resolveUserIdByCustomer(customerId)),
+              userId: fulfilled.userId ?? (await getUserIdByMollieCustomerId(customerId)),
               organizationId: fulfilled.organizationId,
               licenseId: fulfilled.licenseId,
               planId: fulfilled.plan.id,
@@ -556,7 +508,7 @@ export async function POST(request: Request) {
         metadata: { paymentId: payment.data.paymentId },
       });
     }
-    const contact = await contactForPayment(payment.data.paymentId);
+    const contact = await getContactByMolliePaymentId(payment.data.paymentId);
     if (contact) {
       const mail = await sendRefundEmail({
         to: contact.email,
@@ -577,13 +529,4 @@ export async function POST(request: Request) {
 
 export async function GET() {
   return NextResponse.json({ ok: true, endpoint: "mollie-webhook" });
-}
-
-async function resolveUserIdByCustomer(customerId: string): Promise<string | null> {
-  const [row] = await db
-    .select({ userId: userBilling.userId })
-    .from(userBilling)
-    .where(eq(userBilling.mollieCustomerId, customerId))
-    .limit(1);
-  return row?.userId ?? null;
 }
