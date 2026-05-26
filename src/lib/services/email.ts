@@ -8,7 +8,7 @@ import { Resend } from "resend";
 import { db } from "@/lib/db";
 import { emailLogs } from "@/lib/db/schema";
 import type { ServiceResult } from "@/lib/types";
-import { appBase } from "@/lib/url";
+import { emailBase } from "@/lib/url";
 
 const DEFAULT_FROM = "Dicteren.ai <licenties@dicteren.ai>";
 const DEFAULT_REPLY_TO = "info@dicteren.ai";
@@ -227,7 +227,7 @@ export async function sendLicenseEmail(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Je Dicteren.ai licentie",
+    subject: "Je licentie staat klaar",
     html: licenseEmailHtml(params),
     text: licenseEmailText(params),
     tags: [
@@ -274,7 +274,7 @@ export async function sendPastDueEmail(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Je betaling is mislukt",
+    subject: "Betaling mislukt",
     html: pastDueEmailHtml(params),
     text: pastDueEmailText(params),
     tags: [
@@ -303,7 +303,7 @@ export async function sendCancelEmail(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Je abonnement is opgezegd",
+    subject: "Abonnement opgezegd",
     html: cancelEmailHtml(params),
     text: cancelEmailText(params),
     tags: [
@@ -333,7 +333,7 @@ export async function sendRefundEmail(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Je terugbetaling is in behandeling",
+    subject: "Terugbetaling in behandeling",
     html: refundEmailHtml(params),
     text: refundEmailText(params),
     tags: [
@@ -365,7 +365,7 @@ export async function sendRenewalEmail(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Je abonnement is verlengd",
+    subject: "Abonnement verlengd",
     html: renewalEmailHtml(params),
     text: renewalEmailText(params),
     tags: [
@@ -384,34 +384,34 @@ export async function sendRenewalEmail(params: {
 
 // ───── Templates — Dicteren.ai branding ───────────────────────────
 //
-// Brand tokens (gespiegeld uit globals.css):
-//   --navy   #042660  primary, header background + link color
-//   --orange #FF8441  CTA color
-//   --bg     #F7F7F4  email-shell achtergrond
+// Brand tokens uit globals.css (navy primary, orange CTA, aqua accent).
+// Geen em/en dashes in tekst, geen vragen-als-koppen, geen interne
+// referenties in body. Voice = website: kort, declaratief, NL.
 //
-// Email-clients zoals Gmail/Outlook strippen <style>-blocks — alle
-// styling is inline. Max-width 600px voor mobile-fit.
+// Email-clients strippen <style>-blocks — alles inline. Outlook negeert
+// CSS-gradients en SVG; alleen solid colors + PNG. Max-width 600px.
 
 const BRAND = {
   navy: "#042660",
   navyLink: "#0b3478",
   orange: "#FF8441",
-  orangeHover: "#ec6c1f",
   text: "#1a1f33",
   textMuted: "#5a6478",
   textSoft: "#8d97a8",
   border: "#e5e7ec",
+  borderSoft: "#eef0f4",
   bg: "#f7f7f4",
   white: "#ffffff",
   codeBg: "#f4f6fb",
+  aquaWash: "#e8f8f9",
+  aquaSoft: "#c4eef0",
 } as const;
 
 const EMAIL_FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
 function logoUrl(): string {
-  // Absolute URL vereist door e-mail clients (geen relatieve paths).
-  return `${appBase()}/email/logo.png`;
+  return `${emailBase()}/email/logo.png`;
 }
 
 function shellHtml(title: string, body: string): string {
@@ -420,39 +420,45 @@ function shellHtml(title: string, body: string): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
   <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background:${BRAND.bg};font-family:${EMAIL_FONT};color:${BRAND.text};">
+<body style="margin:0;padding:0;background:${BRAND.bg};font-family:${EMAIL_FONT};color:${BRAND.text};-webkit-font-smoothing:antialiased;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.bg};">
     <tr>
-      <td align="center" style="padding:32px 16px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:${BRAND.white};border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(4,38,96,0.06);">
+      <td align="center" style="padding:40px 16px 24px 16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:${BRAND.white};border-radius:20px;overflow:hidden;box-shadow:0 6px 24px rgba(4,38,96,0.07);">
           <tr>
-            <td style="background:${BRAND.navy};padding:24px 32px;">
-              <img src="${logoUrl()}" alt="Dicteren.ai" width="160" style="display:block;height:auto;border:0;outline:none;text-decoration:none;">
+            <td style="background:${BRAND.aquaWash};padding:36px 40px 28px 40px;text-align:center;">
+              <a href="${emailBase()}" style="text-decoration:none;">
+                <img src="${logoUrl()}" alt="Dicteren.ai" width="180" style="display:block;height:auto;margin:0 auto;border:0;outline:none;text-decoration:none;">
+              </a>
             </td>
           </tr>
           <tr>
-            <td style="padding:32px 32px 24px 32px;">
-              <h1 style="margin:0 0 20px 0;font-size:22px;line-height:1.3;font-weight:700;color:${BRAND.navy};letter-spacing:-0.01em;">${title}</h1>
-              <div style="font-size:15px;line-height:1.6;color:${BRAND.text};">
+            <td style="padding:36px 40px 8px 40px;">
+              <h1 style="margin:0 0 8px 0;font-size:26px;line-height:1.2;font-weight:700;color:${BRAND.navy};letter-spacing:-0.015em;">${title}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 40px 32px 40px;">
+              <div style="font-size:16px;line-height:1.65;color:${BRAND.text};">
                 ${body}
               </div>
             </td>
           </tr>
           <tr>
-            <td style="padding:20px 32px 28px 32px;border-top:1px solid ${BRAND.border};">
-              <p style="margin:0 0 6px 0;font-size:13px;color:${BRAND.textMuted};">
-                Vragen? Mail <a href="mailto:info@dicteren.ai" style="color:${BRAND.navyLink};text-decoration:underline;">info@dicteren.ai</a>.
+            <td style="padding:22px 40px 28px 40px;border-top:1px solid ${BRAND.borderSoft};background:${BRAND.white};">
+              <p style="margin:0 0 8px 0;font-size:14px;color:${BRAND.textMuted};">
+                Vragen of feedback? Mail <a href="mailto:info@dicteren.ai" style="color:${BRAND.navyLink};text-decoration:underline;">info@dicteren.ai</a>.
               </p>
               <p style="margin:0;font-size:12px;color:${BRAND.textSoft};">
-                Dicteren.ai · Lokaal dicteren in het Nederlands ·
-                <a href="${appBase()}" style="color:${BRAND.textSoft};text-decoration:underline;">dicteren.ai</a>
+                Dicteren.ai, lokaal dicteren in het Nederlands. <a href="${emailBase()}" style="color:${BRAND.textSoft};text-decoration:underline;">dicteren.ai</a>
               </p>
             </td>
           </tr>
         </table>
-        <p style="margin:16px 0 0 0;font-size:11px;color:${BRAND.textSoft};text-align:center;">
+        <p style="margin:18px 0 0 0;font-size:11px;color:${BRAND.textSoft};text-align:center;">
           Je krijgt deze mail omdat je een Dicteren.ai-account hebt.
         </p>
       </td>
@@ -462,27 +468,31 @@ function shellHtml(title: string, body: string): string {
 </html>`;
 }
 
-/** Brand-CTA button — orange achtergrond + witte tekst. Eén styling-bron. */
+/** CTA-button. Eén stylingsbron voor alle templates. */
 function cta(href: string, label: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
     <tr>
-      <td style="background:${BRAND.orange};border-radius:10px;">
-        <a href="${href}" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:700;color:${BRAND.white};text-decoration:none;letter-spacing:0.01em;">${label}</a>
+      <td style="background:${BRAND.orange};border-radius:12px;">
+        <a href="${href}" style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:${BRAND.white};text-decoration:none;letter-spacing:0.005em;">${label}</a>
       </td>
     </tr>
   </table>`;
 }
 
-/** Brand-link — navy met underline. */
+/** Brand-link, navy met underline. */
 function brandLink(href: string, label: string): string {
   return `<a href="${href}" style="color:${BRAND.navyLink};text-decoration:underline;">${label}</a>`;
 }
 
-/** Licentiecode display block — mono font + brand-card styling. */
+/** Licentiecode display, mono in navy op brand-card. */
 function codeBlock(code: string): string {
-  return `<div style="background:${BRAND.codeBg};border:1px solid ${BRAND.border};border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
-    <div style="font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;font-size:20px;font-weight:700;letter-spacing:0.04em;color:${BRAND.navy};">${code}</div>
-  </div>`;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:22px 0;">
+    <tr>
+      <td style="background:${BRAND.codeBg};border:1px solid ${BRAND.border};border-radius:14px;padding:24px;text-align:center;">
+        <div style="font-family:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;font-size:22px;font-weight:700;letter-spacing:0.06em;color:${BRAND.navy};">${code}</div>
+      </td>
+    </tr>
+  </table>`;
 }
 
 function greet(name?: string): string {
@@ -496,19 +506,19 @@ function licenseEmailHtml(params: {
 }): string {
   const expiry = params.expiresAt
     ? `Geldig tot ${formatDateNL(params.expiresAt)}.`
-    : "Geen vervaldatum — lifetime licentie.";
+    : "Lifetime licentie. Geen vervaldatum.";
   return shellHtml(
     "Je licentie staat klaar",
-    `<p style="margin:0 0 12px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 8px 0;">Bedankt voor je aankoop. Je licentiecode:</p>
+    `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
+  <p style="margin:0 0 6px 0;">Dit is je code:</p>
   ${codeBlock(params.licenseCode)}
-  <p style="margin:0 0 20px 0;font-size:13px;color:${BRAND.textMuted};">${expiry}</p>
-  ${cta(`${appBase()}/download`, "Download Dicteren.ai")}
-  <p style="margin:0 0 8px 0;">Activeren in 3 stappen:</p>
-  <ol style="margin:0 0 12px 20px;padding:0;color:${BRAND.text};">
-    <li style="margin-bottom:4px;">Download de app via ${brandLink(`${appBase()}/download`, "dicteren.ai/download")}</li>
-    <li style="margin-bottom:4px;">Open de app — je krijgt direct het activatiescherm</li>
-    <li>Plak je code hierboven en je bent klaar</li>
+  <p style="margin:0 0 22px 0;font-size:14px;color:${BRAND.textMuted};">${expiry}</p>
+  ${cta(`${emailBase()}/download`, "Download de app")}
+  <p style="margin:0 0 10px 0;font-weight:700;color:${BRAND.navy};">Zo activeer je:</p>
+  <ol style="margin:0;padding:0 0 0 20px;color:${BRAND.text};">
+    <li style="margin-bottom:6px;">Download via ${brandLink(`${emailBase()}/download`, "dicteren.ai/download")}.</li>
+    <li style="margin-bottom:6px;">Open de app. Het activatiescherm verschijnt meteen.</li>
+    <li>Plak je code. Klaar.</li>
   </ol>`,
   );
 }
@@ -521,20 +531,20 @@ function licenseEmailText(params: {
   return [
     greet(params.name),
     "",
-    "Bedankt voor je aankoop. Hier is je licentiecode:",
+    "Dit is je code:",
     "",
     params.licenseCode,
     "",
     params.expiresAt
       ? `Geldig tot ${formatDateNL(params.expiresAt)}.`
-      : "Geen vervaldatum.",
+      : "Lifetime licentie. Geen vervaldatum.",
     "",
-    "Stappen om te starten:",
-    "1. Download Dicteren.ai op https://dicteren.ai/download",
-    "2. Open de app — je krijgt direct het activatiescherm",
-    "3. Plak je licentiecode",
+    "Zo activeer je:",
+    "1. Download via https://www.dicteren.ai/download.",
+    "2. Open de app. Het activatiescherm verschijnt meteen.",
+    "3. Plak je code. Klaar.",
     "",
-    "Vragen? Mail info@dicteren.ai",
+    "Vragen? Mail info@dicteren.ai.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -544,24 +554,25 @@ function welcomeEmailHtml(params: { name?: string }): string {
   return shellHtml(
     "Welkom bij Dicteren.ai",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 14px 0;">Bedankt voor je registratie. Klaar om aan de slag te gaan?</p>
-  ${cta(`${appBase()}/prijzen`, "Bekijk de prijzen")}
-  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Of probeer eerst 14 dagen gratis via ${brandLink(`${appBase()}/trial/start`, "trial/start")}.</p>`,
+  <p style="margin:0 0 14px 0;">Fijn dat je er bent. Praat. En het staat er, in welke app dan ook.</p>
+  <p style="margin:0 0 6px 0;">Start meteen met 14 dagen gratis. Geen creditcard nodig.</p>
+  ${cta(`${emailBase()}/trial/start`, "Start 14 dagen gratis")}
+  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Liever direct kopen? Bekijk de ${brandLink(`${emailBase()}/prijzen`, "prijzen")}.</p>`,
   );
 }
 
 function pastDueEmailHtml(params: { name?: string; graceUntil: Date }): string {
   return shellHtml(
-    "Je laatste betaling is mislukt",
+    "Betaling mislukt",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 14px 0;">De automatische afschrijving voor je Dicteren.ai-abonnement is mislukt. Mollie probeert het de komende dagen automatisch opnieuw.</p>
-  <p style="margin:0 0 8px 0;"><strong>Wat dit voor jou betekent:</strong></p>
-  <ul style="margin:0 0 16px 20px;padding:0;">
-    <li style="margin-bottom:4px;">Je app blijft werken tot <strong>${formatDateNL(params.graceUntil)}</strong>.</li>
-    <li>Daarna wordt Dicteren.ai vergrendeld tot je je betaalgegevens hebt bijgewerkt.</li>
+  <p style="margin:0 0 14px 0;">De automatische incasso voor je abonnement is mislukt. Mollie probeert het de komende dagen opnieuw.</p>
+  <p style="margin:0 0 6px 0;font-weight:700;color:${BRAND.navy};">Wat dit betekent:</p>
+  <ul style="margin:0 0 18px 20px;padding:0;">
+    <li style="margin-bottom:6px;">Je app blijft gewoon werken tot <strong>${formatDateNL(params.graceUntil)}</strong>.</li>
+    <li>Daarna staat de app op slot tot je betaalgegevens kloppen.</li>
   </ul>
-  ${cta(`${appBase()}/account/billing`, "Werk je betaalgegevens bij")}
-  <p style="margin:0;font-size:13px;color:${BRAND.textMuted};">Heb je dit al opgelost? Dan kun je deze mail negeren.</p>`,
+  ${cta(`${emailBase()}/account/billing`, "Werk je betaalgegevens bij")}
+  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Al opgelost? Dan kun je deze mail negeren.</p>`,
   );
 }
 
@@ -569,15 +580,15 @@ function pastDueEmailText(params: { name?: string; graceUntil: Date }): string {
   return [
     greet(params.name),
     "",
-    "De automatische afschrijving voor je Dicteren.ai-abonnement is mislukt.",
-    "Mollie probeert het automatisch opnieuw in de komende dagen.",
+    "De automatische incasso voor je abonnement is mislukt.",
+    "Mollie probeert het de komende dagen opnieuw.",
     "",
-    `Je app blijft werken tot ${formatDateNL(params.graceUntil)}.`,
-    "Daarna wordt Dicteren.ai gelocked tot je je betaalgegevens hebt bijgewerkt.",
+    `Je app blijft gewoon werken tot ${formatDateNL(params.graceUntil)}.`,
+    "Daarna staat de app op slot tot je betaalgegevens kloppen.",
     "",
-    "Werk je betaalgegevens bij: https://dicteren.ai/account/billing",
+    "Werk je betaalgegevens bij: https://www.dicteren.ai/account/billing",
     "",
-    "Vragen? Mail info@dicteren.ai",
+    "Al opgelost? Dan kun je deze mail negeren.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -588,15 +599,15 @@ function cancelEmailHtml(params: {
   expiresAt: Date | null;
 }): string {
   const tail = params.expiresAt
-    ? `Je toegang loopt door tot <strong>${formatDateNL(params.expiresAt)}</strong>. Daarna stopt Dicteren.ai met werken.`
-    : `Je abonnement is meteen opgezegd.`;
+    ? `Je houdt toegang tot <strong>${formatDateNL(params.expiresAt)}</strong>. Daarna stopt de app met werken.`
+    : `Je abonnement stopt meteen.`;
   return shellHtml(
-    "Je abonnement is opgezegd",
+    "Abonnement opgezegd",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 14px 0;">We hebben je opzegging ontvangen. ${tail}</p>
-  <p style="margin:0 0 18px 0;">Je instellingen en geschiedenis blijven bewaard — je kunt op elk moment terugkeren.</p>
-  ${cta(`${appBase()}/prijzen`, "Bekijk de prijzen")}
-  <p style="margin:0;font-size:13px;color:${BRAND.textMuted};">Verkeerd opgezegd? Antwoord op deze mail — we helpen je verder.</p>`,
+  <p style="margin:0 0 14px 0;">Je opzegging is verwerkt. ${tail}</p>
+  <p style="margin:0 0 18px 0;">Je instellingen en geschiedenis blijven bewaard. Kom je terug, dan staat alles nog klaar.</p>
+  ${cta(`${emailBase()}/prijzen`, "Bekijk de prijzen")}
+  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Per ongeluk opgezegd? Antwoord op deze mail, dan zetten we het terug.</p>`,
   );
 }
 
@@ -605,15 +616,15 @@ function cancelEmailText(params: {
   expiresAt: Date | null;
 }): string {
   const tail = params.expiresAt
-    ? `Je toegang loopt door tot ${formatDateNL(params.expiresAt)}. Daarna stopt Dicteren.ai met werken.`
-    : `Je abonnement is meteen opgezegd.`;
+    ? `Je houdt toegang tot ${formatDateNL(params.expiresAt)}. Daarna stopt de app met werken.`
+    : `Je abonnement stopt meteen.`;
   return [
     greet(params.name),
     "",
-    `We hebben je opzegging ontvangen. ${tail}`,
+    `Je opzegging is verwerkt. ${tail}`,
     "",
     "Je instellingen en geschiedenis blijven bewaard.",
-    "Terug abonneren: https://dicteren.ai/prijzen",
+    "Kom je terug? https://www.dicteren.ai/prijzen",
     "",
     "Verkeerd opgezegd? Mail info@dicteren.ai",
     "",
@@ -628,12 +639,12 @@ function refundEmailHtml(params: {
   orderId: string;
 }): string {
   return shellHtml(
-    "Je terugbetaling is in behandeling",
+    "Terugbetaling in behandeling",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 14px 0;">We hebben een terugbetaling van <strong>${formatAmount(params.amountCents, params.currency)}</strong> in gang gezet voor order <code style="font-family:'SF Mono',Menlo,monospace;background:${BRAND.codeBg};padding:2px 6px;border-radius:4px;font-size:13px;">${params.orderId.slice(0, 8)}…</code>.</p>
-  <p style="margin:0 0 14px 0;">Het geld staat binnen <strong>1-5 werkdagen</strong> terug op de rekening waarmee je hebt betaald.</p>
-  <p style="margin:0 0 14px 0;">Je Dicteren.ai-licentie is meteen ingetrokken — de app vraagt bij de volgende start om een nieuwe code.</p>
-  <p style="margin:0;font-size:13px;color:${BRAND.textMuted};">Klopt iets niet? Antwoord op deze mail.</p>`,
+  <p style="margin:0 0 14px 0;">We hebben een terugbetaling van <strong>${formatAmount(params.amountCents, params.currency)}</strong> in gang gezet.</p>
+  <p style="margin:0 0 14px 0;">Het geld staat binnen 1 tot 5 werkdagen terug op de rekening waarmee je betaald hebt.</p>
+  <p style="margin:0 0 14px 0;">Je licentie is per direct ingetrokken. Bij de volgende start vraagt de app om een nieuwe code.</p>
+  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Klopt iets niet? Antwoord op deze mail.</p>`,
   );
 }
 
@@ -646,13 +657,13 @@ function refundEmailText(params: {
   return [
     greet(params.name),
     "",
-    `We hebben een terugbetaling van ${formatAmount(params.amountCents, params.currency)} in gang gezet voor order ${params.orderId.slice(0, 8)}…`,
+    `We hebben een terugbetaling van ${formatAmount(params.amountCents, params.currency)} in gang gezet.`,
     "",
-    "Het geld staat binnen 1-5 werkdagen terug op de rekening waarmee je hebt betaald.",
+    "Het geld staat binnen 1 tot 5 werkdagen terug op de rekening waarmee je betaald hebt.",
     "",
-    "Je licentie is meteen ingetrokken — de app vraagt bij de volgende start om een nieuwe code.",
+    "Je licentie is per direct ingetrokken. Bij de volgende start vraagt de app om een nieuwe code.",
     "",
-    "Vragen? Mail info@dicteren.ai",
+    "Klopt iets niet? Antwoord op deze mail.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -665,12 +676,12 @@ function renewalEmailHtml(params: {
   newExpiresAt: Date;
 }): string {
   return shellHtml(
-    "Je abonnement is verlengd",
+    "Abonnement verlengd",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 14px 0;">We hebben <strong>${formatAmount(params.amountCents, params.currency)}</strong> afgeschreven voor de verlenging van je Dicteren.ai-abonnement.</p>
+  <p style="margin:0 0 14px 0;">We hebben <strong>${formatAmount(params.amountCents, params.currency)}</strong> afgeschreven voor je verlenging.</p>
   <p style="margin:0 0 18px 0;">Je toegang loopt nu door tot <strong>${formatDateNL(params.newExpiresAt)}</strong>.</p>
-  ${cta(`${appBase()}/account/billing`, "Beheer je abonnement")}
-  <p style="margin:0;font-size:13px;color:${BRAND.textMuted};">Een factuur volgt apart per mail.</p>`,
+  ${cta(`${emailBase()}/account/billing`, "Beheer abonnement")}
+  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">De factuur volgt apart per mail.</p>`,
   );
 }
 
@@ -683,10 +694,12 @@ function renewalEmailText(params: {
   return [
     greet(params.name),
     "",
-    `We hebben ${formatAmount(params.amountCents, params.currency)} afgeschreven voor de verlenging van je Dicteren.ai-abonnement.`,
+    `We hebben ${formatAmount(params.amountCents, params.currency)} afgeschreven voor je verlenging.`,
     `Je toegang loopt nu door tot ${formatDateNL(params.newExpiresAt)}.`,
     "",
-    "Beheer je abonnement: https://dicteren.ai/account/billing",
+    "Beheer je abonnement: https://www.dicteren.ai/account/billing",
+    "",
+    "De factuur volgt apart per mail.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -704,7 +717,7 @@ export async function sendTrialStartedEmail(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Je 14 dagen Dicteren.ai zijn begonnen",
+    subject: "Je 14 dagen zijn begonnen",
     html: trialStartedHtml(params),
     text: trialStartedText(params),
     tags: [
@@ -732,7 +745,7 @@ export async function sendTrialReminderD7Email(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Hoe bevalt Dicteren.ai?",
+    subject: "Een week onderweg",
     html: trialReminderD7Html(params),
     text: trialReminderD7Text(params),
     tags: [
@@ -759,7 +772,7 @@ export async function sendTrialReminderD13Email(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Je proefperiode verloopt morgen",
+    subject: "Morgen loopt je trial af",
     html: trialReminderD13Html(params),
     text: trialReminderD13Text(params),
     tags: [
@@ -809,19 +822,19 @@ function trialStartedHtml(params: {
   expiresAt: Date;
 }): string {
   return shellHtml(
-    "Je 14 dagen Dicteren.ai zijn begonnen",
-    `<p style="margin:0 0 12px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 12px 0;">Je proefperiode is geactiveerd tot en met <strong>${formatDateNL(params.expiresAt)}</strong>.</p>
-  <p style="margin:0 0 8px 0;">Hier is je code voor de desktop-app:</p>
+    "Je 14 dagen zijn begonnen",
+    `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
+  <p style="margin:0 0 14px 0;">Je proefperiode loopt tot en met <strong>${formatDateNL(params.expiresAt)}</strong>.</p>
+  <p style="margin:0 0 6px 0;">Dit is je code:</p>
   ${codeBlock(params.licenseCode)}
-  ${cta(`${appBase()}/download`, "Download Dicteren.ai")}
-  <p style="margin:0 0 8px 0;">Activeren in 3 stappen:</p>
-  <ol style="margin:0 0 12px 20px;padding:0;color:${BRAND.text};">
-    <li style="margin-bottom:4px;">Download via ${brandLink(`${appBase()}/download?utm_source=trial_start_email`, "dicteren.ai/download")}</li>
-    <li style="margin-bottom:4px;">Open de app — je krijgt direct het activatiescherm</li>
-    <li>Plak je code en je bent klaar</li>
+  ${cta(`${emailBase()}/download?utm_source=trial_start_email`, "Download de app")}
+  <p style="margin:0 0 10px 0;font-weight:700;color:${BRAND.navy};">Zo activeer je:</p>
+  <ol style="margin:0;padding:0 0 0 20px;color:${BRAND.text};">
+    <li style="margin-bottom:6px;">Download via ${brandLink(`${emailBase()}/download?utm_source=trial_start_email`, "dicteren.ai/download")}.</li>
+    <li style="margin-bottom:6px;">Open de app. Het activatiescherm verschijnt meteen.</li>
+    <li>Plak je code. Klaar.</li>
   </ol>
-  <p style="margin:14px 0 0 0;font-size:13px;color:${BRAND.textMuted};">Tip: probeer de eerste dagen verschillende programma's — Outlook, Word, browser. Zo merk je waar Dicteren.ai het verschil maakt.</p>`,
+  <p style="margin:18px 0 0 0;font-size:14px;color:${BRAND.textMuted};">Probeer Dicteren.ai de eerste dagen in verschillende programma's: Outlook, Word, je browser. Daar merk je het verschil het snelst.</p>`,
   );
 }
 
@@ -833,19 +846,17 @@ function trialStartedText(params: {
   return [
     greet(params.name),
     "",
-    `Je proefperiode is geactiveerd tot en met ${formatDateNL(params.expiresAt)}.`,
+    `Je proefperiode loopt tot en met ${formatDateNL(params.expiresAt)}.`,
     "",
-    "Je code:",
+    "Dit is je code:",
     params.licenseCode,
     "",
-    "Stappen om te starten:",
-    "1. Download Dicteren.ai op https://dicteren.ai/download",
-    "2. Open de app — activatiescherm verschijnt direct",
-    "3. Plak je code hierboven",
+    "Zo activeer je:",
+    "1. Download via https://www.dicteren.ai/download.",
+    "2. Open de app. Het activatiescherm verschijnt meteen.",
+    "3. Plak je code. Klaar.",
     "",
-    "Tip: probeer Dicteren.ai de eerste dagen in verschillende programma's.",
-    "",
-    "Vragen? Mail info@dicteren.ai",
+    "Probeer Dicteren.ai de eerste dagen in verschillende programma's: Outlook, Word, je browser. Daar merk je het verschil het snelst.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -857,13 +868,13 @@ function trialReminderD7Html(params: {
   expiresAt: Date;
 }): string {
   return shellHtml(
-    "Hoe bevalt Dicteren.ai?",
+    "Een week onderweg",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 14px 0;">Je gebruikt Dicteren.ai nu een week. Nog <strong>${params.daysLeft} dagen</strong> in je proefperiode (tot ${formatDateNL(params.expiresAt)}).</p>
-  <p style="margin:0 0 8px 0;">Werkt het zoals je hoopte? Neem dan een licentie en blijf doorgaan:</p>
-  ${cta(`${appBase()}/prijzen?utm_source=trial_d7_email`, "Bekijk de prijzen")}
-  <p style="margin:0 0 14px 0;">Vanaf <strong>€12 per maand</strong> of <strong>€96 per jaar</strong>. Geen verborgen kosten, opzeggen wanneer je wilt.</p>
-  <p style="margin:0;font-size:13px;color:${BRAND.textMuted};">Werkt iets niet goed? Antwoord op deze mail — we lossen het op.</p>`,
+  <p style="margin:0 0 14px 0;">Je gebruikt Dicteren.ai nu een week. Nog <strong>${params.daysLeft} dagen</strong> in je proefperiode, tot ${formatDateNL(params.expiresAt)}.</p>
+  <p style="margin:0 0 6px 0;">Bevalt het? Pak dan een licentie zodat je gewoon door kan typen met je stem.</p>
+  ${cta(`${emailBase()}/prijzen?utm_source=trial_d7_email`, "Bekijk de prijzen")}
+  <p style="margin:0 0 14px 0;">Vanaf <strong>€12 per maand</strong> of <strong>€96 per jaar</strong>. Maandelijks opzegbaar, geen kleine lettertjes.</p>
+  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Werkt iets niet zoals verwacht? Antwoord op deze mail.</p>`,
   );
 }
 
@@ -875,14 +886,14 @@ function trialReminderD7Text(params: {
   return [
     greet(params.name),
     "",
-    `Je gebruikt Dicteren.ai een week. Nog ${params.daysLeft} dagen in je proefperiode (tot ${formatDateNL(params.expiresAt)}).`,
+    `Je gebruikt Dicteren.ai nu een week. Nog ${params.daysLeft} dagen in je proefperiode, tot ${formatDateNL(params.expiresAt)}.`,
     "",
-    "Werkt het zoals je hoopte? Neem dan een licentie en blijf doorgaan:",
-    "https://dicteren.ai/prijzen",
+    "Bevalt het? Pak dan een licentie zodat je gewoon door kan typen met je stem.",
+    "https://www.dicteren.ai/prijzen",
     "",
-    "Vanaf €12 per maand. Opzeggen wanneer je wilt.",
+    "Vanaf €12 per maand. Maandelijks opzegbaar, geen kleine lettertjes.",
     "",
-    "Werkt iets niet goed? Stuur een mail terug — we lossen het op.",
+    "Werkt iets niet zoals verwacht? Antwoord op deze mail.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -893,17 +904,17 @@ function trialReminderD13Html(params: {
   expiresAt: Date;
 }): string {
   return shellHtml(
-    "Je proefperiode verloopt morgen",
+    "Morgen loopt je trial af",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 14px 0;">Je proefperiode loopt af op <strong>${formatDateNL(params.expiresAt)}</strong>. Dat is morgen.</p>
-  <p style="margin:0 0 8px 0;">Koop nu een licentie zodat je app door blijft werken — geen onderbreking, geen nieuwe code, geen gedoe.</p>
-  ${cta(`${appBase()}/prijzen?utm_source=trial_d13_email`, "Kies een licentie")}
+  <p style="margin:0 0 14px 0;">Je proefperiode eindigt morgen, <strong>${formatDateNL(params.expiresAt)}</strong>.</p>
+  <p style="margin:0 0 6px 0;">Kies een licentie en blijf gewoon doortypen met je stem. Geen onderbreking, geen nieuwe code.</p>
+  ${cta(`${emailBase()}/prijzen?utm_source=trial_d13_email`, "Kies een licentie")}
   <ul style="margin:0 0 14px 20px;padding:0;">
-    <li style="margin-bottom:4px;"><strong>€12/maand</strong> — flexibel, opzeggen wanneer je wilt</li>
-    <li style="margin-bottom:4px;"><strong>€30/kwartaal</strong> — 17% korting</li>
-    <li><strong>€96/jaar</strong> — 33% korting, twee maanden gratis</li>
+    <li style="margin-bottom:6px;"><strong>€12 per maand</strong>, maandelijks opzegbaar.</li>
+    <li style="margin-bottom:6px;"><strong>€30 per kwartaal</strong>, 17% korting.</li>
+    <li><strong>€96 per jaar</strong>, 33% korting met twee maanden gratis.</li>
   </ul>
-  <p style="margin:0;font-size:13px;color:${BRAND.textMuted};">Vragen? Antwoord op deze mail — we beantwoorden dezelfde dag.</p>`,
+  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Vragen? Antwoord op deze mail. Je hoort dezelfde dag van ons.</p>`,
   );
 }
 
@@ -914,17 +925,17 @@ function trialReminderD13Text(params: {
   return [
     greet(params.name),
     "",
-    `Je proefperiode van Dicteren.ai loopt af op ${formatDateNL(params.expiresAt)}. Dat is morgen.`,
+    `Je proefperiode eindigt morgen, ${formatDateNL(params.expiresAt)}.`,
     "",
-    "Koop nu een licentie zodat je app door kan blijven werken:",
-    "https://dicteren.ai/prijzen",
+    "Kies een licentie en blijf gewoon doortypen met je stem. Geen onderbreking, geen nieuwe code.",
+    "https://www.dicteren.ai/prijzen",
     "",
     "Opties:",
-    "- €12/maand — flexibel, opzeggen wanneer je wilt",
-    "- €30/kwartaal — 17% korting",
-    "- €96/jaar — 33% korting, twee maanden gratis",
+    "- €12 per maand, maandelijks opzegbaar.",
+    "- €30 per kwartaal, 17% korting.",
+    "- €96 per jaar, 33% korting met twee maanden gratis.",
     "",
-    "Vragen? Mail info@dicteren.ai",
+    "Vragen? Antwoord op deze mail. Je hoort dezelfde dag van ons.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -934,10 +945,10 @@ function trialExpiredHtml(params: { name?: string }): string {
   return shellHtml(
     "Je proefperiode is voorbij",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-  <p style="margin:0 0 14px 0;">Je 14-dagen proefperiode is afgelopen. De app vraagt nu om een licentie voor je verder kunt.</p>
-  <p style="margin:0 0 14px 0;">Je instellingen en geschiedenis blijven gewoon bewaard — koop een licentie en je gaat verder waar je gebleven was.</p>
-  ${cta(`${appBase()}/prijzen?utm_source=trial_expired_email`, "Kies een licentie")}
-  <p style="margin:0;font-size:13px;color:${BRAND.textMuted};">Feedback waarom je nog niet kiest? Antwoord gerust — we lezen elke reactie.</p>`,
+  <p style="margin:0 0 14px 0;">Je 14 dagen zijn voorbij. De app vraagt nu om een licentie.</p>
+  <p style="margin:0 0 14px 0;">Je instellingen en geschiedenis blijven gewoon staan. Kies een licentie, en je gaat verder waar je gebleven was.</p>
+  ${cta(`${emailBase()}/prijzen?utm_source=trial_expired_email`, "Kies een licentie")}
+  <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Feedback waarom je nog twijfelt? Antwoord op deze mail. We lezen elke reactie.</p>`,
   );
 }
 
@@ -945,14 +956,13 @@ function trialExpiredText(params: { name?: string }): string {
   return [
     greet(params.name),
     "",
-    "Je 14-dagen proefperiode van Dicteren.ai is afgelopen.",
-    "De app vraagt nu om een licentie voor je verder kunt.",
+    "Je 14 dagen zijn voorbij. De app vraagt nu om een licentie.",
     "",
-    "Je instellingen en geschiedenis blijven bewaard — koop een licentie en je gaat verder.",
+    "Je instellingen en geschiedenis blijven gewoon staan. Kies een licentie en je gaat verder waar je gebleven was.",
     "",
-    "https://dicteren.ai/prijzen",
+    "https://www.dicteren.ai/prijzen",
     "",
-    "Hulp nodig of feedback? Antwoord op deze mail.",
+    "Feedback waarom je nog twijfelt? Antwoord op deze mail.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -968,7 +978,7 @@ export async function sendPasswordResetEmail(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Stel een nieuw wachtwoord in voor Dicteren.ai",
+    subject: "Nieuw wachtwoord instellen",
     html: passwordResetHtml(params),
     text: passwordResetText(params),
     tags: [{ name: "category", value: "auth_password_reset" }],
@@ -984,7 +994,7 @@ export async function sendEmailVerificationEmail(params: {
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
-    subject: "Bevestig je e-mailadres voor Dicteren.ai",
+    subject: "Bevestig je e-mailadres",
     html: emailVerificationHtml(params),
     text: emailVerificationText(params),
     tags: [{ name: "category", value: "auth_email_verify" }],
@@ -1048,22 +1058,21 @@ function staffWelcomeHtml(
   return shellHtml(
     `Welkom bij het Dicteren.ai-team`,
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-    <p style="margin:0 0 14px 0;">
-      ${params.inviterName ? `${params.inviterName} heeft je` : "Je bent"}
-      toegevoegd aan het Dicteren.ai-team als <strong>${roleLabel}</strong>.
-    </p>
-    <p style="margin:0 0 4px 0;">Stel eerst je eigen wachtwoord in. De link werkt <strong>24 uur</strong>.</p>
+    <p style="margin:0 0 14px 0;">${
+      params.inviterName ? `${params.inviterName} heeft je` : "Je bent"
+    } toegevoegd aan het Dicteren.ai-team als <strong>${roleLabel}</strong>.</p>
+    <p style="margin:0 0 6px 0;">Stel eerst je eigen wachtwoord in. De link werkt 24 uur.</p>
     ${cta(params.setPasswordUrl, "Stel je wachtwoord in")}
-    <p style="margin:0 0 8px 0;font-size:14px;">Daarna log je in op het admin-dashboard:</p>
-    <p style="margin:0 0 18px 0;font-size:14px;">${brandLink(params.adminUrl, params.adminUrl)}</p>
+    <p style="margin:0 0 6px 0;font-size:14px;">Daarna log je in op het admin-dashboard:</p>
+    <p style="margin:0 0 18px 0;font-size:15px;">${brandLink(params.adminUrl, params.adminUrl)}</p>
     ${
       params.hasLifetime
-        ? `<p style="margin:0 0 14px 0;font-size:13px;color:${BRAND.textMuted};">Je hebt automatisch lifetime-toegang gekregen voor persoonlijk gebruik van de Dicteren.ai-app.</p>`
+        ? `<p style="margin:0 0 14px 0;font-size:14px;color:${BRAND.textMuted};">Je hebt automatisch lifetime-toegang gekregen voor persoonlijk gebruik van de app.</p>`
         : ""
     }
-    <p style="margin:0 0 8px 0;font-size:13px;color:${BRAND.textMuted};">Werkt de knop niet? Plak deze link in je browser:</p>
+    <p style="margin:0 0 8px 0;font-size:14px;color:${BRAND.textMuted};">Werkt de knop niet? Plak deze link in je browser:</p>
     <p style="margin:0 0 18px 0;font-size:13px;word-break:break-all;color:${BRAND.textMuted};">${params.setPasswordUrl}</p>
-    <p style="margin:0;font-size:13px;color:${BRAND.textSoft};">Vragen? Mail info@dicteren.ai${params.inviterName ? ` of vraag ${params.inviterName}` : ""}.</p>`,
+    <p style="margin:0;font-size:14px;color:${BRAND.textSoft};">Vragen? Mail info@dicteren.ai${params.inviterName ? ` of vraag ${params.inviterName}` : ""}.</p>`,
   );
 }
 
@@ -1102,14 +1111,13 @@ function staffWelcomeText(
 
 function passwordResetHtml(params: { name?: string; resetUrl: string }): string {
   return shellHtml(
-    "Stel een nieuw wachtwoord in",
+    "Nieuw wachtwoord instellen",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-    <p style="margin:0 0 14px 0;">Je hebt een aanvraag gedaan om je wachtwoord voor Dicteren.ai opnieuw in te stellen.</p>
-    <p style="margin:0 0 4px 0;">Klik op de knop hieronder. De link werkt <strong>1 uur</strong>.</p>
-    ${cta(params.resetUrl, "Nieuw wachtwoord instellen")}
-    <p style="margin:0 0 8px 0;font-size:13px;color:${BRAND.textMuted};">Werkt de knop niet? Plak deze link in je browser:</p>
+    <p style="margin:0 0 14px 0;">Je vroeg een wachtwoord-herstel aan. Stel hieronder een nieuw wachtwoord in. De link werkt 1 uur.</p>
+    ${cta(params.resetUrl, "Stel nieuw wachtwoord in")}
+    <p style="margin:0 0 8px 0;font-size:14px;color:${BRAND.textMuted};">Werkt de knop niet? Plak deze link in je browser:</p>
     <p style="margin:0 0 18px 0;font-size:13px;word-break:break-all;color:${BRAND.textMuted};">${params.resetUrl}</p>
-    <p style="margin:0;font-size:13px;color:${BRAND.textSoft};">Geen wachtwoord-herstel aangevraagd? Negeer deze mail — je wachtwoord blijft hetzelfde.</p>`,
+    <p style="margin:0;font-size:14px;color:${BRAND.textSoft};">Geen herstel aangevraagd? Negeer deze mail. Je wachtwoord blijft staan.</p>`,
   );
 }
 
@@ -1117,12 +1125,11 @@ function passwordResetText(params: { name?: string; resetUrl: string }): string 
   return [
     greet(params.name),
     "",
-    "Je hebt een aanvraag gedaan om je wachtwoord voor Dicteren.ai opnieuw in te stellen.",
-    "Klik op de link hieronder om een nieuw wachtwoord te kiezen. De link werkt 1 uur.",
+    "Je vroeg een wachtwoord-herstel aan. Stel een nieuw wachtwoord in via onderstaande link. De link werkt 1 uur.",
     "",
     params.resetUrl,
     "",
-    "Heb je geen herstel aangevraagd? Negeer deze mail — je wachtwoord blijft hetzelfde.",
+    "Geen herstel aangevraagd? Negeer deze mail. Je wachtwoord blijft staan.",
     "",
     "Dicteren.ai",
   ].join("\n");
@@ -1132,11 +1139,11 @@ function emailVerificationHtml(params: { name?: string; verifyUrl: string }): st
   return shellHtml(
     "Bevestig je e-mailadres",
     `<p style="margin:0 0 14px 0;">${greet(params.name)}</p>
-    <p style="margin:0 0 6px 0;">Welkom bij Dicteren.ai. Bevestig je e-mailadres zodat we je belangrijke updates kunnen sturen — denk aan je licentie, facturen en verlengingen.</p>
+    <p style="margin:0 0 6px 0;">Welkom bij Dicteren.ai. Bevestig je e-mailadres, dan kunnen we je je licentie, facturen en verlengingen sturen.</p>
     ${cta(params.verifyUrl, "Bevestig e-mailadres")}
-    <p style="margin:0 0 8px 0;font-size:13px;color:${BRAND.textMuted};">Of plak deze link in je browser:</p>
+    <p style="margin:0 0 8px 0;font-size:14px;color:${BRAND.textMuted};">Werkt de knop niet? Plak deze link in je browser:</p>
     <p style="margin:0 0 18px 0;font-size:13px;word-break:break-all;color:${BRAND.textMuted};">${params.verifyUrl}</p>
-    <p style="margin:0;font-size:13px;color:${BRAND.textSoft};">Niet door jou aangevraagd? Negeer deze mail.</p>`,
+    <p style="margin:0;font-size:14px;color:${BRAND.textSoft};">Niet door jou aangevraagd? Negeer deze mail.</p>`,
   );
 }
 
@@ -1162,9 +1169,10 @@ function organizationInviteHtml(params: {
   return shellHtml(
     `Uitnodiging voor ${params.organizationName}`,
     `<p style="margin:0 0 14px 0;">Hallo,</p>
-    <p style="margin:0 0 14px 0;"><strong>${params.inviterName}</strong> heeft je uitgenodigd voor <strong>${params.organizationName}</strong> op Dicteren.ai.</p>
+    <p style="margin:0 0 14px 0;"><strong>${params.inviterName}</strong> nodigt je uit voor <strong>${params.organizationName}</strong> op Dicteren.ai.</p>
+    <p style="margin:0 0 6px 0;">Met dit team gebruik je samen één licentie. Praat. En het staat er, in elke app.</p>
     ${cta(params.inviteUrl, "Uitnodiging bekijken")}
-    <p style="margin:0 0 8px 0;font-size:13px;color:${BRAND.textMuted};">Of plak deze link in je browser:</p>
+    <p style="margin:0 0 8px 0;font-size:14px;color:${BRAND.textMuted};">Werkt de knop niet? Plak deze link in je browser:</p>
     <p style="margin:0 0 18px 0;font-size:13px;word-break:break-all;color:${BRAND.textMuted};">${params.inviteUrl}</p>`,
   );
 }
