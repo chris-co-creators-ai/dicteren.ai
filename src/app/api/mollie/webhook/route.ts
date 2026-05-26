@@ -17,7 +17,13 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { authUsers, licenses, orders, userBilling } from "@/lib/db/schema";
+import {
+  authUsers,
+  discountCodes,
+  licenses,
+  orders,
+  userBilling,
+} from "@/lib/db/schema";
 import {
   createMollieSubscription,
   mapMollieStatus,
@@ -49,8 +55,6 @@ import {
   recordCommission,
 } from "@/lib/services/affiliate";
 import { incrementDiscountRedemption } from "@/lib/services/discount";
-import { eq as drizzleEq } from "drizzle-orm";
-import { discountCodes } from "@/lib/db/schema";
 
 /** Lookup billing contact by license-id (used for recurring/refund mails). */
 async function contactForLicense(
@@ -370,7 +374,7 @@ export async function POST(request: Request) {
               affiliateId: discountCodes.affiliateId,
             })
             .from(discountCodes)
-            .where(drizzleEq(discountCodes.id, fulfilled.discountCodeId))
+            .where(eq(discountCodes.id, fulfilled.discountCodeId))
             .limit(1);
           if (discountRow?.affiliateId) {
             const result = await attributeUserToAffiliate({

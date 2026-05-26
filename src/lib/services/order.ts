@@ -332,7 +332,7 @@ export async function renewSubscriptionLicense(args: {
       molliePaymentId: args.molliePaymentId,
       status: "paid",
       amountCents: args.paidAmountCents,
-      currency: license.userId ? "EUR" : "EUR",
+      currency: sub.currency,
       rawWebhookPayload: args.rawWebhookPayload as object,
     });
   }
