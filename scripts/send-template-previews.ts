@@ -127,7 +127,7 @@ const TEMPLATES: Array<{ label: string; run: () => Promise<unknown> }> = [
       sendPasswordResetEmail({
         to: TO,
         name: NAME,
-        resetUrl: `https://www.dicteren.ai/auth/reset-password?token=preview-${STAMP}`,
+        resetUrl: `https://www.dicteren.ai/auth/reset-password?token=preview-${STAMP}&callbackURL=/account`,
       }),
   },
   {
@@ -136,7 +136,7 @@ const TEMPLATES: Array<{ label: string; run: () => Promise<unknown> }> = [
       sendEmailVerificationEmail({
         to: TO,
         name: NAME,
-        verifyUrl: `https://www.dicteren.ai/auth/verify?token=preview-${STAMP}`,
+        verifyUrl: `https://www.dicteren.ai/auth/verify-email?token=preview-${STAMP}&callbackURL=/account`,
       }),
   },
   {
