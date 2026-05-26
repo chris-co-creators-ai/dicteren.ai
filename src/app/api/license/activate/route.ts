@@ -88,6 +88,22 @@ export async function POST(request: Request) {
     );
   }
 
+  if (license.status === "unassigned") {
+    return clientError(
+      403,
+      "Deze code is nog niet toegewezen. Vraag je organisatie-beheerder om de seat aan jou toe te wijzen.",
+      "status_unassigned",
+    );
+  }
+
+  if (license.status === "pending_payment") {
+    return clientError(
+      403,
+      "Deze code wacht op betalingsbevestiging. Probeer over enkele minuten opnieuw.",
+      "status_pending_payment",
+    );
+  }
+
   if (!ALLOWED_ACTIVATION_STATUSES.has(license.status as "active" | "trial")) {
     return clientError(
       403,
@@ -163,32 +179,37 @@ export async function POST(request: Request) {
 
   if (!existing) {
     const seatLimit = license.seats * license.maxActivationsPerSeat;
-    const [{ count: activeCount }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(licenseActivations)
-      .where(
-        and(
-          eq(licenseActivations.licenseId, license.id),
-          eq(licenseActivations.isActive, true),
-        ),
-      );
 
-    if (activeCount >= seatLimit) {
+    // Conditional INSERT: voorkomt race-condition tussen count en insert.
+    // Postgres voert dit atomic uit. Result.length === 0 → limiet vol.
+    const inserted = await db.execute<{ id: string }>(sql`
+      INSERT INTO license_activations
+        (license_id, device_id, user_id, activated_at, last_token_issued_at, is_active)
+      SELECT
+        ${license.id}::uuid,
+        ${device.id}::uuid,
+        ${license.userId ?? null}::uuid,
+        ${now.toISOString()}::timestamptz,
+        ${now.toISOString()}::timestamptz,
+        true
+      WHERE (
+        SELECT COUNT(*) FROM license_activations
+        WHERE license_id = ${license.id}::uuid AND is_active = true
+      ) < ${seatLimit}
+      RETURNING id;
+    `);
+
+    const insertedRows =
+      (inserted as unknown as { rows?: { id: string }[] }).rows ??
+      (Array.isArray(inserted) ? (inserted as unknown as { id: string }[]) : []);
+
+    if (insertedRows.length === 0) {
       return clientError(
         409,
         `Maximum aantal apparaten bereikt (${seatLimit}). Deactiveer een ander apparaat om door te gaan.`,
         "limit_reached",
       );
     }
-
-    await db.insert(licenseActivations).values({
-      licenseId: license.id,
-      deviceId: device.id,
-      userId: license.userId,
-      activatedAt: now,
-      lastTokenIssuedAt: now,
-      isActive: true,
-    });
 
     await db
       .update(licenses)
