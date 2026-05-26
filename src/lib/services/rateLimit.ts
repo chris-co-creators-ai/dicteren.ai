@@ -53,6 +53,17 @@ export const RATE_LIMITS = {
   // Cancel-spam beperken — Mollie DELETE is goedkope op API maar log-noise
   // in audit-feed bij abuse.
   "subscription:cancel": { limit: 5, windowSeconds: 60 },
+
+  // Seat-management — anti-spam. Owner kan in theorie veel klikken;
+  // hard cap zodat ze niet per ongeluk 50 invites versturen.
+  "org:seat_preview": { limit: 30, windowSeconds: 60 },
+  "org:seat_upgrade": { limit: 5, windowSeconds: 60 },
+  "org:seat_downgrade": { limit: 5, windowSeconds: 60 },
+  "org:seat_assign": { limit: 20, windowSeconds: 60 },
+  "org:seat_revoke": { limit: 20, windowSeconds: 60 },
+  "org:seat_reassign": { limit: 10, windowSeconds: 60 },
+  "org:invite": { limit: 30, windowSeconds: 600 },
+  "org:invite_resend": { limit: 10, windowSeconds: 600 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
