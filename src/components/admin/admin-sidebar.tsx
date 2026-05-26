@@ -27,41 +27,49 @@ import { LogoIcon } from "@/components/shared/logo";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { cn } from "@/lib/utils";
 
+type Role = "admin" | "account_manager" | string;
+
 type NavItem = {
   href: string;
   label: string;
   icon: typeof Home;
   badgeKey?: "messages" | "affiliates" | "pastDue";
   badgeAlert?: boolean;
+  roles: Role[];
 };
 
+const BOTH: Role[] = ["admin", "account_manager"];
+const ADMIN_ONLY: Role[] = ["admin"];
+
 const NAV: NavItem[] = [
-  { href: "/admin", label: "Overzicht", icon: Home },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/crm", label: "CRM", icon: Users },
-  { href: "/admin/users", label: "Users", icon: UserCog },
+  { href: "/admin", label: "Overzicht", icon: Home, roles: BOTH },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: BOTH },
+  { href: "/admin/crm", label: "CRM", icon: Users, roles: BOTH },
+  { href: "/admin/users", label: "Users", icon: UserCog, roles: ADMIN_ONLY },
   {
     href: "/admin/messages",
     label: "Berichten",
     icon: Inbox,
     badgeKey: "messages",
+    roles: BOTH,
   },
-  { href: "/admin/licenses", label: "Licenties", icon: Key },
-  { href: "/admin/organizations", label: "Organisaties", icon: Building2 },
-  { href: "/admin/orders", label: "Orders", icon: Receipt },
-  { href: "/admin/invoices", label: "Facturen", icon: Tag },
-  { href: "/admin/pricing", label: "Prijzen & marge", icon: Calculator },
-  { href: "/admin/discounts", label: "Kortingen", icon: Scale },
+  { href: "/admin/licenses", label: "Licenties", icon: Key, roles: ADMIN_ONLY },
+  { href: "/admin/organizations", label: "Organisaties", icon: Building2, roles: ADMIN_ONLY },
+  { href: "/admin/orders", label: "Orders", icon: Receipt, roles: ADMIN_ONLY },
+  { href: "/admin/invoices", label: "Facturen", icon: Tag, roles: ADMIN_ONLY },
+  { href: "/admin/pricing", label: "Prijzen & marge", icon: Calculator, roles: BOTH },
+  { href: "/admin/discounts", label: "Kortingen", icon: Scale, roles: BOTH },
   {
     href: "/admin/affiliates",
     label: "Affiliates",
     icon: GitBranch,
     badgeKey: "affiliates",
+    roles: BOTH,
   },
-  { href: "/admin/partners", label: "Partners", icon: HeartHandshake },
-  { href: "/admin/emails", label: "E-mails", icon: Mail },
-  { href: "/admin/support", label: "Support", icon: Bell },
-  { href: "/admin/settings", label: "Instellingen", icon: Settings },
+  { href: "/admin/partners", label: "Partners", icon: HeartHandshake, roles: BOTH },
+  { href: "/admin/emails", label: "E-mails", icon: Mail, roles: ADMIN_ONLY },
+  { href: "/admin/support", label: "Support", icon: Bell, roles: ADMIN_ONLY },
+  { href: "/admin/settings", label: "Instellingen", icon: Settings, roles: ADMIN_ONLY },
 ];
 
 function initials(name: string) {
@@ -78,6 +86,7 @@ function initials(name: string) {
 
 const ROLE_LABEL: Record<string, string> = {
   admin: "Admin",
+  account_manager: "Account Manager",
   owner: "Eigenaar",
   support: "Support",
 };
@@ -85,10 +94,14 @@ const ROLE_LABEL: Record<string, string> = {
 export function AdminSidebar({
   user,
   badges,
+  role,
 }: {
   user: { name: string; email: string; role?: string | null };
   badges?: { messages: number; affiliates: number; pastDue: number };
+  role?: string;
 }) {
+  const effectiveRole = role ?? user.role ?? "user";
+  const visibleNav = NAV.filter((n) => n.roles.includes(effectiveRole));
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -141,7 +154,7 @@ export function AdminSidebar({
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5">
-          {NAV.map((item) => {
+          {visibleNav.map((item) => {
             const active = pathname === item.href;
             const Icon = item.icon;
             return (

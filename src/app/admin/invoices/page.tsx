@@ -2,6 +2,7 @@ import { Download, FileText } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { listInvoices } from "@/lib/services/commerce";
 import { formatMollieAmount } from "@/lib/services/mollie";
+import { assertAdminOnly } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Facturen · Admin" };
@@ -22,6 +23,7 @@ function formatDate(d: Date): string {
 }
 
 export default async function AdminInvoicesPage() {
+  await assertAdminOnly();
   const invoices = await listInvoices(200);
   const month = new Date();
   month.setDate(1);

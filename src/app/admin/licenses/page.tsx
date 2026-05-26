@@ -3,11 +3,13 @@ import {
   commerceKpis,
   licenseDistribution,
 } from "@/lib/services/commerce";
+import { assertAdminOnly } from "@/lib/auth/session";
 import { LicensesView } from "./licenses-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLicensesPage() {
+  await assertAdminOnly();
   const [rows, kpis, distribution] = await Promise.all([
     listLicenses(500),
     commerceKpis(),

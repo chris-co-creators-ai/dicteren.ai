@@ -175,10 +175,22 @@ export async function POST(
             { status: 400 },
           );
         }
-        await auth.api.setRole({
-          headers: requestHeaders,
-          body: { userId, role: body.role as "user" | "admin" },
-        });
+        if (!["user", "admin", "account_manager"].includes(body.role)) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "role moet user / admin / account_manager zijn",
+            },
+            { status: 400 },
+          );
+        }
+        // Direct DB-update ipv auth.api.setRole — die accepteert alleen
+        // de built-in "user" | "admin" types. Account_manager is een
+        // extra rol bovenop het schema (text-veld, geen enum).
+        await dbAuth
+          .update(authUser)
+          .set({ role: body.role, updatedAt: new Date() })
+          .where(eq(authUser.id, userId));
         await logEvent({
           action: "admin.action",
           entityType: "user",

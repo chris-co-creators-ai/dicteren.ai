@@ -1,10 +1,12 @@
 import { LifeBuoy, Mail, ExternalLink } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { assertAdminOnly } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Support · Admin" };
 
 export default async function AdminSupportPage() {
+  await assertAdminOnly();
   // Geen tickets-tabel in de huidige schema. Support komt binnen via
   // info@dicteren.ai in Google Workspace. Tot we een ticketing-systeem
   // koppelen (Helpscout, Plain, of eigen tabel), tonen we de bron en kpi's

@@ -3,6 +3,7 @@ import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { pingMollie } from "@/lib/services/mollie";
 import { listCustomers } from "@/lib/services/identity";
 import { listAuditEvents } from "@/lib/services/commerce";
+import { assertAdminOnly } from "@/lib/auth/session";
 
 type IntegrationStatus = "connected" | "disconnected" | "error";
 
@@ -117,6 +118,7 @@ async function loadIntegrations(): Promise<Integration[]> {
 }
 
 export default async function AdminSettingsPage() {
+  await assertAdminOnly();
   const [integrations, customers, audit] = await Promise.all([
     loadIntegrations(),
     listCustomers(),

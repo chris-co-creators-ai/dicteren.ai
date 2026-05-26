@@ -71,6 +71,38 @@ export async function requireAdmin(): Promise<AuthSession> {
   return session;
 }
 
+/**
+ * Toelating voor admin-staff: zowel "admin" als "account_manager". Voor
+ * /admin/* pages waar account-managers operationeel mogen werken (CRM,
+ * berichten, affiliates, etc.).
+ */
+export async function requireAdminOrManager(): Promise<AuthSession> {
+  const session = await getSession();
+  if (!session?.user) redirect("/auth/sign-in");
+  const role = session.user.role;
+  if (role !== "admin" && role !== "account_manager") {
+    redirect("/?error=admin_only");
+  }
+  return session;
+}
+
+/**
+ * Voor admin-only sub-pages binnen /admin/* (Users, Licenties, Organisaties,
+ * Orders, Facturen, E-mails, Support, Settings). Account-managers worden
+ * teruggestuurd naar /admin (overzicht) ipv homepage.
+ */
+export async function assertAdminOnly(): Promise<AuthSession> {
+  const session = await getSession();
+  if (!session?.user) redirect("/auth/sign-in");
+  if (session.user.role !== "admin") redirect("/admin");
+  return session;
+}
+
+/** Voor publieke role-checks zonder redirect (in service-laag). */
+export function isAdminOrManager(role: string | null | undefined): boolean {
+  return role === "admin" || role === "account_manager";
+}
+
 /** Helper for JSON API routes: 401 if no session, 403 if not admin. */
 export async function adminOnlyJson<T>(
   handler: (session: AuthSession) => Promise<T> | T,

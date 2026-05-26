@@ -239,6 +239,11 @@ export function UsersClient({ users }: Props) {
                         Admin
                       </Badge>
                     )}
+                    {u.role === "account_manager" && (
+                      <Badge color="orange" icon={UserCog}>
+                        Account Manager
+                      </Badge>
+                    )}
                     {u.banned && (
                       <Badge color="red" icon={Ban}>
                         Banned
@@ -472,25 +477,51 @@ function ActionMenuTrigger({
           }
         />
         <div className="my-1 h-px bg-muted" />
-        <MenuItem
-          icon={Shield}
-          label={
-            user.role === "admin"
-              ? "Maak gewone user"
-              : "Maak admin"
-          }
-          onClick={() =>
-            onAction(
-              user.id,
-              "set-role",
-              { role: user.role === "admin" ? "user" : "admin" },
-              user.role === "admin"
-                ? `Admin-rechten afnemen van ${user.email}?`
-                : `${user.email} admin-rechten geven?`,
-              "Rol bijgewerkt.",
-            )
-          }
-        />
+        {user.role !== "user" && (
+          <MenuItem
+            icon={Shield}
+            label="Maak gewone user"
+            onClick={() =>
+              onAction(
+                user.id,
+                "set-role",
+                { role: "user" },
+                `Rechten afnemen van ${user.email}?`,
+                "Rol bijgewerkt naar 'user'.",
+              )
+            }
+          />
+        )}
+        {user.role !== "account_manager" && (
+          <MenuItem
+            icon={UserCog}
+            label="Maak Account Manager"
+            onClick={() =>
+              onAction(
+                user.id,
+                "set-role",
+                { role: "account_manager" },
+                `${user.email} account-manager-rechten geven?`,
+                "Rol bijgewerkt naar 'account_manager'.",
+              )
+            }
+          />
+        )}
+        {user.role !== "admin" && (
+          <MenuItem
+            icon={Shield}
+            label="Maak admin"
+            onClick={() =>
+              onAction(
+                user.id,
+                "set-role",
+                { role: "admin" },
+                `${user.email} VOLLEDIGE admin-rechten geven?`,
+                "Rol bijgewerkt naar 'admin'.",
+              )
+            }
+          />
+        )}
         {user.banned ? (
           <MenuItem
             icon={UserCheck}

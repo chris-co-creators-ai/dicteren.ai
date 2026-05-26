@@ -1,4 +1,5 @@
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { assertAdminOnly } from "@/lib/auth/session";
 import { listAdminUsers } from "@/lib/services/adminUsers";
 import { UsersClient } from "./users-client";
 
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Users · Admin" };
 
 export default async function AdminUsersPage() {
+  await assertAdminOnly();
   const users = await listAdminUsers();
 
   const verified = users.filter((u) => u.emailVerified).length;

@@ -1,9 +1,11 @@
 import { listOrganizations } from "@/lib/services/identity";
+import { assertAdminOnly } from "@/lib/auth/session";
 import { OrganizationsView } from "./organizations-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOrganizationsPage() {
+  await assertAdminOnly();
   const orgs = await listOrganizations();
   const totalSeats = orgs.reduce((s, o) => s + o.licenseCount, 0);
   const totalMembers = orgs.reduce((s, o) => s + o.memberCount, 0);
