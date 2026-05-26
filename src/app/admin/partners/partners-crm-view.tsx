@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Filter,
-  ExternalLink,
   Plus,
   LayoutGrid,
   Table as TableIcon,
@@ -16,7 +14,7 @@ import {
   Check,
   Loader2,
 } from "lucide-react";
-import { issuePartnerCodeAction } from "./[id]/actions";
+import { PartnerSidePanel } from "./partner-side-panel";
 
 type Org = {
   id: string;
@@ -72,6 +70,7 @@ export function PartnersCrmView({
   currentUserName: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [orgs, setOrgs] = useState<Org[]>(initial);
   const [view, setView] = useState<"table" | "kanban">("kanban");
   const [query, setQuery] = useState("");
@@ -79,8 +78,13 @@ export function PartnersCrmView({
   const [priorityFilter, setPriorityFilter] = useState("Alle");
   const [showCreate, setShowCreate] = useState(false);
   const [showCsv, setShowCsv] = useState(false);
-  const [codeOrg, setCodeOrg] = useState<Org | null>(null);
+  const [openPanelId, setOpenPanelId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("open");
+    if (fromUrl) setOpenPanelId(fromUrl);
+  }, [searchParams]);
 
   const filtered = useMemo(() => {
     return orgs.filter((o) => {
@@ -144,22 +148,10 @@ export function PartnersCrmView({
     startTransition(() => router.refresh());
   }
 
-  function onCodeIssued(orgId: string, code: string, seats: number) {
+  function onPanelUpdate(orgId: string, updates: Partial<Org>) {
     setOrgs((cur) =>
-      cur.map((o) =>
-        o.id === orgId
-          ? {
-              ...o,
-              partnerCode: code,
-              licenseStatus: "active",
-              freeCodesCount: seats,
-              pilotStatus:
-                o.pilotStatus === "Nog niet gestart" ? "Live" : o.pilotStatus,
-            }
-          : o,
-      ),
+      cur.map((o) => (o.id === orgId ? { ...o, ...updates } : o)),
     );
-    setCodeOrg(null);
     startTransition(() => router.refresh());
   }
 
@@ -276,13 +268,13 @@ export function PartnersCrmView({
         <KanbanBoard
           orgs={filtered}
           onMove={moveOrgToStage}
-          onCodeClick={setCodeOrg}
+          onOpenPanel={setOpenPanelId}
         />
       ) : (
         <TableView
           orgs={filtered}
           allCount={orgs.length}
-          onCodeClick={setCodeOrg}
+          onOpenPanel={setOpenPanelId}
           onCreated={onCreated}
           currentUserName={currentUserName}
         />
@@ -301,11 +293,11 @@ export function PartnersCrmView({
           onImported={onBulkImported}
         />
       )}
-      {codeOrg && (
-        <IssueCodeModal
-          org={codeOrg}
-          onClose={() => setCodeOrg(null)}
-          onIssued={(code, seats) => onCodeIssued(codeOrg.id, code, seats)}
+      {openPanelId && (
+        <PartnerSidePanel
+          orgId={openPanelId}
+          onClose={() => setOpenPanelId(null)}
+          onUpdated={(updates) => onPanelUpdate(openPanelId, updates)}
         />
       )}
     </main>
@@ -317,11 +309,11 @@ export function PartnersCrmView({
 function KanbanBoard({
   orgs,
   onMove,
-  onCodeClick,
+  onOpenPanel,
 }: {
   orgs: Org[];
   onMove: (orgId: string, stage: Stage) => void;
-  onCodeClick: (o: Org) => void;
+  onOpenPanel: (id: string) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<Stage | null>(null);
@@ -376,7 +368,7 @@ function KanbanBoard({
                   key={o.id}
                   org={o}
                   onDragStart={() => setDragId(o.id)}
-                  onCodeClick={() => onCodeClick(o)}
+                  onOpen={() => onOpenPanel(o.id)}
                 />
               ))}
               {items.length === 0 && (
@@ -395,25 +387,23 @@ function KanbanBoard({
 function KanbanCard({
   org,
   onDragStart,
-  onCodeClick,
+  onOpen,
 }: {
   org: Org;
   onDragStart: () => void;
-  onCodeClick: () => void;
+  onOpen: () => void;
 }) {
   return (
     <div
       draggable
       onDragStart={onDragStart}
+      onClick={onOpen}
       className="cursor-grab rounded-lg border border-[color:var(--border-soft)] bg-white p-3 text-xs shadow-sm hover:border-[color:var(--orange)] active:cursor-grabbing"
     >
       <div className="flex items-baseline justify-between gap-2">
-        <Link
-          href={`/admin/partners/${org.id}`}
-          className="font-semibold leading-snug hover:underline"
-        >
+        <span className="font-semibold leading-snug">
           {org.organizationName}
-        </Link>
+        </span>
         <PriorityPill priority={org.priority} compact />
       </div>
       <div className="mt-1 text-[0.6875rem] text-[color:var(--text-muted)]">
@@ -428,16 +418,10 @@ function KanbanCard({
             {org.partnerCode.slice(0, 12)}…
           </code>
         ) : (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onCodeClick();
-            }}
-            className="inline-flex items-center gap-0.5 rounded bg-[color:var(--orange)] px-1.5 py-0.5 text-[0.625rem] font-bold text-white"
-          >
+          <span className="inline-flex items-center gap-0.5 rounded bg-[color:var(--orange)] px-1.5 py-0.5 text-[0.625rem] font-bold text-white">
             <KeyRound className="size-2.5" />
             Code geven
-          </button>
+          </span>
         )}
       </div>
     </div>
@@ -449,13 +433,13 @@ function KanbanCard({
 function TableView({
   orgs,
   allCount,
-  onCodeClick,
+  onOpenPanel,
   onCreated,
   currentUserName,
 }: {
   orgs: Org[];
   allCount: number;
-  onCodeClick: (o: Org) => void;
+  onOpenPanel: (id: string) => void;
   onCreated: (row: Org) => void;
   currentUserName: string;
 }) {
@@ -502,7 +486,11 @@ function TableView({
             </tr>
           )}
           {orgs.map((o) => (
-            <tr key={o.id} className="hover:bg-[color:var(--surface-2)]">
+            <tr
+              key={o.id}
+              onClick={() => onOpenPanel(o.id)}
+              className="cursor-pointer hover:bg-[color:var(--surface-2)]"
+            >
               <td className="px-4 py-3 font-mono text-xs text-[color:var(--text-muted)]">
                 {o.externalId}
               </td>
@@ -529,13 +517,10 @@ function TableView({
                 {o.partnerCode ? (
                   <code className="font-mono text-xs">{o.partnerCode}</code>
                 ) : (
-                  <button
-                    onClick={() => onCodeClick(o)}
-                    className="inline-flex items-center gap-0.5 rounded bg-[color:var(--orange)] px-1.5 py-0.5 text-[0.625rem] font-bold text-white"
-                  >
+                  <span className="inline-flex items-center gap-0.5 rounded bg-[color:var(--orange)] px-1.5 py-0.5 text-[0.625rem] font-bold text-white">
                     <KeyRound className="size-2.5" />
                     Geven
-                  </button>
+                  </span>
                 )}
               </td>
               <td className="px-4 py-3 text-xs">
@@ -543,14 +528,8 @@ function TableView({
                   ? `${o.activeActivations} / ${o.freeCodesCount ?? "?"}`
                   : "—"}
               </td>
-              <td className="px-4 py-3">
-                <Link
-                  href={`/admin/partners/${o.id}`}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[color:var(--navy)] hover:bg-[color:var(--aqua-50)]"
-                >
-                  Open
-                  <ExternalLink className="size-3" />
-                </Link>
+              <td className="px-4 py-3 text-xs text-[color:var(--orange-600)]">
+                Open ›
               </td>
             </tr>
           ))}
@@ -1098,132 +1077,6 @@ function CsvImportModal({
               : `Importeer ${preview?.length ?? 0} partners`}
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function IssueCodeModal({
-  org,
-  onClose,
-  onIssued,
-}: {
-  org: Org;
-  onClose: () => void;
-  onIssued: (code: string, seats: number) => void;
-}) {
-  const [months, setMonths] = useState(12);
-  const [seats, setSeats] = useState(50);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<string | null>(null);
-
-  async function submit() {
-    setSaving(true);
-    setError(null);
-    const expiresAt =
-      months > 0
-        ? new Date(Date.now() + months * 30 * 24 * 3600 * 1000).toISOString()
-        : null;
-    try {
-      const res = await issuePartnerCodeAction({
-        partnerOrgId: org.id,
-        seats,
-        expiresAt,
-      });
-      if (!res.success) {
-        setError(res.error ?? "Code aanmaken mislukt");
-        setSaving(false);
-        return;
-      }
-      setResult(res.code);
-      onIssued(res.code, seats);
-    } catch {
-      setError("Netwerkprobleem");
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 grid size-8 place-items-center rounded-full hover:bg-muted"
-        >
-          <X className="size-4" />
-        </button>
-        <h2 className="text-xl font-bold">Licentiecode geven</h2>
-        <p className="mt-1 text-xs text-[color:var(--text-muted)]">
-          Voor {org.organizationName} en hun achterban. Eén gedeelde code voor
-          de hele organisatie.
-        </p>
-
-        {result ? (
-          <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-5">
-            <div className="text-xs font-semibold uppercase text-green-800">
-              Code aangemaakt
-            </div>
-            <div className="mt-2 break-all font-mono text-lg font-bold text-green-900">
-              {result}
-            </div>
-            <p className="mt-2 text-xs text-green-800">
-              Geef deze code door aan {org.organizationName}. Hun achterban kan
-              ermee de Dicteren-app activeren.
-            </p>
-            <div className="mt-4 flex justify-end">
-              <button onClick={onClose} className="btn btn-primary">
-                Klaar
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-5 grid gap-3">
-            <Field label="Geldigheid (maanden, 0 = lifetime)">
-              <input
-                type="number"
-                min={0}
-                max={120}
-                value={months}
-                onChange={(e) => setMonths(Math.max(0, +e.target.value))}
-                className="input"
-              />
-            </Field>
-            <Field label="Seats (max gelijktijdige gebruikers)">
-              <input
-                type="number"
-                min={1}
-                max={10000}
-                value={seats}
-                onChange={(e) => setSeats(Math.max(1, +e.target.value))}
-                className="input"
-              />
-            </Field>
-            {error && (
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={onClose} className="btn btn-secondary">
-                Annuleer
-              </button>
-              <button
-                disabled={saving}
-                onClick={submit}
-                className="btn btn-primary disabled:opacity-50"
-              >
-                {saving ? "Aanmaken…" : "Code aanmaken"}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

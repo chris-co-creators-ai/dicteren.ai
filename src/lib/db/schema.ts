@@ -846,6 +846,59 @@ export const rateLimitEvents = pgTable(
   ],
 );
 
+/** Taken per partner-org. CRM-workflow: bellen op datum X, mail sturen,
+ *  demo afspraken, kantoorbezoek. Open-tasks komen op admin-dashboard. */
+export const partnerTasks = pgTable(
+  "partner_tasks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerOrgId: uuid("partner_org_id")
+      .notNull()
+      .references(() => partnerOrganizations.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** "email" | "phone" | "demo" | "visit" | "follow_up" | "other" */
+    kind: text("kind").notNull().default("other"),
+    dueDate: timestamp("due_date", { withTimezone: true }),
+    status: text("status").notNull().default("open"), // open | done
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" },
+    ),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("partner_tasks_org_idx").on(t.partnerOrgId),
+    index("partner_tasks_status_idx").on(t.status),
+    index("partner_tasks_due_idx").on(t.dueDate),
+  ],
+);
+
+/** Comments / status-log per partner-org. Tonen in side-panel als activiteit-feed. */
+export const partnerComments = pgTable(
+  "partner_comments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    partnerOrgId: uuid("partner_org_id")
+      .notNull()
+      .references(() => partnerOrganizations.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    authorUserId: uuid("author_user_id").references(() => authUsers.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("partner_comments_org_idx").on(t.partnerOrgId)],
+);
+
 /** Per-user page-blocks bovenop role-defaults. Account-managers krijgen
  *  default toegang tot alle "manager"-pages; admin kan via deze tabel
  *  specifieke pages blokkeren per individuele staff-user. */
@@ -934,6 +987,10 @@ export type License = typeof licenses.$inferSelect;
 export type NewLicense = typeof licenses.$inferInsert;
 export type PartnerOrganization = typeof partnerOrganizations.$inferSelect;
 export type NewPartnerOrganization = typeof partnerOrganizations.$inferInsert;
+export type PartnerTask = typeof partnerTasks.$inferSelect;
+export type NewPartnerTask = typeof partnerTasks.$inferInsert;
+export type PartnerComment = typeof partnerComments.$inferSelect;
+export type NewPartnerComment = typeof partnerComments.$inferInsert;
 export type LicenseActivation = typeof licenseActivations.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Plan = typeof plans.$inferSelect;

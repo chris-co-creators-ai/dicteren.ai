@@ -19,6 +19,8 @@ import {
   listRecentActivity,
 } from "@/lib/services/commerce";
 import { formatMollieAmount } from "@/lib/services/mollie";
+import { listOpenPartnerTasks } from "@/lib/services/partnerTasks";
+import { OpenTasksWidget } from "./open-tasks-widget";
 
 export const dynamic = "force-dynamic";
 
@@ -87,13 +89,15 @@ function eventLabel(eventType: string): string {
 }
 
 export default async function AdminOverviewPage() {
-  const [session, kpis, distribution, activations, activity] = await Promise.all([
-    getSession(),
-    overviewKpis(),
-    licenseDistribution(),
-    activationsLastNDays(14),
-    listRecentActivity(8),
-  ]);
+  const [session, kpis, distribution, activations, activity, openTasks] =
+    await Promise.all([
+      getSession(),
+      overviewKpis(),
+      licenseDistribution(),
+      activationsLastNDays(14),
+      listRecentActivity(8),
+      listOpenPartnerTasks(20),
+    ]);
 
   const greetingName = session?.user.name?.split(" ")[0] ?? "Christian";
   const now = new Date();
@@ -245,6 +249,20 @@ export default async function AdminOverviewPage() {
             </div>
           </div>
         </div>
+
+        <OpenTasksWidget
+          initialTasks={openTasks.map((t) => ({
+            id: t.id,
+            partnerOrgId: t.partnerOrgId,
+            organizationName: t.organizationName,
+            externalId: t.externalId,
+            accountOwner: t.accountOwner,
+            title: t.title,
+            kind: t.kind,
+            dueDate: t.dueDate ? t.dueDate.toISOString() : null,
+            notes: t.notes,
+          }))}
+        />
 
         <div className="brand-card overflow-hidden p-0">
           <div className="flex items-center border-b border-[color:var(--border-soft)] p-4">

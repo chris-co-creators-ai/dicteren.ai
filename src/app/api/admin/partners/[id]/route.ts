@@ -3,7 +3,14 @@
 
 import { NextResponse } from "next/server";
 import { requireStaffApi } from "@/lib/auth/session";
-import { updatePartnerOrg, archivePartnerOrg } from "@/lib/services/partner";
+import {
+  updatePartnerOrg,
+  archivePartnerOrg,
+  getPartnerOrg,
+  issuePartnerCode,
+} from "@/lib/services/partner";
+import { listTasksByPartner } from "@/lib/services/partnerTasks";
+import { listPartnerComments } from "@/lib/services/partnerComments";
 
 const EDITABLE_FIELDS = [
   "organizationName",
@@ -27,6 +34,35 @@ const EDITABLE_FIELDS = [
   "freeCodesCount",
   "gdprNotes",
 ] as const;
+
+export async function GET(
+  _request: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const guard = await requireStaffApi();
+  if (guard.response) return guard.response;
+  const { id } = await ctx.params;
+
+  const detail = await getPartnerOrg(id);
+  if (!detail) {
+    return NextResponse.json(
+      { success: false, error: "Niet gevonden" },
+      { status: 404 },
+    );
+  }
+  const [tasks, comments] = await Promise.all([
+    listTasksByPartner(id),
+    listPartnerComments(id),
+  ]);
+  return NextResponse.json({
+    success: true,
+    partner: detail.org,
+    license: detail.license,
+    activations: detail.activations,
+    tasks,
+    comments,
+  });
+}
 
 export async function PATCH(
   request: Request,
