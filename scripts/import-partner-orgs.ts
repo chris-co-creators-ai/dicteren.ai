@@ -7,66 +7,16 @@ import { resolve } from "node:path";
 import { sql } from "drizzle-orm";
 import { db } from "../src/lib/db";
 import { partnerOrganizations } from "../src/lib/db/schema";
+import { parseCsvWithHeader, emptyToNull } from "../src/lib/csv";
 
 const CSV_PATH = resolve(
   __dirname,
   "../../outreach/dicteren-ai-maatschappelijke-outreach-pipeline.csv",
 );
 
-// Semicolon-gescheiden CSV met quoted fields. Quote-aware split per regel.
-function splitCsvLine(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let inQuote = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuote && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQuote = !inQuote;
-      }
-    } else if (ch === ";" && !inQuote) {
-      out.push(cur);
-      cur = "";
-    } else {
-      cur += ch;
-    }
-  }
-  out.push(cur);
-  return out;
-}
-
-function parseCsv(raw: string): { header: string[]; rows: string[][] } {
-  // Split op CRLF/LF zonder quotes te breken: collect chars en split op
-  // newlines buiten quotes.
-  const lines: string[] = [];
-  let cur = "";
-  let inQuote = false;
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i];
-    if (ch === '"') {
-      if (inQuote && raw[i + 1] === '"') {
-        cur += '""';
-        i++;
-      } else {
-        inQuote = !inQuote;
-        cur += ch;
-      }
-    } else if ((ch === "\n" || ch === "\r") && !inQuote) {
-      if (cur.length > 0) lines.push(cur);
-      cur = "";
-      if (ch === "\r" && raw[i + 1] === "\n") i++;
-    } else {
-      cur += ch;
-    }
-  }
-  if (cur.length > 0) lines.push(cur);
-
-  const [headerLine, ...rest] = lines;
-  return { header: splitCsvLine(headerLine), rows: rest.map(splitCsvLine) };
-}
+// Oorspronkelijke pipeline-CSV is semicolon-gescheiden.
+const parseCsv = (raw: string) =>
+  parseCsvWithHeader(raw, { separator: ";" });
 
 const HEADER_TO_COL: Record<string, string> = {
   ID: "external_id",
@@ -99,11 +49,6 @@ const HEADER_TO_COL: Record<string, string> = {
   Partnercode: "partner_code",
   "AVG/notities": "gdpr_notes",
 };
-
-function emptyToNull(v: string): string | null {
-  const trimmed = v.trim();
-  return trimmed.length === 0 ? null : trimmed;
-}
 
 async function main() {
   const raw = readFileSync(CSV_PATH, "utf-8");

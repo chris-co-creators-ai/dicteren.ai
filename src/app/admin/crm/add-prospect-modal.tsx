@@ -24,55 +24,7 @@ const FIELD_OPTIONS = [
 
 type FieldKey = (typeof FIELD_OPTIONS)[number]["key"];
 
-/** Heel minimale CSV-parser. Ondersteunt komma- en puntkomma-gescheiden,
- *  quoted strings, escape-quotes. Goed genoeg voor standaard exports. */
-function parseCsv(input: string): string[][] {
-  const rows: string[][] = [];
-  const trimmed = input.replace(/^﻿/, "");
-  const firstLine = trimmed.split(/\r?\n/)[0] ?? "";
-  const sep = firstLine.includes(";") && !firstLine.includes(",") ? ";" : ",";
-
-  let current: string[] = [];
-  let field = "";
-  let inQuotes = false;
-  for (let i = 0; i < trimmed.length; i++) {
-    const c = trimmed[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (trimmed[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += c;
-      }
-    } else {
-      if (c === '"') {
-        inQuotes = true;
-      } else if (c === sep) {
-        current.push(field);
-        field = "";
-      } else if (c === "\n" || c === "\r") {
-        if (field !== "" || current.length > 0) {
-          current.push(field);
-          rows.push(current);
-          current = [];
-          field = "";
-        }
-        if (c === "\r" && trimmed[i + 1] === "\n") i++;
-      } else {
-        field += c;
-      }
-    }
-  }
-  if (field !== "" || current.length > 0) {
-    current.push(field);
-    rows.push(current);
-  }
-  return rows.filter((r) => r.length > 0 && r.some((c) => c.trim()));
-}
+import { parseCsv } from "@/lib/csv";
 
 export function AddProspectModal({
   adminUsers,
