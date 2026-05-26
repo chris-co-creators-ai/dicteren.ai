@@ -163,14 +163,15 @@ export async function userIdsInList(listId: string): Promise<Set<string>> {
   return new Set(rows.map((r) => r.userId));
 }
 
-/** Admin-team voor "assigned to" dropdown. */
+/** Staff-team voor "assigned to" dropdown — admin + account_manager. */
 export async function listAdminUsers() {
   return await db
     .select({
       id: authUsers.id,
       name: authUsers.name,
       email: authUsers.email,
+      role: authUsers.role,
     })
     .from(authUsers)
-    .where(eq(authUsers.role, "admin"));
+    .where(inArray(authUsers.role, ["admin", "account_manager"]));
 }

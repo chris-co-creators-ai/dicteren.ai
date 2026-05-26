@@ -8,6 +8,7 @@ import {
   Columns3,
   Eye,
   EyeOff,
+  FileSpreadsheet,
   GripVertical,
   Kanban,
   List,
@@ -29,6 +30,8 @@ import {
 } from "@/lib/services/columnPrefsShared";
 import { KanbanView } from "./kanban-view";
 import { AddProspectModal } from "./add-prospect-modal";
+import { CsvImportModal } from "./csv-import-modal";
+import { InlineProspectRow } from "./inline-prospect-row";
 
 type CustomColumnDef = {
   id: string;
@@ -272,6 +275,8 @@ export function CrmView({
   const [showCreateList, setShowCreateList] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
   const [showAddProspect, setShowAddProspect] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
+  const [addingInline, setAddingInline] = useState(false);
   const [notesFor, setNotesFor] = useState<Customer | null>(null);
 
   // Visible/order werken nu met (built-in + custom) ColumnKey-strings.
@@ -615,11 +620,30 @@ export function CrmView({
                 </button>
               </div>
               <button
-                onClick={() => setShowAddProspect(true)}
+                onClick={() => setAddingInline(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--orange)] px-3 py-2 text-xs font-semibold text-white hover:bg-[color:var(--orange-600)]"
+                title="Voeg een nieuwe prospect-rij toe (inline)"
+              >
+                <Plus className="size-3.5" strokeWidth={2.2} />
+                Nieuwe rij
+              </button>
+              <button
+                onClick={() => setShowCsvImport(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
+                style={{ background: "var(--bg)" }}
+                title="CSV import met auto-lijst"
+              >
+                <FileSpreadsheet className="size-3.5" strokeWidth={2.2} />
+                CSV import
+              </button>
+              <button
+                onClick={() => setShowAddProspect(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
+                style={{ background: "var(--bg)" }}
+                title="Uitgebreid prospect-form (volledige velden + lijsten)"
               >
                 <UserPlus className="size-3.5" strokeWidth={2.2} />
-                Prospect
+                Volledig form
               </button>
               <button
                 onClick={() => setShowColumnManager(true)}
@@ -757,7 +781,19 @@ export function CrmView({
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {addingInline && (
+                  <InlineProspectRow
+                    adminUsers={adminUsers}
+                    activeListId={activeListId}
+                    onCancel={() => setAddingInline(false)}
+                    onSaved={() => {
+                      setAddingInline(false);
+                      startTransition(() => router.refresh());
+                    }}
+                    colSpan={orderedColumns.length + 1}
+                  />
+                )}
+                {filtered.length === 0 && !addingInline ? (
                   <tr>
                     <td
                       colSpan={orderedColumns.length + 2}
@@ -874,6 +910,18 @@ export function CrmView({
           onClose={() => setShowAddProspect(false)}
           onDone={() => {
             setShowAddProspect(false);
+            startTransition(() => router.refresh());
+          }}
+        />
+      )}
+
+      {showCsvImport && (
+        <CsvImportModal
+          adminUsers={adminUsers}
+          onClose={() => setShowCsvImport(false)}
+          onDone={(newListId) => {
+            setShowCsvImport(false);
+            if (newListId) setActiveListId(newListId);
             startTransition(() => router.refresh());
           }}
         />
