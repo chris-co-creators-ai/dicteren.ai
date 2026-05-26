@@ -73,10 +73,12 @@ export {
   listUserPaidLicenses,
   getUserActiveSubscription,
   getUserSubscriptionView,
+  listUserSubscriptionsForBilling,
   type UserTrial,
   type UserLicense,
   type UserSubscription,
   type SubscriptionView,
+  type UserSubscriptionForBilling,
 } from "./account";
 
 export {
@@ -100,7 +102,10 @@ export {
   getOrganizationBilling,
   getMembership,
   listUserOrganizations,
+  listManageableOrganizations,
   listOrganizationMembers,
+  listOrganizationInvitations,
+  listOrganizationLicenses,
   deriveOrganizationSlug,
   upsertOrganizationBilling,
   type OrganizationBillingInput,

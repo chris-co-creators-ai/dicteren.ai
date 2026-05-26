@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { eq, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
-import { db, dbAuth } from "@/lib/db";
-import { authMember, authOrg, authUser, authInvitation } from "@/lib/db/auth-schema";
-import { organizationBilling, licenses } from "@/lib/db/schema";
+import {
+  listManageableOrganizations,
+  listOrganizationMembers,
+  listOrganizationInvitations,
+  listOrganizationLicenses,
+  getOrganizationBilling,
+} from "@/lib/services";
 import { OrganizationManager } from "./organization-manager";
 
 export const dynamic = "force-dynamic";
@@ -14,21 +17,7 @@ export default async function OrganizationPage() {
   const session = await getSession();
   if (!session?.user) redirect("/auth/sign-in?next=/account/organization");
 
-  // Vind de orgs waar deze user owner/admin van is.
-  const orgs = await dbAuth
-    .select({
-      id: authOrg.id,
-      name: authOrg.name,
-      slug: authOrg.slug,
-      role: authMember.role,
-    })
-    .from(authMember)
-    .innerJoin(authOrg, eq(authOrg.id, authMember.organizationId))
-    .where(eq(authMember.userId, session.user.id));
-
-  const manageable = orgs.filter(
-    (o) => o.role === "owner" || o.role === "admin",
-  );
+  const manageable = await listManageableOrganizations(session.user.id);
 
   if (manageable.length === 0) {
     return (
@@ -45,58 +34,17 @@ export default async function OrganizationPage() {
     );
   }
 
-  // Voor MVP: toon de eerste manageable org.
+  // TODO(slice-multi-org): bij meerdere manageable orgs routen naar
+  // /account/organization/[id]. Tot dat dynamic-route bestaat tonen we
+  // de eerste manageable org (gedrag identiek aan vorige iteratie).
   const org = manageable[0]!;
 
-  const members = await dbAuth
-    .select({
-      memberId: authMember.id,
-      userId: authMember.userId,
-      role: authMember.role,
-      name: authUser.name,
-      email: authUser.email,
-      since: authMember.createdAt,
-    })
-    .from(authMember)
-    .innerJoin(authUser, eq(authUser.id, authMember.userId))
-    .where(eq(authMember.organizationId, org.id))
-    .orderBy(authMember.createdAt);
-
-  const pendingInvites = await dbAuth
-    .select({
-      id: authInvitation.id,
-      email: authInvitation.email,
-      role: authInvitation.role,
-      status: authInvitation.status,
-      expiresAt: authInvitation.expiresAt,
-    })
-    .from(authInvitation)
-    .where(
-      and(
-        eq(authInvitation.organizationId, org.id),
-        eq(authInvitation.status, "pending"),
-      ),
-    )
-    .orderBy(desc(authInvitation.expiresAt));
-
-  const [billing] = await db
-    .select()
-    .from(organizationBilling)
-    .where(eq(organizationBilling.organizationId, org.id))
-    .limit(1);
-
-  const teamLicenses = await db
-    .select({
-      id: licenses.id,
-      code: licenses.code,
-      status: licenses.status,
-      seats: licenses.seats,
-      maxActivationsPerSeat: licenses.maxActivationsPerSeat,
-      expiresAt: licenses.expiresAt,
-    })
-    .from(licenses)
-    .where(eq(licenses.organizationId, org.id))
-    .orderBy(desc(licenses.issuedAt));
+  const [members, pendingInvites, billing, teamLicenses] = await Promise.all([
+    listOrganizationMembers(org.id),
+    listOrganizationInvitations(org.id),
+    getOrganizationBilling(org.id),
+    listOrganizationLicenses(org.id),
+  ]);
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
@@ -116,7 +64,7 @@ export default async function OrganizationPage() {
         canInvite={org.role === "owner" || org.role === "admin"}
         members={members.map((m) => ({
           ...m,
-          since: m.since.toISOString(),
+          since: m.memberSince.toISOString(),
         }))}
         pendingInvites={pendingInvites.map((i) => ({
           ...i,

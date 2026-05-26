@@ -6,11 +6,18 @@
 // de session-headers. Hier alleen DB-helpers en billing-upsert.
 
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { dbAuth, db } from "@/lib/db";
-import { authOrg, authMember } from "@/lib/db/auth-schema";
 import {
+  authOrg,
+  authMember,
+  authUser,
+  authInvitation,
+} from "@/lib/db/auth-schema";
+import {
+  licenses,
   organizationBilling,
+  type License,
   type OrganizationBilling,
   type NewOrganizationBilling,
 } from "@/lib/db/schema";
@@ -75,17 +82,67 @@ export async function listUserOrganizations(userId: string) {
     .where(eq(authMember.userId, userId));
 }
 
-/** Owner-only: lijst van members + invitations voor admin/UI. */
+/** Orgs waar deze user owner of admin van is (kan beheren). */
+export async function listManageableOrganizations(userId: string) {
+  const all = await listUserOrganizations(userId);
+  return all.filter((o) => o.role === "owner" || o.role === "admin");
+}
+
+/** Members met user-name/email join. Voor /account/organization view. */
 export async function listOrganizationMembers(orgId: string) {
   return await dbAuth
     .select({
       memberId: authMember.id,
       userId: authMember.userId,
       role: authMember.role,
+      name: authUser.name,
+      email: authUser.email,
       memberSince: authMember.createdAt,
     })
     .from(authMember)
-    .where(eq(authMember.organizationId, orgId));
+    .innerJoin(authUser, eq(authUser.id, authMember.userId))
+    .where(eq(authMember.organizationId, orgId))
+    .orderBy(authMember.createdAt);
+}
+
+/** Pending invitations voor een org. */
+export async function listOrganizationInvitations(orgId: string) {
+  return await dbAuth
+    .select({
+      id: authInvitation.id,
+      email: authInvitation.email,
+      role: authInvitation.role,
+      status: authInvitation.status,
+      expiresAt: authInvitation.expiresAt,
+    })
+    .from(authInvitation)
+    .where(
+      and(
+        eq(authInvitation.organizationId, orgId),
+        eq(authInvitation.status, "pending"),
+      ),
+    )
+    .orderBy(desc(authInvitation.expiresAt));
+}
+
+/** Team-licenses gekoppeld aan een org. */
+export async function listOrganizationLicenses(
+  orgId: string,
+): Promise<
+  Pick<License, "id" | "code" | "status" | "seats" | "maxActivationsPerSeat" | "expiresAt">[]
+> {
+  return await db
+    .select({
+      id: licenses.id,
+      code: licenses.code,
+      status: licenses.status,
+      seats: licenses.seats,
+      maxActivationsPerSeat: licenses.maxActivationsPerSeat,
+      expiresAt: licenses.expiresAt,
+    })
+    .from(licenses)
+    .where(eq(licenses.organizationId, orgId))
+    .orderBy(desc(licenses.issuedAt));
 }
 
 /** Genereer een unieke slug op basis van een organisatie-naam. */

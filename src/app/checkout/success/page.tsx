@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, Copy, Download, Mail } from "lucide-react";
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { authUsers, licenses, orders, plans } from "@/lib/db/schema";
+import { CheckCircle2, Download, Mail } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
+import { getCheckoutReceipt } from "@/lib/services/order";
 import { formatMollieAmount } from "@/lib/services/mollie";
+import { CopyButtonClient } from "./copy-button-client";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bedankt voor je aankoop" };
@@ -34,29 +33,10 @@ export default async function CheckoutSuccessPage({
     );
   }
 
-  // Lookup order + plan + license + user
-  const orderRows = await db
-    .select()
-    .from(orders)
-    .where(eq(orders.id, orderId))
-    .limit(1);
-  const order = orderRows[0];
-  if (!order || order.userId !== session.user.id) redirect("/");
+  const receipt = await getCheckoutReceipt(orderId, session.user.id);
+  if (!receipt) redirect("/");
 
-  const planRow = order.planId
-    ? (await db.select().from(plans).where(eq(plans.id, order.planId)).limit(1))[0]
-    : null;
-  const licenseRow = (
-    await db.select().from(licenses).where(eq(licenses.orderId, order.id)).limit(1)
-  )[0];
-  const buyer = (
-    await db
-      .select({ email: authUsers.email, name: authUsers.name })
-      .from(authUsers)
-      .where(eq(authUsers.id, order.userId!))
-      .limit(1)
-  )[0];
-
+  const { order, plan, license, buyer } = receipt;
   const isPending = order.status !== "paid";
 
   return (
@@ -86,7 +66,7 @@ export default async function CheckoutSuccessPage({
           : `Je licentie staat hieronder. We hebben hem ook gemaild naar ${buyer?.email}.`}
       </p>
 
-      {licenseRow && (
+      {license && (
         <div className="mt-7 rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
           <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
             Je licentiecode
@@ -96,21 +76,21 @@ export default async function CheckoutSuccessPage({
               className="font-mono text-xl font-bold tracking-tight"
               style={{ color: "var(--navy)" }}
             >
-              {licenseRow.code}
+              {license.code}
             </code>
-            <CopyButton value={licenseRow.code} />
+            <CopyButtonClient value={license.code} />
           </div>
           <div className="mt-3 text-xs text-[color:var(--text-muted)]">
             Geldig tot{" "}
-            {licenseRow.expiresAt
-              ? new Date(licenseRow.expiresAt).toLocaleDateString("nl-NL", {
+            {license.expiresAt
+              ? new Date(license.expiresAt).toLocaleDateString("nl-NL", {
                   day: "numeric",
                   month: "long",
                   year: "numeric",
                 })
               : "—"}{" "}
-            · {licenseRow.seats} {licenseRow.seats === 1 ? "gebruiker" : "gebruikers"}{" "}
-            · {licenseRow.maxActivationsPerSeat} apparaten per gebruiker
+            · {license.seats} {license.seats === 1 ? "gebruiker" : "gebruikers"}{" "}
+            · {license.maxActivationsPerSeat} apparaten per gebruiker
           </div>
         </div>
       )}
@@ -122,7 +102,7 @@ export default async function CheckoutSuccessPage({
           </div>
           <div className="mt-1 font-mono text-sm">{order.id.slice(0, 8)}…</div>
           <div className="mt-0.5 text-[0.6875rem] text-[color:var(--text-soft)]">
-            {planRow?.label}
+            {plan?.label}
           </div>
         </div>
         <div className="rounded-xl border border-[color:var(--border-soft)] bg-white p-4">
@@ -184,11 +164,3 @@ function SuccessShell({ children }: { children: React.ReactNode }) {
     </main>
   );
 }
-
-function CopyButton({ value }: { value: string }) {
-  return (
-    <CopyButtonClient value={value} />
-  );
-}
-
-import { CopyButtonClient } from "./copy-button-client";

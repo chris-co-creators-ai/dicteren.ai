@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  authUsers,
   licenses,
   orders,
   payments,
@@ -570,4 +571,80 @@ export async function getUserBilling(userId: string): Promise<{
 export async function getOrderById(orderId: string): Promise<Order | null> {
   const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   return rows[0] ?? null;
+}
+
+/** Composite receipt-view voor /checkout/success. Ownership-check ingebakken:
+ *  als de order niet van deze user is, returnt deze functie null en moet de
+ *  caller redirecten naar "/". */
+export type CheckoutReceipt = {
+  order: Pick<
+    Order,
+    "id" | "status" | "amountCents" | "currency" | "userId"
+  >;
+  plan: Pick<Plan, "label" | "period"> | null;
+  license: {
+    code: string;
+    status: string;
+    seats: number;
+    maxActivationsPerSeat: number;
+    expiresAt: Date | null;
+  } | null;
+  buyer: { email: string | null; name: string | null } | null;
+};
+
+export async function getCheckoutReceipt(
+  orderId: string,
+  userId: string,
+): Promise<CheckoutReceipt | null> {
+  const orderRows = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  const order = orderRows[0];
+  if (!order || order.userId !== userId) return null;
+
+  const [plan, license, buyer] = await Promise.all([
+    order.planId
+      ? db
+          .select({ label: plans.label, period: plans.period })
+          .from(plans)
+          .where(eq(plans.id, order.planId))
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
+      : Promise.resolve(null),
+    db
+      .select({
+        code: licenses.code,
+        status: licenses.status,
+        seats: licenses.seats,
+        maxActivationsPerSeat: licenses.maxActivationsPerSeat,
+        expiresAt: licenses.expiresAt,
+      })
+      .from(licenses)
+      .where(eq(licenses.orderId, order.id))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    order.userId
+      ? db
+          .select({ email: authUsers.email, name: authUsers.name })
+          .from(authUsers)
+          .where(eq(authUsers.id, order.userId))
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
+      : Promise.resolve(null),
+  ]);
+
+  return {
+    order: {
+      id: order.id,
+      status: order.status,
+      amountCents: order.amountCents,
+      currency: order.currency,
+      userId: order.userId,
+    },
+    plan,
+    license,
+    buyer,
+  };
 }

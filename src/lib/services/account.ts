@@ -186,6 +186,80 @@ export async function listUserPaidLicenses(
   return all.filter((l) => !l.code.startsWith("DIC-TRIAL-"));
 }
 
+/** Subscription-row geschikt voor /account/billing tabel. */
+export type UserSubscriptionForBilling = {
+  id: string;
+  mollieSubscriptionId: string;
+  status: string;
+  intervalLabel: string;
+  amountCents: number;
+  currency: string;
+  seats: number;
+  nextBillingAt: string | null;
+  canceledAt: string | null;
+  planLabel: string | null;
+  licenseCode: string | null;
+  licenseStatus: string | null;
+};
+
+/** Alle subscriptions van een user + plan-label + license-code voor /account/billing. */
+export async function listUserSubscriptionsForBilling(
+  userId: string,
+): Promise<UserSubscriptionForBilling[]> {
+  const subs = await db
+    .select({
+      id: subscriptions.id,
+      mollieSubscriptionId: subscriptions.mollieSubscriptionId,
+      status: subscriptions.status,
+      intervalLabel: subscriptions.intervalLabel,
+      amountCents: subscriptions.amountCents,
+      currency: subscriptions.currency,
+      seats: subscriptions.seats,
+      nextBillingAt: subscriptions.nextBillingAt,
+      canceledAt: subscriptions.canceledAt,
+      licenseId: subscriptions.licenseId,
+      planLabel: plans.label,
+    })
+    .from(subscriptions)
+    .leftJoin(plans, eq(subscriptions.planId, plans.id))
+    .where(eq(subscriptions.userId, userId));
+
+  if (subs.length === 0) return [];
+
+  const linkedIds = subs
+    .map((s) => s.licenseId)
+    .filter((id): id is string => Boolean(id));
+  const linkedLicenses = linkedIds.length
+    ? await db
+        .select({
+          id: licenses.id,
+          code: licenses.code,
+          status: licenses.status,
+        })
+        .from(licenses)
+        .where(inArray(licenses.id, linkedIds))
+    : [];
+  const licenseById = new Map(linkedLicenses.map((l) => [l.id, l]));
+
+  return subs.map((s) => {
+    const lic = s.licenseId ? licenseById.get(s.licenseId) : null;
+    return {
+      id: s.id,
+      mollieSubscriptionId: s.mollieSubscriptionId,
+      status: s.status,
+      intervalLabel: s.intervalLabel,
+      amountCents: s.amountCents,
+      currency: s.currency,
+      seats: s.seats,
+      nextBillingAt: s.nextBillingAt?.toISOString() ?? null,
+      canceledAt: s.canceledAt?.toISOString() ?? null,
+      planLabel: s.planLabel,
+      licenseCode: lic?.code ?? null,
+      licenseStatus: lic?.status ?? null,
+    };
+  });
+}
+
 /** Actieve subscription (active of past_due), als die er is. */
 export async function getUserActiveSubscription(
   userId: string,
