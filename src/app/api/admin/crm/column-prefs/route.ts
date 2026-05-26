@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { requireStaffApi } from "@/lib/auth/session";
 import {
   getColumnPrefs,
   setColumnPrefs,
@@ -7,25 +7,16 @@ import {
 } from "@/lib/services/columnPrefs";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
-  const prefs = await getColumnPrefs(session.user.id);
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
+  const prefs = await getColumnPrefs(guard.session.user.id);
   return NextResponse.json({ success: true, prefs });
 }
 
 export async function PATCH(request: Request) {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
 
   let body: {
     visibleColumns?: ColumnKey[];

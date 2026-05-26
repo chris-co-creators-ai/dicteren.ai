@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { requireStaffApi } from "@/lib/auth/session";
 import {
   deleteCustomColumn,
   updateCustomColumn,
@@ -9,13 +9,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
   const { id } = await params;
 
   let body: {
@@ -46,13 +41,8 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
   const { id } = await params;
   await deleteCustomColumn(id);
   return NextResponse.json({ success: true });

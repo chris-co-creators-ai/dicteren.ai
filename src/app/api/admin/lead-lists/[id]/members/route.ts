@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { requireStaffApi } from "@/lib/auth/session";
 import {
   addMembersToList,
   removeMembersFromList,
@@ -9,13 +9,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
   const { id } = await params;
 
   let body: { userIds?: string[] };
@@ -48,13 +44,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
   const { id } = await params;
 
   let body: { userIds?: string[] };

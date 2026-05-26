@@ -1,30 +1,16 @@
 // Dicteren.ai — Admin affiliate management endpoints.
 //
-// Auth: admin-only via Better Auth admin-plugin (session.user.role = "admin").
+// Auth: admin + account_manager (operationeel) via requireStaffApi.
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { requireStaffApi } from "@/lib/auth/session";
 import { createAffiliate, type CommissionType } from "@/lib/services/affiliate";
 import { logEvent } from "@/lib/services/audit";
 
-function adminOnly(role: string | null | undefined): boolean {
-  return role === "admin";
-}
-
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session?.user) {
-    return NextResponse.json(
-      { success: false, error: "Inloggen vereist" },
-      { status: 401 },
-    );
-  }
-  if (!adminOnly(session.user.role ?? null)) {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
 
   let body: {
     name?: string;

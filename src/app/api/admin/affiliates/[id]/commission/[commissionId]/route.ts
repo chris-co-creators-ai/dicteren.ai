@@ -1,7 +1,7 @@
 // Dicteren.ai — Admin: commission status mutation (payable / paid / voided).
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { requireStaffApi } from "@/lib/auth/session";
 import { updateCommissionStatus } from "@/lib/services/affiliate";
 import { logEvent } from "@/lib/services/audit";
 
@@ -11,13 +11,9 @@ export async function PATCH(
     params,
   }: { params: Promise<{ id: string; commissionId: string }> },
 ) {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
   const { id: affiliateId, commissionId } = await params;
 
   let body: {

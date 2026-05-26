@@ -103,6 +103,44 @@ export function isAdminOrManager(role: string | null | undefined): boolean {
   return role === "admin" || role === "account_manager";
 }
 
+/** Rol-helper voor API-endpoints. Geeft session terug of een Response
+ *  (401/403) zodat handlers gewoon `if ("response" in guard) return
+ *  guard.response;` doen. */
+export async function requireStaffApi(
+  opts: { adminOnly?: boolean } = {},
+): Promise<
+  | { session: AuthSession; response?: undefined }
+  | { response: Response; session?: undefined }
+> {
+  const session = await getSession();
+  if (!session?.user) {
+    return {
+      response: Response.json(
+        { success: false, error: "Inloggen vereist" },
+        { status: 401 },
+      ),
+    };
+  }
+  const role = session.user.role;
+  const allowed = opts.adminOnly
+    ? role === "admin"
+    : isAdminOrManager(role);
+  if (!allowed) {
+    return {
+      response: Response.json(
+        {
+          success: false,
+          error: opts.adminOnly
+            ? "Admin-rechten vereist"
+            : "Staff-rechten vereist (admin of account-manager)",
+        },
+        { status: 403 },
+      ),
+    };
+  }
+  return { session };
+}
+
 /** Helper for JSON API routes: 401 if no session, 403 if not admin. */
 export async function adminOnlyJson<T>(
   handler: (session: AuthSession) => Promise<T> | T,

@@ -6,7 +6,7 @@
 // de affiliate-naam).
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { requireStaffApi } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { discountCodes } from "@/lib/db/schema";
 import {
@@ -18,13 +18,9 @@ import { logEvent } from "@/lib/services/audit";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
 
   let body: {
     code?: string;

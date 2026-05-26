@@ -3,7 +3,7 @@
 // geattribueerd (lifetime).
 
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { requireStaffApi } from "@/lib/auth/session";
 import { getAffiliateById } from "@/lib/services/affiliate";
 import { createDiscountCodeForAffiliate } from "@/lib/services/discount";
 import { logEvent } from "@/lib/services/audit";
@@ -12,13 +12,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi();
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
   const { id: affiliateId } = await params;
 
   const affiliate = await getAffiliateById(affiliateId);

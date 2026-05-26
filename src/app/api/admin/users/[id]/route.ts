@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { dbAuth } from "@/lib/db";
 import { authUser } from "@/lib/db/auth-schema";
 import { auth } from "@/lib/auth/server";
-import { getSession } from "@/lib/auth/session";
+import { requireStaffApi } from "@/lib/auth/session";
 import { sendPasswordResetEmail } from "@/lib/services/email";
 import { logEvent } from "@/lib/services/audit";
 
@@ -22,25 +22,13 @@ type Action =
   | "set-role"
   | "impersonate";
 
-async function requireAdmin() {
-  const session = await getSession();
-  if (!session?.user || session.user.role !== "admin") {
-    return null;
-  }
-  return session;
-}
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi({ adminOnly: true });
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
 
   const { id: userId } = await params;
 
@@ -251,13 +239,9 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await requireAdmin();
-  if (!session) {
-    return NextResponse.json(
-      { success: false, error: "Admin-rechten vereist" },
-      { status: 403 },
-    );
-  }
+  const guard = await requireStaffApi({ adminOnly: true });
+  if ("response" in guard) return guard.response;
+  const session = guard.session;
   const { id: userId } = await params;
 
   if (userId === session.user.id) {
