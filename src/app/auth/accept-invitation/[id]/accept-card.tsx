@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth/client";
 
 export function AcceptInvitationCard({
   invitationId,
@@ -16,29 +15,43 @@ export function AcceptInvitationCard({
   async function accept() {
     setSubmitting(true);
     setError(null);
-    const result = await authClient.organization.acceptInvitation({
-      invitationId,
-    });
-    if (result.error) {
-      setError(result.error.message ?? "Accepteren mislukt.");
+    try {
+      const res = await fetch(
+        `/api/organization/invitations/${invitationId}/accept`,
+        { method: "POST" },
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "Accepteren mislukt.");
+        setSubmitting(false);
+        return;
+      }
+      router.push("/account/licenses?welcome=1");
+    } catch {
+      setError("Netwerkfout. Probeer opnieuw.");
       setSubmitting(false);
-      return;
     }
-    router.push("/account/licenses");
   }
 
   async function decline() {
     setSubmitting(true);
     setError(null);
-    const result = await authClient.organization.rejectInvitation({
-      invitationId,
-    });
-    if (result.error) {
-      setError(result.error.message ?? "Weigeren mislukt.");
+    try {
+      const res = await fetch(
+        `/api/organization/invitations/${invitationId}/reject`,
+        { method: "POST" },
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error ?? "Weigeren mislukt.");
+        setSubmitting(false);
+        return;
+      }
+      router.push("/");
+    } catch {
+      setError("Netwerkfout. Probeer opnieuw.");
       setSubmitting(false);
-      return;
     }
-    router.push("/");
   }
 
   return (

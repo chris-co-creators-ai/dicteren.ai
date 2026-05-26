@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
-import { dbAuth } from "@/lib/db";
+import { db, dbAuth } from "@/lib/db";
 import { authInvitation, authOrg, authUser } from "@/lib/db/auth-schema";
+import { licenses } from "@/lib/db/schema";
 import { AcceptInvitationCard } from "./accept-card";
 
 export const dynamic = "force-dynamic";
@@ -93,6 +94,13 @@ export default async function AcceptInvitationPage({
     );
   }
 
+  // Lookup gekoppelde seat-code (per-seat model)
+  const [seat] = await db
+    .select({ code: licenses.code })
+    .from(licenses)
+    .where(eq(licenses.invitationId, row.id))
+    .limit(1);
+
   return (
     <Shell>
       <span className="chip chip-navy">Uitnodiging</span>
@@ -103,6 +111,29 @@ export default async function AcceptInvitationPage({
         {row.inviterName || row.inviterEmail} nodigt je uit om mee te doen als{" "}
         <strong>{row.role ?? "member"}</strong> in {row.organizationName}.
       </p>
+
+      {seat?.code && (
+        <div
+          className="mt-6 rounded-2xl border p-5"
+          style={{
+            background: "var(--bg)",
+            borderColor: "var(--border-soft)",
+          }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+            Je krijgt deze persoonlijke teamlicentie
+          </p>
+          <p
+            className="mt-2 font-mono text-lg font-bold tracking-wider text-[color:var(--navy)]"
+            style={{ letterSpacing: "0.06em" }}
+          >
+            {seat.code}
+          </p>
+          <p className="mt-2 text-xs text-[color:var(--text-muted)]">
+            Werkt op maximaal 2 apparaten.
+          </p>
+        </div>
+      )}
 
       <AcceptInvitationCard invitationId={row.id} />
     </Shell>
