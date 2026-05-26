@@ -15,6 +15,7 @@ import {
   Lock,
   LogOut,
   MoreVertical,
+  Plus,
   Search,
   Shield,
   Trash2,
@@ -22,6 +23,7 @@ import {
   UserCog,
   Users,
 } from "lucide-react";
+import { CreateUserModal } from "./create-user-modal";
 
 type User = {
   id: string;
@@ -68,6 +70,7 @@ export function UsersClient({ users }: Props) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -189,6 +192,13 @@ export function UsersClient({ users }: Props) {
         <span className="ml-auto text-xs text-muted-foreground">
           {filtered.length} van {users.length} users
         </span>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--orange)] px-3 py-2 text-xs font-semibold text-white hover:bg-[color:var(--orange-600)]"
+        >
+          <Plus className="size-3.5" strokeWidth={2.2} />
+          Nieuwe user
+        </button>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border bg-card">
@@ -342,6 +352,16 @@ export function UsersClient({ users }: Props) {
         <div className="fixed bottom-6 right-6 z-50 rounded-xl border bg-white p-3 text-sm shadow-lg">
           {toast}
         </div>
+      )}
+
+      {showCreate && (
+        <CreateUserModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
+            setShowCreate(false);
+            startTransition(() => router.refresh());
+          }}
+        />
       )}
     </>
   );

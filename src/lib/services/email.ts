@@ -927,7 +927,105 @@ export async function sendOrganizationInviteEmail(params: {
   });
 }
 
+/** Welkomstmail voor nieuwe staff (admin of account_manager). Bevat set-
+ *  password-link plus uitleg over /admin login. */
+export async function sendStaffWelcomeEmail(params: {
+  to: string;
+  name?: string;
+  role: "admin" | "account_manager";
+  setPasswordUrl: string;
+  adminUrl: string;
+  hasLifetime?: boolean;
+  inviterName?: string;
+  userId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  const roleLabel =
+    params.role === "admin" ? "Admin" : "Account Manager";
+  return sendEmail({
+    to: params.to,
+    subject: `Welkom bij het Dicteren.ai-team (${roleLabel})`,
+    html: staffWelcomeHtml(params, roleLabel),
+    text: staffWelcomeText(params, roleLabel),
+    tags: [{ name: "category", value: "staff_welcome" }],
+    log: { category: "other", userId: params.userId ?? null },
+  });
+}
+
 // ───── Auth: HTML/text templates ───────────────────────────────────
+
+function staffWelcomeHtml(
+  params: {
+    name?: string;
+    role: "admin" | "account_manager";
+    setPasswordUrl: string;
+    adminUrl: string;
+    hasLifetime?: boolean;
+    inviterName?: string;
+  },
+  roleLabel: string,
+): string {
+  return shellHtml(
+    `Welkom bij het Dicteren.ai-team`,
+    `
+    <p style="margin:0 0 14px 0;">${greet(params.name)}</p>
+    <p style="margin:0 0 14px 0;">
+      ${params.inviterName ? `${params.inviterName} heeft je` : "Je bent"}
+      toegevoegd aan het Dicteren.ai-team als <strong>${roleLabel}</strong>.
+    </p>
+    <p style="margin:0 0 22px 0;">Stel eerst je eigen wachtwoord in via de knop hieronder. De link werkt 24 uur.</p>
+    <p style="margin:0 0 22px 0;">
+      <a href="${params.setPasswordUrl}" style="display:inline-block;background:#ff6a2c;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;">
+        Stel je wachtwoord in
+      </a>
+    </p>
+    <p style="margin:22px 0 14px 0;font-size:14px;">Na het instellen van je wachtwoord log je in op het admin-dashboard via:</p>
+    <p style="margin:0 0 22px 0;font-size:14px;">
+      <a href="${params.adminUrl}" style="color:#ff6a2c;font-weight:600;">${params.adminUrl}</a>
+    </p>
+    ${
+      params.hasLifetime
+        ? `<p style="margin:0 0 14px 0;font-size:13px;color:#5a6478;">📦 Je hebt automatisch lifetime-toegang gekregen voor persoonlijk gebruik van de Dicteren.ai-app.</p>`
+        : ""
+    }
+    <p style="margin:0 0 14px 0;font-size:13px;color:#5a6478;">Werkt de knop niet? Plak deze link in je browser:</p>
+    <p style="margin:0 0 22px 0;font-size:13px;word-break:break-all;color:#5a6478;">${params.setPasswordUrl}</p>
+    <p style="margin:22px 0 0 0;font-size:13px;color:#8d97a8;">Vragen? Mail info@dicteren.ai of vraag ${params.inviterName ?? "je teamlead"}.</p>
+    `,
+  );
+}
+
+function staffWelcomeText(
+  params: {
+    name?: string;
+    role: "admin" | "account_manager";
+    setPasswordUrl: string;
+    adminUrl: string;
+    hasLifetime?: boolean;
+    inviterName?: string;
+  },
+  roleLabel: string,
+): string {
+  return [
+    greet(params.name),
+    "",
+    `${params.inviterName ? `${params.inviterName} heeft je` : "Je bent"} toegevoegd aan het Dicteren.ai-team als ${roleLabel}.`,
+    "",
+    "Stel eerst je eigen wachtwoord in (link werkt 24 uur):",
+    params.setPasswordUrl,
+    "",
+    `Daarna log je in op: ${params.adminUrl}`,
+    "",
+    params.hasLifetime
+      ? "Je hebt automatisch lifetime-toegang gekregen voor persoonlijk gebruik."
+      : "",
+    "",
+    "Vragen? info@dicteren.ai",
+    "",
+    "Dicteren.ai",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 function passwordResetHtml(params: { name?: string; resetUrl: string }): string {
   return shellHtml(

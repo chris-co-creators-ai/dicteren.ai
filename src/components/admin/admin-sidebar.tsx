@@ -95,13 +95,18 @@ export function AdminSidebar({
   user,
   badges,
   role,
+  blockedPaths,
 }: {
   user: { name: string; email: string; role?: string | null };
   badges?: { messages: number; affiliates: number; pastDue: number };
   role?: string;
+  blockedPaths?: string[];
 }) {
   const effectiveRole = role ?? user.role ?? "user";
-  const visibleNav = NAV.filter((n) => n.roles.includes(effectiveRole));
+  const blocks = new Set(blockedPaths ?? []);
+  const visibleNav = NAV.filter(
+    (n) => n.roles.includes(effectiveRole) && !blocks.has(n.href),
+  );
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

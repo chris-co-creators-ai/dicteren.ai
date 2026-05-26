@@ -1,6 +1,7 @@
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { requireAdminOrManager } from "@/lib/auth/session";
 import { getSidebarBadges } from "@/lib/services/sidebarBadges";
+import { getBlockedPathsForUser } from "@/lib/services/staffPermissions";
 
 export const metadata = {
   title: "Admin",
@@ -14,9 +15,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [session, badges] = await Promise.all([
-    requireAdminOrManager(),
+  const session = await requireAdminOrManager();
+  const [badges, blocked] = await Promise.all([
     getSidebarBadges(),
+    session.user.role === "account_manager"
+      ? getBlockedPathsForUser(session.user.id)
+      : Promise.resolve([] as string[]),
   ]);
   return (
     <div className="flex min-h-screen w-full lg:grid lg:grid-cols-[14.5rem_1fr]">
@@ -24,6 +28,7 @@ export default async function AdminLayout({
         user={session.user}
         badges={badges}
         role={session.user.role ?? "user"}
+        blockedPaths={blocked}
       />
       <main className="min-w-0 flex-1">{children}</main>
     </div>

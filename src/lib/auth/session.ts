@@ -98,6 +98,30 @@ export async function assertAdminOnly(): Promise<AuthSession> {
   return session;
 }
 
+/**
+ * Voor admin OR account_manager pages met per-user page-block check.
+ * Roep aan bovenaan elke staff-page (CRM, messages, affiliates, ...) om
+ * individuele blocks te respecteren. Admins zijn nooit geblokkeerd.
+ */
+export async function assertStaffPageAccess(
+  path: string,
+): Promise<AuthSession> {
+  const session = await getSession();
+  if (!session?.user) redirect("/auth/sign-in");
+  const role = session.user.role;
+  if (role !== "admin" && role !== "account_manager") {
+    redirect("/?error=admin_only");
+  }
+  if (role === "account_manager") {
+    const { isPathBlocked } = await import(
+      "@/lib/services/staffPermissions"
+    );
+    const blocked = await isPathBlocked(session.user.id, path);
+    if (blocked) redirect("/admin");
+  }
+  return session;
+}
+
 /** Voor publieke role-checks zonder redirect (in service-laag). */
 export function isAdminOrManager(role: string | null | undefined): boolean {
   return role === "admin" || role === "account_manager";

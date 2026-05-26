@@ -1,4 +1,5 @@
 import "server-only";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { events } from "@/lib/db/schema";
 
@@ -59,6 +60,38 @@ export async function logEvent(params: AuditParams): Promise<void> {
   } catch (err) {
     console.warn("[audit] failed to log", params.action, err);
   }
+}
+
+/** Audit-feed van handelingen door één staff-user. Wordt gebruikt in
+ *  /admin/settings/staff per AM-card. */
+export async function getEventsByActor(
+  actorUserId: string,
+  limit = 100,
+): Promise<
+  Array<{
+    id: string;
+    eventType: string;
+    properties: Record<string, unknown> | null;
+    occurredAt: Date;
+  }>
+> {
+  const rows = await db
+    .select({
+      id: events.id,
+      eventType: events.eventType,
+      properties: events.properties,
+      occurredAt: events.occurredAt,
+    })
+    .from(events)
+    .where(eq(events.userId, actorUserId))
+    .orderBy(desc(events.occurredAt))
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    eventType: r.eventType,
+    properties: r.properties as Record<string, unknown> | null,
+    occurredAt: r.occurredAt,
+  }));
 }
 
 /**

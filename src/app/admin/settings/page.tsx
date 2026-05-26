@@ -137,6 +137,22 @@ export default async function AdminSettingsPage() {
           </p>
         </div>
 
+        <a
+          href="/admin/settings/staff"
+          className="brand-card flex items-center justify-between p-5 transition-colors hover:bg-[color:var(--bg-deep)]"
+        >
+          <div>
+            <h2 className="text-base font-bold">Staff & rechten</h2>
+            <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+              Per medewerker page-toegang beperken bovenop hun rol + audit-feed
+              van alle handelingen die ze in het platform doen.
+            </p>
+          </div>
+          <span className="text-sm font-semibold text-[color:var(--orange)]">
+            Beheren →
+          </span>
+        </a>
+
         <section className="brand-card overflow-hidden p-0">
           <div className="flex items-center border-b border-[color:var(--border-soft)] p-4">
             <h2 className="text-sm font-bold">Integraties</h2>

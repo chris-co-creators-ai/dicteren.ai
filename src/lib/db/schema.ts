@@ -846,6 +846,26 @@ export const rateLimitEvents = pgTable(
   ],
 );
 
+/** Per-user page-blocks bovenop role-defaults. Account-managers krijgen
+ *  default toegang tot alle "manager"-pages; admin kan via deze tabel
+ *  specifieke pages blokkeren per individuele staff-user. */
+export const staffPageBlocks = pgTable("staff_page_blocks", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => authUsers.id, { onDelete: "cascade" }),
+  blockedPaths: jsonb("blocked_paths").notNull().default([]),
+  notes: text("notes"),
+  updatedByUserId: uuid("updated_by_user_id").references(() => authUsers.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 /** Custom CRM-kolommen (door admin gedefinieerd). Waardes worden opgeslagen
  *  in customer_attributes.custom_fields als { [key]: value }. */
 export const crmCustomColumns = pgTable(
