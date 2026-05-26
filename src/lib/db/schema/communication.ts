@@ -34,6 +34,16 @@ export const emailCategory = pgEnum("email_category", [
   "trial_reminder_d7",
   "trial_reminder_d13",
   "trial_expired",
+  "org_member_welcome",
+  "org_owner_joined",
+  "org_member_removed",
+  "org_owner_left",
+  "org_invite_reminder",
+  "org_seats_expanded",
+  "org_seats_reduced",
+  "org_tier_changed",
+  "org_device_revoked",
+  "org_subscription_canceled",
   "other",
 ]);
 

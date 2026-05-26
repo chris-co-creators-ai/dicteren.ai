@@ -5,16 +5,17 @@
 // licenses.invitationId, en versturen de welkomstmail mét de specifieke code.
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, dbAuth } from "@/lib/db";
 import { licenses } from "@/lib/db/schema";
-import { auth } from "@/lib/auth/server";
+import { authInvitation } from "@/lib/db/auth-schema";
 import { getSession } from "@/lib/auth/session";
 import { getMembership, getOrgInfo } from "@/lib/services";
 import { reserveSeatForInvitation } from "@/lib/services/orgSeats";
 import { logEvent } from "@/lib/services/audit";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
+import { sendOrganizationInviteEmail } from "@/lib/services/email";
+import { appBase } from "@/lib/url";
 
 export const dynamic = "force-dynamic";
 
@@ -102,27 +103,25 @@ export async function POST(
     );
   }
 
-  // Better Auth invite — gebruikt onze sendInvitationEmail-callback.
-  let invitation;
-  try {
-    invitation = await auth.api.createInvitation({
-      headers: await headers(),
-      body: {
-        email,
-        role,
-        organizationId: orgId,
-      },
-    });
-  } catch (err) {
-    console.error("[seats/assign] createInvitation failed", err);
-    return NextResponse.json(
-      { success: false, error: "Versturen mislukt. Probeer opnieuw." },
-      { status: 502 },
-    );
-  }
+  // Direct insert in auth.invitation — skip Better Auth's API om de
+  // sendInvitationEmail-callback te vermijden (we sturen handmatig met code).
+  // Verloopt na 48 uur (Better Auth's default).
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+  const [invitation] = await dbAuth
+    .insert(authInvitation)
+    .values({
+      organizationId: orgId,
+      email,
+      role,
+      status: "pending",
+      inviterId: session.user.id,
+      expiresAt,
+    })
+    .returning({ id: authInvitation.id });
+
   if (!invitation?.id) {
     return NextResponse.json(
-      { success: false, error: "Invite-aanmaken gaf geen ID terug." },
+      { success: false, error: "Invite-aanmaken mislukte." },
       { status: 502 },
     );
   }
@@ -134,7 +133,16 @@ export async function POST(
     actorUserId: session.user.id,
   });
 
+  // Stuur invite-mail met de specifieke licentiecode
   const org = await getOrgInfo(orgId);
+  const inviteUrl = `${appBase()}/auth/accept-invitation/${invitation.id}`;
+  void sendOrganizationInviteEmail({
+    to: email,
+    inviterName: session.user.name ?? session.user.email,
+    organizationName: org?.name ?? "Dicteren.ai",
+    inviteUrl,
+    licenseCode: seat.code,
+  });
 
   await logEvent({
     action: "organization.member_invited",
@@ -156,5 +164,6 @@ export async function POST(
     seatId,
     email,
     role,
+    licenseCode: seat.code,
   });
 }

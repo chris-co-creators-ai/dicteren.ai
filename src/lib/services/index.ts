@@ -57,7 +57,23 @@ export {
   sendTrialReminderD7Email,
   sendTrialReminderD13Email,
   sendTrialExpiredEmail,
+  sendOrganizationInviteEmail,
+  sendPasswordResetEmail,
+  sendEmailVerificationEmail,
 } from "./email";
+
+export {
+  sendOrgMemberWelcomeEmail,
+  sendOrgOwnerMemberJoinedEmail,
+  sendOrgMemberRemovedEmail,
+  sendOrgOwnerMemberLeftEmail,
+  sendOrgInviteReminderEmail,
+  sendOrgSeatsExpandedEmail,
+  sendOrgSeatsReducedEmail,
+  sendOrgTierChangedEmail,
+  sendOrgDeviceRevokedEmail,
+  sendOrgSubscriptionCanceledEmail,
+} from "./orgEmail";
 
 export {
   claimTrialForUser,

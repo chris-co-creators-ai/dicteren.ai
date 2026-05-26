@@ -4,21 +4,20 @@
 // gerevoked, B krijgt de invite-flow (als nog niet member) of directe assign.
 
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db, dbAuth } from "@/lib/db";
 import { licenses } from "@/lib/db/schema";
-import { authMember, authUser } from "@/lib/db/auth-schema";
-import { auth } from "@/lib/auth/server";
+import { authMember, authUser, authInvitation } from "@/lib/db/auth-schema";
 import { getSession } from "@/lib/auth/session";
-import { getMembership } from "@/lib/services";
+import { getMembership, getOrgInfo } from "@/lib/services";
 import {
   assignSeatToMember,
-  reserveSeatForInvitation,
   revokeAllActivationsForMember,
 } from "@/lib/services/orgSeats";
 import { logEvent } from "@/lib/services/audit";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
+import { sendOrganizationInviteEmail } from "@/lib/services/email";
+import { appBase } from "@/lib/url";
 import { and } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -131,24 +130,20 @@ export async function POST(
   }
 
   if (!assigned) {
-    // Stuur invite — Better Auth maakt rij + roept onze callback
-    let invitation;
-    try {
-      invitation = await auth.api.createInvitation({
-        headers: await headers(),
-        body: {
-          email: toEmail,
-          role: "member",
-          organizationId: orgId,
-        },
-      });
-    } catch (err) {
-      console.error("[seats/reassign] createInvitation failed", err);
-      return NextResponse.json(
-        { success: false, error: "Versturen mislukt. Probeer opnieuw." },
-        { status: 502 },
-      );
-    }
+    // Direct insert (skip Better Auth API → email zelf met code)
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const [invitation] = await dbAuth
+      .insert(authInvitation)
+      .values({
+        organizationId: orgId,
+        email: toEmail,
+        role: "member",
+        status: "pending",
+        inviterId: session.user.id,
+        expiresAt,
+      })
+      .returning({ id: authInvitation.id });
+
     if (!invitation?.id) {
       return NextResponse.json(
         { success: false, error: "Invite-aanmaken mislukte." },
@@ -169,6 +164,17 @@ export async function POST(
         updatedAt: new Date(),
       })
       .where(eq(licenses.id, seatId));
+
+    // Stuur mail met code
+    const org = await getOrgInfo(orgId);
+    const inviteUrl = `${appBase()}/auth/accept-invitation/${invitation.id}`;
+    void sendOrganizationInviteEmail({
+      to: toEmail,
+      inviterName: session.user.name ?? session.user.email,
+      organizationName: org?.name ?? "Dicteren.ai",
+      inviteUrl,
+      licenseCode: seat.code,
+    });
   }
 
   await logEvent({

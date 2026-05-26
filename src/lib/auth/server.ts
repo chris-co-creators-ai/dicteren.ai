@@ -101,11 +101,28 @@ export const auth = betterAuth({
     organization({
       sendInvitationEmail: async (data) => {
         const acceptUrl = `${appBase()}/auth/accept-invitation/${data.id}`;
+        // Lookup gekoppelde seat-code (per-seat model). Optioneel — bij invites
+        // zonder pre-reserveer-seat blijft licenseCode undefined.
+        let licenseCode: string | undefined;
+        try {
+          const { db } = await import("@/lib/db");
+          const { licenses } = await import("@/lib/db/schema");
+          const { eq } = await import("drizzle-orm");
+          const [seat] = await db
+            .select({ code: licenses.code })
+            .from(licenses)
+            .where(eq(licenses.invitationId, data.id))
+            .limit(1);
+          licenseCode = seat?.code;
+        } catch (err) {
+          console.warn("[org-invite] license-code lookup failed", err);
+        }
         void sendOrganizationInviteEmail({
           to: data.email,
           inviterName: data.inviter.user.name ?? data.inviter.user.email,
           organizationName: data.organization.name,
           inviteUrl: acceptUrl,
+          licenseCode,
         });
       },
     }),

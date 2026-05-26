@@ -25,6 +25,16 @@ export type EmailCategory =
   | "trial_reminder_d7"
   | "trial_reminder_d13"
   | "trial_expired"
+  | "org_member_welcome"
+  | "org_owner_joined"
+  | "org_member_removed"
+  | "org_owner_left"
+  | "org_invite_reminder"
+  | "org_seats_expanded"
+  | "org_seats_reduced"
+  | "org_tier_changed"
+  | "org_device_revoked"
+  | "org_subscription_canceled"
   | "other";
 
 interface EmailLogContext {
@@ -1007,6 +1017,9 @@ export async function sendOrganizationInviteEmail(params: {
   inviterName: string;
   organizationName: string;
   inviteUrl: string;
+  /** Voorgevulde licentiecode voor de seat die deze invite vertegenwoordigt.
+   *  Komt uit licenses.invitationId = invitation.id mapping. */
+  licenseCode?: string;
 }): Promise<ServiceResult<SendResult>> {
   return sendEmail({
     to: params.to,
@@ -1165,13 +1178,17 @@ function organizationInviteHtml(params: {
   inviterName: string;
   organizationName: string;
   inviteUrl: string;
+  licenseCode?: string;
 }): string {
+  const codeSection = params.licenseCode
+    ? `<p style="margin:0 0 6px 0;">Je persoonlijke teamlicentie:</p>${codeBlock(params.licenseCode)}<p style="margin:0 0 14px 0;">Werkt op maximaal 2 apparaten. Activeer 'm in de app na het accepteren.</p>`
+    : `<p style="margin:0 0 6px 0;">Met dit team gebruik je een eigen teamlicentie. Praat. En het staat er, in elke app.</p>`;
   return shellHtml(
     `Uitnodiging voor ${params.organizationName}`,
     `<p style="margin:0 0 14px 0;">Hallo,</p>
     <p style="margin:0 0 14px 0;"><strong>${params.inviterName}</strong> nodigt je uit voor <strong>${params.organizationName}</strong> op Dicteren.ai.</p>
-    <p style="margin:0 0 6px 0;">Met dit team gebruik je samen één licentie. Praat. En het staat er, in elke app.</p>
-    ${cta(params.inviteUrl, "Uitnodiging bekijken")}
+    ${codeSection}
+    ${cta(params.inviteUrl, "Uitnodiging accepteren")}
     <p style="margin:0 0 8px 0;font-size:14px;color:${BRAND.textMuted};">Werkt de knop niet? Plak deze link in je browser:</p>
     <p style="margin:0 0 18px 0;font-size:13px;word-break:break-all;color:${BRAND.textMuted};">${params.inviteUrl}</p>`,
   );
@@ -1181,14 +1198,24 @@ function organizationInviteText(params: {
   inviterName: string;
   organizationName: string;
   inviteUrl: string;
+  licenseCode?: string;
 }): string {
-  return [
+  const lines = [
     "Hoi,",
     "",
     `${params.inviterName} heeft je uitgenodigd voor ${params.organizationName} op Dicteren.ai.`,
     "",
-    params.inviteUrl,
-    "",
-    "Dicteren.ai",
-  ].join("\n");
+  ];
+  if (params.licenseCode) {
+    lines.push("Je persoonlijke teamlicentie:");
+    lines.push(params.licenseCode);
+    lines.push("");
+    lines.push("Werkt op maximaal 2 apparaten.");
+    lines.push("");
+  }
+  lines.push("Accepteer hier:");
+  lines.push(params.inviteUrl);
+  lines.push("");
+  lines.push("Dicteren.ai");
+  return lines.join("\n");
 }

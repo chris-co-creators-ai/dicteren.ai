@@ -21,6 +21,18 @@
 ALTER TYPE "license_status" ADD VALUE IF NOT EXISTS 'unassigned';
 ALTER TYPE "license_status" ADD VALUE IF NOT EXISTS 'pending_payment';
 
+-- Email-categorie enum: nieuwe org-* values voor seat-flow.
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_member_welcome';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_owner_joined';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_member_removed';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_owner_left';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_invite_reminder';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_seats_expanded';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_seats_reduced';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_tier_changed';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_device_revoked';
+ALTER TYPE "email_category" ADD VALUE IF NOT EXISTS 'org_subscription_canceled';
+
 -- ───── 2. licenses — nieuwe kolommen ────────────────────────
 
 ALTER TABLE "public"."licenses"
