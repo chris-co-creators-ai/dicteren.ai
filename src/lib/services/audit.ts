@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { events } from "@/lib/db/schema";
 
-type AuditAction =
+export type AuditAction =
   | "license.created"
   | "license.activated"
   | "license.deactivated"
@@ -102,12 +102,23 @@ export async function getEventsByActor(
   }));
 }
 
+/** Product-analytics event-namen — typed zodat typo's compile-time falen. */
+export type TrackEventName =
+  | "trial_claimed"
+  | "license_activation_failed"
+  | "license_activation_succeeded"
+  | "checkout_started"
+  | "subscription_renewed"
+  | "subscription_creation_failed"
+  | "payment_completed"
+  | "affiliate_commission_recorded";
+
 /**
  * Product/commercial analytics. Never include user content (transcripts,
  * audio, raw input). Use anonymous-friendly keys.
  */
 export async function trackEvent(
-  name: string,
+  name: TrackEventName,
   properties?: Record<string, unknown>,
 ): Promise<void> {
   try {

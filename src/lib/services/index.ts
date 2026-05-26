@@ -16,7 +16,13 @@ export {
 
 export { signLicenseToken, verifyLicenseToken } from "./token";
 
-export { logEvent, trackEvent } from "./audit";
+export {
+  logEvent,
+  trackEvent,
+  getEventsByActor,
+  type AuditAction,
+  type TrackEventName,
+} from "./audit";
 
 export {
   createPayment,
