@@ -50,16 +50,21 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
   const ids = users.map((u) => u.id);
 
   // 2. Last session per user — MAX(createdAt) per userId.
+  // sql-aggregaten komen als string terug uit pg; expliciet naar Date casten
+  // anders crasht .toISOString() in de page-mapper.
   const sessions = await dbAuth
     .select({
       userId: authSession.userId,
-      lastAt: sql<Date>`max(${authSession.createdAt})`.as("last_at"),
+      lastAt: sql<string>`max(${authSession.createdAt})`.as("last_at"),
     })
     .from(authSession)
     .where(inArray(authSession.userId, ids))
     .groupBy(authSession.userId);
-  const lastSessionMap = new Map(
-    sessions.map((s) => [s.userId, s.lastAt as Date | null]),
+  const lastSessionMap = new Map<string, Date | null>(
+    sessions.map((s) => [
+      s.userId,
+      s.lastAt ? new Date(s.lastAt as unknown as string) : null,
+    ]),
   );
 
   // 3. Org-memberships.
