@@ -20,6 +20,7 @@ export {
   logEvent,
   trackEvent,
   getEventsByActor,
+  getOrgAuditFeed,
   type AuditAction,
   type TrackEventName,
 } from "./audit";
