@@ -105,6 +105,19 @@ export default function PrivacyPage() {
               gestuurd.
             </p>
             <p className="mt-3">
+              Het model dat we gebruiken doet geen sprekerherkenning en geen
+              biometrische identificatie. Voor de bron, licentie en technische
+              details zie de pagina{" "}
+              <Link
+                href="/ai-model"
+                className="font-semibold underline hover:no-underline"
+                style={{ color: "var(--navy)" }}
+              >
+                AI-model
+              </Link>
+              .
+            </p>
+            <p className="mt-3">
               Optioneel: je kunt zelf een externe AI-provider (zoals OpenAI of
               Anthropic) instellen voor de nabewerking van je tekst. In dat
               geval stuur je je tekst — niet je audio — naar die provider met
