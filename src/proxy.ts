@@ -26,7 +26,11 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
-  if (session.user.role !== "admin") {
+  const role = session.user.role;
+  // Toegestaan voor admin én account_manager. Page-level guards bepalen
+  // welke specifieke /admin/* pages account-managers wel/niet mogen openen
+  // (zie assertAdminOnly in lib/auth/session.ts).
+  if (role !== "admin" && role !== "account_manager") {
     const url = new URL("/", request.url);
     url.searchParams.set("error", "admin_only");
     return NextResponse.redirect(url);
