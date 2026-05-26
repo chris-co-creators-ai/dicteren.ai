@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import {
   claimTrialForUser,
+  enforceRateLimit,
   sendTrialStartedEmail,
   logEvent,
   trackEvent,
@@ -30,7 +31,7 @@ type TrialResponse =
     }
   | { success: false; error: string; code: string };
 
-export async function POST(): Promise<NextResponse<TrialResponse>> {
+export async function POST(request: Request): Promise<NextResponse<TrialResponse>> {
   const session = await getSession();
   if (!session?.user) {
     return NextResponse.json<TrialResponse>(
@@ -38,6 +39,12 @@ export async function POST(): Promise<NextResponse<TrialResponse>> {
       { status: 401 },
     );
   }
+
+  // Anti-spam: 3 claim-pogingen per dag per IP. Dedupe op userId zit al
+  // in claimTrialForUser, dit beschermt tegen mass-account-creation om
+  // trial-codes te oogsten.
+  const blocked = await enforceRateLimit(request, "license:trial");
+  if (blocked) return blocked as NextResponse<TrialResponse>;
 
   const result = await claimTrialForUser({ userId: session.user.id });
   if (!result.success) {

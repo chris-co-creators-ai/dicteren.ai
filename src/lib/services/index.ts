@@ -172,8 +172,11 @@ export {
   hashIp,
   getClientIp,
   checkRateLimit,
+  enforceRateLimit,
   pruneRateLimitEvents,
+  RATE_LIMITS,
   type RateLimitResult,
+  type RateLimitBucket,
 } from "./rateLimit";
 
 export {

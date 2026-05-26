@@ -37,6 +37,7 @@ import {
   getReferralForUser,
 } from "@/lib/services/affiliate";
 import { validateDiscountCode } from "@/lib/services/discount";
+import { enforceRateLimit } from "@/lib/services/rateLimit";
 
 type BillingInput = {
   organizationName: string;
@@ -71,6 +72,11 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return clientError(401, "Inloggen vereist", "UNAUTH");
   }
+
+  const blocked = await enforceRateLimit(request, "checkout:organization", {
+    key: `user:${session.user.id}`,
+  });
+  if (blocked) return blocked;
 
   let body: {
     planSlug?: string;

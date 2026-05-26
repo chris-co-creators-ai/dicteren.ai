@@ -15,7 +15,12 @@ import {
   plans,
   subscriptions,
 } from "@/lib/db/schema";
-import { isExpired, signLicenseToken, verifyLicenseToken } from "@/lib/services";
+import {
+  enforceRateLimit,
+  isExpired,
+  signLicenseToken,
+  verifyLicenseToken,
+} from "@/lib/services";
 import type { LicenseStatus, LicenseType } from "@/lib/types";
 
 type StatusResponse =
@@ -61,6 +66,14 @@ export async function GET(request: Request) {
   }
 
   const { licenseId, deviceFingerprint } = verified.data;
+
+  // Per-device rate-limit. Tauri heartbeat is dagelijks; 60/10min is ruim
+  // voor legitiem polling-gedrag maar zet een dak op een gecompromitteerd token.
+  const blocked = await enforceRateLimit(request, "license:status", {
+    key: `device:${deviceFingerprint}`,
+    message: "Te veel status-checks. Probeer opnieuw.",
+  });
+  if (blocked) return blocked;
 
   // Look up license + this device's activation in one round-trip.
   const [device] = await db

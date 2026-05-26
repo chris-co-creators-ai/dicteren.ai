@@ -14,12 +14,18 @@ import { getSession } from "@/lib/auth/session";
 import { cancelMollieSubscription } from "@/lib/services/mollie";
 import { logEvent } from "@/lib/services/audit";
 import { sendCancelEmail } from "@/lib/services/email";
+import { enforceRateLimit } from "@/lib/services/rateLimit";
 
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
+
+  const blocked = await enforceRateLimit(request, "subscription:cancel", {
+    key: `user:${session.user.id}`,
+  });
+  if (blocked) return blocked;
 
   let body: { subscriptionId?: string };
   try {

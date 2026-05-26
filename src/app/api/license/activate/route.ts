@@ -8,6 +8,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { devices, licenseActivations, licenses } from "@/lib/db/schema";
 import {
+  enforceRateLimit,
   hashLicenseCode,
   isExpired,
   logEvent,
@@ -33,6 +34,12 @@ function clientError(
 }
 
 export async function POST(request: Request) {
+  // Brute-force-protectie op licentiecode: max 10 pogingen / 10 min per IP.
+  const blocked = await enforceRateLimit(request, "license:activate", {
+    message: "Te veel activatiepogingen. Probeer over enkele minuten opnieuw.",
+  });
+  if (blocked) return blocked;
+
   let body: ActivationRequest;
   try {
     body = (await request.json()) as ActivationRequest;

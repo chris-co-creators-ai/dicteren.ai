@@ -16,8 +16,8 @@ import { affiliates } from "@/lib/db/schema";
 import { generateAffiliateCode } from "@/lib/services/affiliate";
 import { addProspect } from "@/lib/services/prospect";
 import {
-  checkRateLimit,
   createContactMessage,
+  enforceRateLimit,
   getClientIp,
   hashIp,
 } from "@/lib/services";
@@ -93,22 +93,11 @@ export async function POST(request: Request) {
   }
 
   const ipHash = hashIp(getClientIp(request));
-  const limit = await checkRateLimit({
-    bucketKey: "partnership",
-    ipHash,
-    limit: 3,
-    windowSeconds: 1800,
+  const blocked = await enforceRateLimit(request, "partnership", {
+    message:
+      "Te veel aanmeldingen vanaf dit IP. Probeer over enkele minuten opnieuw.",
   });
-  if (!limit.allowed) {
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          "Te veel aanmeldingen vanaf dit IP. Probeer over 30 minuten opnieuw.",
-      },
-      { status: 429 },
-    );
-  }
+  if (blocked) return blocked;
 
   // 1. Affiliate-rij met status pending. Idempotent op contact_email.
   const [existingAff] = await db

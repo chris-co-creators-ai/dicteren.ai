@@ -6,12 +6,13 @@
 
 import { NextResponse } from "next/server";
 import {
-  checkRateLimit,
   createContactMessage,
+  enforceRateLimit,
   getClientIp,
   hashIp,
   type ContactMessageKind,
 } from "@/lib/services";
+import type { RateLimitBucket } from "@/lib/services/rateLimit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -94,25 +95,13 @@ export async function POST(request: Request) {
       ? (body.kind as ContactMessageKind)
       : "general";
 
-  const ip = getClientIp(request);
-  const ipHash = hashIp(ip);
+  const ipHash = hashIp(getClientIp(request));
 
-  const limit = await checkRateLimit({
-    bucketKey: `contact:${kind}`,
-    ipHash,
-    limit: 5,
-    windowSeconds: 600,
-  });
-  if (!limit.allowed) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Te veel verzoeken. Probeer over een paar minuten opnieuw.",
-        retryAfter: limit.resetInSeconds,
-      },
-      { status: 429 },
-    );
-  }
+  const blocked = await enforceRateLimit(
+    request,
+    `contact:${kind}` as RateLimitBucket,
+  );
+  if (blocked) return blocked;
 
   const safeMetadata =
     body.metadata && typeof body.metadata === "object"
