@@ -19,6 +19,7 @@ import {
   Scale,
   Settings,
   Tag,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -30,21 +31,33 @@ type NavItem = {
   href: string;
   label: string;
   icon: typeof Home;
-  badge?: number;
+  badgeKey?: "messages" | "affiliates" | "pastDue";
+  badgeAlert?: boolean;
 };
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "Overzicht", icon: Home },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/crm", label: "CRM", icon: Users },
-  { href: "/admin/messages", label: "Berichten", icon: Inbox },
+  { href: "/admin/users", label: "Users", icon: UserCog },
+  {
+    href: "/admin/messages",
+    label: "Berichten",
+    icon: Inbox,
+    badgeKey: "messages",
+  },
   { href: "/admin/licenses", label: "Licenties", icon: Key },
   { href: "/admin/organizations", label: "Organisaties", icon: Building2 },
   { href: "/admin/orders", label: "Orders", icon: Receipt },
   { href: "/admin/invoices", label: "Facturen", icon: Tag },
   { href: "/admin/pricing", label: "Prijzen & marge", icon: Calculator },
   { href: "/admin/discounts", label: "Kortingen", icon: Scale },
-  { href: "/admin/affiliates", label: "Affiliates", icon: GitBranch },
+  {
+    href: "/admin/affiliates",
+    label: "Affiliates",
+    icon: GitBranch,
+    badgeKey: "affiliates",
+  },
   { href: "/admin/partners", label: "Partners", icon: HeartHandshake },
   { href: "/admin/emails", label: "E-mails", icon: Mail },
   { href: "/admin/support", label: "Support", icon: Bell },
@@ -71,8 +84,10 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function AdminSidebar({
   user,
+  badges,
 }: {
   user: { name: string; email: string; role?: string | null };
+  badges?: { messages: number; affiliates: number; pastDue: number };
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -151,16 +166,14 @@ export function AdminSidebar({
                   }}
                 />
                 <span className="flex-1 truncate">{item.label}</span>
-                {item.badge !== undefined && (
+                {item.badgeKey && badges && badges[item.badgeKey] > 0 && (
                   <span
                     className={cn(
                       "rounded-full px-1.5 text-[0.625rem] font-bold leading-5",
-                      active
-                        ? "bg-[color:var(--orange)] text-white"
-                        : "bg-[color:var(--bg-deep)] text-[color:var(--text-muted)]",
+                      "bg-[color:var(--orange)] text-white",
                     )}
                   >
-                    {item.badge}
+                    {badges[item.badgeKey]}
                   </span>
                 )}
               </Link>
