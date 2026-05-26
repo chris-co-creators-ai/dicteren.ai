@@ -38,6 +38,7 @@ import {
 } from "@/lib/services/affiliate";
 import { validateDiscountCode } from "@/lib/services/discount";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
+import { getTierForSeats } from "@/lib/services/pricingTiers";
 import { appBase, webhookUrlFor } from "@/lib/url";
 
 type BillingInput = {
@@ -258,7 +259,12 @@ export async function POST(request: Request) {
   // Klant kan ofwel ?ref=AFF-CODE meegeven (URL-attribution), ofwel een
   // discount-code in de form invullen (= ook attribution via discount_codes.
   // affiliateId + korting). Beide tegelijk mag.
-  const listAmountCents = plan.priceCents * seatCount;
+  //
+  // Tier-aware pricing: zakelijke staffel uit services/pricingTiers wordt
+  // direct toegepast (5+ = -10%, 10+ = -15%, 25+ = -20%). Dat is wat de
+  // prijzen-pagina belooft en wat de owner heeft gezien voor hij betaalde.
+  const tier = getTierForSeats(seatCount);
+  const listAmountCents = tier.pricePerSeatCents * seatCount;
   let payableAmountCents = listAmountCents;
   let resolvedDiscountId: string | null = null;
   if (discountCode) {

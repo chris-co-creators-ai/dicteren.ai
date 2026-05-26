@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   authUsers,
@@ -123,8 +123,11 @@ export async function attachMolliePayment(
 
 /**
  * Fulfill a paid order: idempotent.
- *  - First call: marks paid, records payment, generates license.
+ *  - First call: marks paid, records payment, generates license(s).
  *  - Second call (Mollie retried): no-op, returns null.
+ *
+ * Per-seat model: voor een team-order met quantity=N maken we N license-rows.
+ * Voor consumer-orders blijft het 1 row (seats=1, maxActivationsPerSeat=2).
  *
  * Note: neon-http driver doesn't support transactions. We rely on the
  * `licenses.code_hash` unique index and order-status check for idempotency.
@@ -134,8 +137,14 @@ export async function fulfillPaidOrder(args: {
   paidAmountCents: number;
   rawWebhookPayload: unknown;
 }): Promise<{
+  /** Eerste license-id voor backwards-compat met affiliate-commission etc. */
   licenseId: string;
+  /** Eerste license-code (consumer = enige; team = "representatie" voor email). */
   licenseCode: string;
+  /** Alle license-ids (1 voor consumer, N voor team). */
+  licenseIds: string[];
+  /** Alle license-codes. */
+  licenseCodes: string[];
   orderId: string;
   organizationId: string | null;
   userId: string | null;
@@ -184,9 +193,8 @@ export async function fulfillPaidOrder(args: {
       break;
   }
 
-  const code = generateLicenseCode(licenseType);
-  const codeHash = hashLicenseCode(code);
-  const seats = plan.isPerSeat ? order.quantity : 1;
+  const isTeam = licenseType === "team";
+  const seatCount = isTeam ? Math.max(1, order.quantity) : 1;
 
   const [paymentRow] = await db
     .insert(payments)
@@ -200,33 +208,55 @@ export async function fulfillPaidOrder(args: {
     })
     .returning({ id: payments.id });
 
-  const [license] = await db
-    .insert(licenses)
-    .values({
-      code,
-      codeHash,
-      type: licenseType,
-      status: "active",
-      customerEmail: null,
-      userId: order.userId,
-      organizationId: order.organizationId,
-      orderId: order.id,
-      planId: plan.id,
-      seats,
-      maxActivationsPerSeat: 2,
-      issuedAt: new Date(),
-      expiresAt,
-    })
-    .returning({ id: licenses.id });
+  const insertedIds: string[] = [];
+  const insertedCodes: string[] = [];
+
+  for (let i = 0; i < seatCount; i++) {
+    const code = generateLicenseCode(licenseType);
+    const codeHash = hashLicenseCode(code);
+    // Eerste seat van team-order: assign aan order.userId (de owner).
+    // Rest blijft unassigned tot owner ze toewijst via invite.
+    const isFirstTeamSeat = isTeam && i === 0;
+    const assignToUserId = isTeam ? (isFirstTeamSeat ? order.userId : null) : order.userId;
+    const status = isTeam
+      ? isFirstTeamSeat
+        ? "active"
+        : "unassigned"
+      : "active";
+
+    const [row] = await db
+      .insert(licenses)
+      .values({
+        code,
+        codeHash,
+        type: licenseType,
+        status,
+        customerEmail: null,
+        userId: assignToUserId,
+        organizationId: order.organizationId,
+        orderId: order.id,
+        planId: plan.id,
+        seats: 1,
+        maxActivationsPerSeat: 2,
+        assignedAt: assignToUserId ? new Date() : null,
+        issuedAt: new Date(),
+        expiresAt,
+      })
+      .returning({ id: licenses.id });
+    insertedIds.push(row.id);
+    insertedCodes.push(code);
+  }
 
   return {
-    licenseId: license.id,
-    licenseCode: code,
+    licenseId: insertedIds[0],
+    licenseCode: insertedCodes[0],
+    licenseIds: insertedIds,
+    licenseCodes: insertedCodes,
     orderId: order.id,
     organizationId: order.organizationId,
     userId: order.userId,
     paymentId: paymentRow.id,
-    seats,
+    seats: seatCount,
     discountCodeId: order.discountCodeId ?? null,
     expiresAt,
     plan,
@@ -273,44 +303,97 @@ export async function recordSubscription(args: {
  * Recurring charge SUCCESS — bump license.expiresAt forward by 1 period,
  * restore active status (in case it was past_due), update subscription
  * nextBillingAt, record the payment.
+ *
+ * Per-seat model: voor team-subscriptions extenden we ALLE actieve team-
+ * licenses van de gekoppelde organisatie. Voor consumer: alleen de
+ * sub.licenseId-rij.
  */
 export async function renewSubscriptionLicense(args: {
   mollieSubscriptionId: string;
   molliePaymentId: string;
   paidAmountCents: number;
   rawWebhookPayload: unknown;
-}): Promise<{ licenseId: string; newExpiresAt: Date } | null> {
+}): Promise<{ licenseId: string; newExpiresAt: Date; extendedCount: number } | null> {
   const [sub] = await db
     .select()
     .from(subscriptions)
     .where(eq(subscriptions.mollieSubscriptionId, args.mollieSubscriptionId))
     .limit(1);
-  if (!sub || !sub.licenseId) return null;
+  if (!sub) return null;
 
-  const [license] = await db
-    .select()
-    .from(licenses)
-    .where(eq(licenses.id, sub.licenseId))
-    .limit(1);
-  if (!license) return null;
-
-  if (!license.planId) return null;
-  const plan = await getPlanByIdInternal(license.planId);
+  // Plan-period bepaling: prefer sub.planId, anders via licenseId
+  let plan: Plan | null = null;
+  if (sub.planId) plan = await getPlanByIdInternal(sub.planId);
+  if (!plan && sub.licenseId) {
+    const [license] = await db
+      .select({ planId: licenses.planId })
+      .from(licenses)
+      .where(eq(licenses.id, sub.licenseId))
+      .limit(1);
+    if (license?.planId) plan = await getPlanByIdInternal(license.planId);
+  }
   if (!plan) return null;
   const months = periodToMonths(plan.period);
   if (months === 0) return null;
 
+  // Bepaal target-licenses
+  let targetLicenses: { id: string; expiresAt: Date | null; orderId: string | null }[] = [];
+
+  if (sub.organizationId) {
+    // Team-subscription: extend alle team-licenses van deze org die nog
+    // actief / past_due / trial zijn. Revoked seats blijven revoked.
+    targetLicenses = await db
+      .select({
+        id: licenses.id,
+        expiresAt: licenses.expiresAt,
+        orderId: licenses.orderId,
+      })
+      .from(licenses)
+      .where(
+        and(
+          eq(licenses.organizationId, sub.organizationId),
+          eq(licenses.type, "team"),
+        ),
+      );
+  } else if (sub.licenseId) {
+    const [license] = await db
+      .select({
+        id: licenses.id,
+        expiresAt: licenses.expiresAt,
+        orderId: licenses.orderId,
+      })
+      .from(licenses)
+      .where(eq(licenses.id, sub.licenseId))
+      .limit(1);
+    if (license) targetLicenses = [license];
+  }
+  if (targetLicenses.length === 0) return null;
+
+  // Bereken newExpiresAt op basis van de eerste (alle krijgen dezelfde).
+  const first = targetLicenses[0];
   const base =
-    license.expiresAt && license.expiresAt.getTime() > Date.now()
-      ? new Date(license.expiresAt)
+    first.expiresAt && first.expiresAt.getTime() > Date.now()
+      ? new Date(first.expiresAt)
       : new Date();
   const newExpiresAt = new Date(base);
   newExpiresAt.setMonth(newExpiresAt.getMonth() + months);
 
+  // Update alle licenses tegelijk (niet inArray over status — revoked
+  // blijft staan, andere flippen naar active).
+  const liveIds = targetLicenses.map((l) => l.id);
   await db
     .update(licenses)
-    .set({ status: "active", expiresAt: newExpiresAt, updatedAt: new Date() })
-    .where(eq(licenses.id, license.id));
+    .set({
+      status: "active",
+      expiresAt: newExpiresAt,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        inArray(licenses.id, liveIds),
+        notInArray(licenses.status, ["revoked", "refunded"] as const),
+      ),
+    );
 
   await db
     .update(subscriptions)
@@ -321,24 +404,31 @@ export async function renewSubscriptionLicense(args: {
     })
     .where(eq(subscriptions.id, sub.id));
 
-  // Record the payment row (idempotency relies on mollie_payment_id check below).
+  // Idempotente payment-insert
   const existing = await db
     .select({ id: payments.id })
     .from(payments)
     .where(eq(payments.molliePaymentId, args.molliePaymentId))
     .limit(1);
   if (!existing[0]) {
-    await db.insert(payments).values({
-      orderId: license.orderId!,
-      molliePaymentId: args.molliePaymentId,
-      status: "paid",
-      amountCents: args.paidAmountCents,
-      currency: sub.currency,
-      rawWebhookPayload: args.rawWebhookPayload as object,
-    });
+    const anyOrderId = targetLicenses.find((l) => l.orderId)?.orderId ?? null;
+    if (anyOrderId) {
+      await db.insert(payments).values({
+        orderId: anyOrderId,
+        molliePaymentId: args.molliePaymentId,
+        status: "paid",
+        amountCents: args.paidAmountCents,
+        currency: sub.currency,
+        rawWebhookPayload: args.rawWebhookPayload as object,
+      });
+    }
   }
 
-  return { licenseId: license.id, newExpiresAt };
+  return {
+    licenseId: first.id,
+    newExpiresAt,
+    extendedCount: targetLicenses.length,
+  };
 }
 
 /**

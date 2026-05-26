@@ -33,6 +33,8 @@ import {
   recordSubscription,
   renewSubscriptionLicense,
 } from "@/lib/services/order";
+import { activatePendingExpansionSeats } from "@/lib/services/orderUpgrade";
+import { getTierForSeats } from "@/lib/services/pricingTiers";
 import type { DiscountSnapshot, LicenseSource } from "@/lib/services/mollie-metadata";
 import { logEvent, trackEvent } from "@/lib/services/audit";
 import {
@@ -120,8 +122,51 @@ export async function POST(request: Request) {
         source?: LicenseSource;
         discountType?: string;
         discountValue?: number;
+        kind?: string;
+        organizationId?: string;
+        deltaSeats?: number;
+        targetSeats?: number;
       }
     | null;
+
+  // ───────── Self-service seat-expansion pro-rata charge ─────────
+  // Payment komt los van een order (geen orderId). Activeer pending_payment
+  // seats voor de org wanneer paid bevestigd is.
+  if (metadata?.kind === "seat_expansion" && metadata.organizationId) {
+    if (orderStatus === "paid") {
+      const result = await activatePendingExpansionSeats({
+        orgId: metadata.organizationId,
+        paymentId: payment.data.paymentId,
+      });
+      await trackEvent("payment_completed", {
+        method: payment.data.method,
+        amountCents: payment.data.amount,
+      });
+      return NextResponse.json({
+        received: true,
+        kind: "seat_expansion",
+        activatedSeats: result.activated,
+      });
+    }
+    if (orderStatus === "failed" || orderStatus === "canceled") {
+      await logEvent({
+        action: "organization.subscription_failed",
+        entityType: "organization",
+        entityId: metadata.organizationId,
+        metadata: {
+          paymentId: payment.data.paymentId,
+          reason: "prorata_charge_failed",
+          mollieStatus: payment.data.status,
+        },
+      });
+      return NextResponse.json({
+        received: true,
+        kind: "seat_expansion",
+        status: orderStatus,
+      });
+    }
+    return NextResponse.json({ received: true, kind: "seat_expansion_pending" });
+  }
 
   // Snapshot van source + discount uit metadata (we kopieren naar licenses-row
   // bij issue zodat CRM/admin niet hoeft te queriën aan Mollie API).
@@ -408,9 +453,22 @@ export async function POST(request: Request) {
             subMetadata.discountType = discountFromMeta.type;
             subMetadata.discountValue = discountFromMeta.value;
           }
+          // Tier-aware amount voor team: tier-discount × seats.
+          // Consumer blijft plan.priceCents (komt al uit plans-tabel).
+          const isTeam = fulfilled.plan.customerType === "organization";
+          const tier = isTeam ? getTierForSeats(fulfilled.seats) : null;
+          const subAmountCents = isTeam && tier
+            ? tier.pricePerSeatCents * fulfilled.seats
+            : fulfilled.plan.priceCents;
+
+          if (isTeam && tier) {
+            subMetadata.tier = tier.id;
+            subMetadata.seats = fulfilled.seats;
+          }
+
           const sub = await createMollieSubscription({
             customerId,
-            amountCents: fulfilled.plan.priceCents,
+            amountCents: subAmountCents,
             currency: fulfilled.plan.currency,
             interval,
             description: `Dicteren.ai · ${fulfilled.plan.label} (auto-renew)`,
@@ -427,7 +485,7 @@ export async function POST(request: Request) {
               licenseId: fulfilled.licenseId,
               planId: fulfilled.plan.id,
               intervalLabel: interval,
-              amountCents: fulfilled.plan.priceCents,
+              amountCents: subAmountCents,
               currency: fulfilled.plan.currency,
               seats: fulfilled.seats,
               nextBillingAt: fulfilled.expiresAt,
