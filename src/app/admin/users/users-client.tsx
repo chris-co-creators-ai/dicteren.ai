@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -296,7 +297,7 @@ export function UsersClient({ users }: Props) {
                   )}
                 </td>
                 <td className="px-3 py-3 text-right">
-                  <div className="relative inline-flex items-center gap-1">
+                  <div className="inline-flex items-center gap-1">
                     <Link
                       href={`/admin/crm/${u.id}`}
                       className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-[color:var(--navy)]"
@@ -304,23 +305,16 @@ export function UsersClient({ users }: Props) {
                     >
                       <Users className="size-4" strokeWidth={1.8} />
                     </Link>
-                    <button
-                      onClick={() =>
+                    <ActionMenuTrigger
+                      user={u}
+                      open={openMenuId === u.id}
+                      busy={busy}
+                      onToggle={() =>
                         setOpenMenuId(openMenuId === u.id ? null : u.id)
                       }
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
-                      title="Acties"
-                    >
-                      <MoreVertical className="size-4" strokeWidth={1.8} />
-                    </button>
-                    {openMenuId === u.id && (
-                      <ActionMenu
-                        user={u}
-                        busy={busy}
-                        onClose={() => setOpenMenuId(null)}
-                        onAction={performAction}
-                      />
-                    )}
+                      onClose={() => setOpenMenuId(null)}
+                      onAction={performAction}
+                    />
                   </div>
                 </td>
               </tr>
@@ -338,14 +332,18 @@ export function UsersClient({ users }: Props) {
   );
 }
 
-function ActionMenu({
+function ActionMenuTrigger({
   user,
+  open,
   busy,
+  onToggle,
   onClose,
   onAction,
 }: {
   user: User;
+  open: boolean;
   busy: string | null;
+  onToggle: () => void;
   onClose: () => void;
   onAction: (
     userId: string,
@@ -355,14 +353,69 @@ function ActionMenu({
     success?: string,
   ) => void;
 }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{
+    top: number;
+    left: number;
+    align: "left" | "right";
+  } | null>(null);
+
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const MENU_WIDTH = 256;
+    const VIEWPORT_PAD = 8;
+    const wantLeft = rect.right - MENU_WIDTH;
+    const align = wantLeft < VIEWPORT_PAD ? "left" : "right";
+    setPos({
+      top: rect.bottom + 6,
+      left:
+        align === "right"
+          ? Math.min(
+              rect.right - MENU_WIDTH,
+              window.innerWidth - MENU_WIDTH - VIEWPORT_PAD,
+            )
+          : Math.max(rect.left, VIEWPORT_PAD),
+      align,
+    });
+    function onScroll() {
+      onClose();
+    }
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [open, onClose]);
+
   function actionBusy(action: string) {
     return busy === `${user.id}:${action}`;
   }
 
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-8 z-50 w-64 rounded-xl border bg-white p-1 shadow-2xl">
+      <button
+        ref={btnRef}
+        onClick={onToggle}
+        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-[color:var(--navy)]"
+        title="Acties"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <MoreVertical className="size-4" strokeWidth={1.8} />
+      </button>
+      {open &&
+        pos &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-[60]" onClick={onClose} />
+            <div
+              role="menu"
+              className="fixed z-[70] w-64 rounded-xl border bg-white p-1 shadow-2xl"
+              style={{ top: pos.top, left: pos.left }}
+            >
         <MenuItem
           icon={KeyRound}
           label="Stuur password-reset"
@@ -485,7 +538,10 @@ function ActionMenu({
             )
           }
         />
-      </div>
+            </div>
+          </>,
+          document.body,
+        )}
     </>
   );
 }
