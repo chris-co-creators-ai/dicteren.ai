@@ -83,11 +83,15 @@ export {
   listPartnerOrgs,
   getPartnerOrg,
   updatePartnerOrg,
+  createPartnerOrg,
+  bulkCreatePartnerOrgs,
+  archivePartnerOrg,
   issuePartnerCode,
   partnerOrgsKpis,
   getPartnerActivationStats,
   type PartnerOrgListItem,
   type PartnerOrgPatch,
+  type CreatePartnerOrgArgs,
   type PartnerActivationStats,
 } from "./partner";
 

@@ -1,17 +1,20 @@
 import { listPartnerOrgs, partnerOrgsKpis } from "@/lib/services";
-import { PartnersView } from "./partners-view";
+import { requireAdminOrManager } from "@/lib/auth/session";
+import { PartnersCrmView } from "./partners-crm-view";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Partners · Admin · Dicteren.ai" };
 
 export default async function AdminPartnersPage() {
+  const session = await requireAdminOrManager();
   const [orgs, kpis] = await Promise.all([
     listPartnerOrgs(),
     partnerOrgsKpis(),
   ]);
 
   return (
-    <PartnersView
+    <PartnersCrmView
+      currentUserName={session.user.name || "Christian Bleeker"}
       orgs={orgs.map((o) => ({
         id: o.id,
         externalId: o.externalId,

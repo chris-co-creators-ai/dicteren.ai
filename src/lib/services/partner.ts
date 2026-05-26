@@ -130,6 +130,158 @@ export type PartnerOrgPatch = Partial<
   >
 >;
 
+/** Volgende externalId in reeks "ORG-NNN". Pakt het huidige max-nummer en
+ *  telt door. Race-veilig genoeg voor admin-werk; voor bulk-import niet
+ *  geschikt — daar wordt batch-generatie gebruikt. */
+async function nextExternalId(): Promise<string> {
+  const rows = await db
+    .select({ externalId: partnerOrganizations.externalId })
+    .from(partnerOrganizations);
+  let max = 0;
+  for (const r of rows) {
+    const m = /^ORG-(\d+)$/.exec(r.externalId);
+    if (m) {
+      const n = Number(m[1]);
+      if (n > max) max = n;
+    }
+  }
+  return `ORG-${String(max + 1).padStart(3, "0")}`;
+}
+
+export type CreatePartnerOrgArgs = {
+  organizationName: string;
+  segment?: string | null;
+  priority?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  website?: string | null;
+  decisionMaker?: string | null;
+  accountOwner?: string | null;
+  outreachStatus?: string | null;
+  pilotStatus?: string | null;
+  whyRelevant?: string | null;
+  organizationType?: string | null;
+  notes?: string | null;
+  actorId: string | null;
+  actorName?: string | null;
+};
+
+/** Maak één nieuwe partner-organisatie. Default: account-owner = actor-naam,
+ *  outreachStatus = "Nieuw", pilotStatus = "Nog niet gestart". */
+export async function createPartnerOrg(args: CreatePartnerOrgArgs) {
+  const externalId = await nextExternalId();
+  const [row] = await db
+    .insert(partnerOrganizations)
+    .values({
+      externalId,
+      organizationName: args.organizationName.trim(),
+      segment: args.segment ?? null,
+      priority: args.priority ?? "B",
+      email: args.email ?? null,
+      phone: args.phone ?? null,
+      city: args.city ?? null,
+      website: args.website ?? null,
+      decisionMaker: args.decisionMaker ?? null,
+      accountOwner: args.accountOwner ?? args.actorName ?? null,
+      outreachStatus: args.outreachStatus ?? "Nieuw",
+      pilotStatus: args.pilotStatus ?? "Nog niet gestart",
+      whyRelevant: args.whyRelevant ?? null,
+      organizationType: args.organizationType ?? null,
+      gdprNotes: args.notes ?? null,
+    })
+    .returning();
+
+  await logEvent({
+    action: "partner.created",
+    entityType: "partner_organization",
+    entityId: row.id,
+    actorId: args.actorId,
+    metadata: {
+      externalId: row.externalId,
+      organizationName: row.organizationName,
+    },
+  });
+  return row;
+}
+
+/** Bulk-create vanaf CSV. Genereert sequentiële externalIds in één pass om
+ *  individuele lookups te vermijden. */
+export async function bulkCreatePartnerOrgs(args: {
+  rows: Omit<CreatePartnerOrgArgs, "actorId" | "actorName">[];
+  actorId: string | null;
+  actorName: string | null;
+}) {
+  if (args.rows.length === 0) return { created: 0 };
+
+  // Eenmalige base-id lookup.
+  const existing = await db
+    .select({ externalId: partnerOrganizations.externalId })
+    .from(partnerOrganizations);
+  let max = 0;
+  for (const r of existing) {
+    const m = /^ORG-(\d+)$/.exec(r.externalId);
+    if (m) {
+      const n = Number(m[1]);
+      if (n > max) max = n;
+    }
+  }
+
+  const values = args.rows.map((r, i) => ({
+    externalId: `ORG-${String(max + 1 + i).padStart(3, "0")}`,
+    organizationName: r.organizationName.trim(),
+    segment: r.segment ?? null,
+    priority: r.priority ?? "B",
+    email: r.email ?? null,
+    phone: r.phone ?? null,
+    city: r.city ?? null,
+    website: r.website ?? null,
+    decisionMaker: r.decisionMaker ?? null,
+    accountOwner: r.accountOwner ?? args.actorName ?? null,
+    outreachStatus: r.outreachStatus ?? "Nieuw",
+    pilotStatus: r.pilotStatus ?? "Nog niet gestart",
+    whyRelevant: r.whyRelevant ?? null,
+    organizationType: r.organizationType ?? null,
+    gdprNotes: r.notes ?? null,
+  }));
+
+  const inserted = await db
+    .insert(partnerOrganizations)
+    .values(values)
+    .returning({ id: partnerOrganizations.id });
+
+  await logEvent({
+    action: "partner.bulk_created",
+    entityType: "partner_organization",
+    entityId: "bulk",
+    actorId: args.actorId,
+    metadata: { count: inserted.length },
+  });
+  return { created: inserted.length };
+}
+
+/** Soft delete: zet pilot/outreach naar "Afgewezen". Echte delete laten we
+ *  links omdat license-data verloren zou gaan. */
+export async function archivePartnerOrg(id: string, actorId: string | null) {
+  const [row] = await db
+    .update(partnerOrganizations)
+    .set({
+      outreachStatus: "Afgewezen",
+      updatedAt: new Date(),
+    })
+    .where(eq(partnerOrganizations.id, id))
+    .returning();
+  if (row) {
+    await logEvent({
+      action: "partner.archived",
+      entityType: "partner_organization",
+      entityId: id,
+      actorId,
+    });
+  }
+  return row ?? null;
+}
+
 /** Admin update editable velden. external_id en license-relatie blijven uit dit pad. */
 export async function updatePartnerOrg(
   id: string,
