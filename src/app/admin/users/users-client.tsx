@@ -9,7 +9,10 @@ import {
   Building2,
   Check,
   Copy,
+  Gift,
+  Infinity as InfinityIcon,
   KeyRound,
+  Lock,
   LogOut,
   MoreVertical,
   Search,
@@ -70,7 +73,13 @@ export function UsersClient({ users }: Props) {
     return users.filter((u) => {
       if (roleFilter !== "all") {
         if (roleFilter === "admin" && u.role !== "admin") return false;
-        if (roleFilter === "user" && u.role === "admin") return false;
+        if (roleFilter === "account_manager" && u.role !== "account_manager")
+          return false;
+        if (
+          roleFilter === "user" &&
+          (u.role === "admin" || u.role === "account_manager")
+        )
+          return false;
       }
       if (statusFilter !== "all") {
         if (statusFilter === "verified" && !u.emailVerified) return false;
@@ -162,6 +171,7 @@ export function UsersClient({ users }: Props) {
         >
           <option value="all">Alle rollen</option>
           <option value="user">Gebruiker</option>
+          <option value="account_manager">Account Manager</option>
           <option value="admin">Admin</option>
         </select>
         <select
@@ -423,7 +433,7 @@ function ActionMenuTrigger({
             >
         <MenuItem
           icon={KeyRound}
-          label="Stuur password-reset"
+          label="Stuur password-reset link"
           disabled={actionBusy("password-reset")}
           onClick={() =>
             onAction(
@@ -435,6 +445,71 @@ function ActionMenuTrigger({
             )
           }
         />
+        <MenuItem
+          icon={Lock}
+          label="Zet nieuw wachtwoord (direct)"
+          onClick={() => {
+            const pw = window.prompt(
+              `Nieuw wachtwoord voor ${user.email}\n\nMin. 8 tekens. Actieve sessies worden uitgelogd.`,
+            );
+            if (!pw) return;
+            if (pw.length < 8) {
+              alert("Wachtwoord moet minimaal 8 tekens lang zijn.");
+              return;
+            }
+            onAction(
+              user.id,
+              "set-password",
+              { newPassword: pw },
+              undefined,
+              `Wachtwoord gezet voor ${user.email}. Sessies geforceerd uitgelogd.`,
+            );
+          }}
+        />
+        <div className="my-1 h-px bg-muted" />
+        <MenuItem
+          icon={InfinityIcon}
+          label="Geef lifetime access"
+          onClick={() => {
+            const type =
+              window.prompt(
+                `Lifetime license voor ${user.email}\n\nType: "consumer" of "team" (default: consumer)`,
+                "consumer",
+              ) ?? "consumer";
+            const t = type === "team" ? "team" : "consumer";
+            onAction(
+              user.id,
+              "grant-lifetime",
+              { licenseType: t },
+              `Lifetime ${t}-license aan ${user.email} geven? (Geen einddatum, geen Mollie-koppeling)`,
+              `Lifetime license uitgegeven.`,
+            );
+          }}
+        />
+        <MenuItem
+          icon={Gift}
+          label="Geef X maanden gratis"
+          onClick={() => {
+            const monthsStr = window.prompt(
+              `Aantal maanden gratis voor ${user.email}:`,
+              "3",
+            );
+            if (!monthsStr) return;
+            const months = Number(monthsStr);
+            if (!Number.isFinite(months) || months < 1) {
+              alert("Geef een positief aantal maanden.");
+              return;
+            }
+            onAction(
+              user.id,
+              "grant-months",
+              { months },
+              undefined,
+              `${months} maanden gratis uitgegeven aan ${user.email}.`,
+            );
+          }}
+        />
+        <div className="my-1 h-px bg-muted" />
         {!user.emailVerified && (
           <MenuItem
             icon={UserCheck}

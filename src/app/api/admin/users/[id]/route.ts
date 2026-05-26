@@ -12,15 +12,22 @@ import { auth } from "@/lib/auth/server";
 import { requireStaffApi } from "@/lib/auth/session";
 import { sendPasswordResetEmail } from "@/lib/services/email";
 import { logEvent } from "@/lib/services/audit";
+import {
+  grantFreeMonthsLicense,
+  grantLifetimeLicense,
+} from "@/lib/services/adminGrant";
 
 type Action =
   | "password-reset"
+  | "set-password"
   | "ban"
   | "unban"
   | "verify-email"
   | "force-logout"
   | "set-role"
-  | "impersonate";
+  | "impersonate"
+  | "grant-lifetime"
+  | "grant-months";
 
 export async function POST(
   request: Request,
@@ -37,6 +44,10 @@ export async function POST(
     banReason?: string;
     banExpiresIn?: number;
     role?: string;
+    newPassword?: string;
+    months?: number;
+    licenseType?: "consumer" | "team";
+    seats?: number;
   };
   try {
     body = await request.json();
@@ -90,6 +101,92 @@ export async function POST(
           metadata: { kind: "password_reset_triggered", email: user.email },
         });
         return NextResponse.json({ success: true });
+      }
+
+      case "set-password": {
+        if (!body.newPassword || body.newPassword.length < 8) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Wachtwoord moet minimaal 8 tekens lang zijn.",
+            },
+            { status: 400 },
+          );
+        }
+        await auth.api.setUserPassword({
+          headers: requestHeaders,
+          body: { userId, newPassword: body.newPassword },
+        });
+        // Force-logout zodat actieve sessies van de user moeten her-inloggen.
+        await auth.api.revokeUserSessions({
+          headers: requestHeaders,
+          body: { userId },
+        });
+        await logEvent({
+          action: "admin.action",
+          entityType: "user",
+          entityId: userId,
+          actorId: session.user.id,
+          metadata: {
+            kind: "password_set_directly",
+            email: user.email,
+            sessionsRevoked: true,
+          },
+        });
+        return NextResponse.json({ success: true });
+      }
+
+      case "grant-lifetime": {
+        const grant = await grantLifetimeLicense({
+          userId,
+          type: body.licenseType ?? "consumer",
+          seats: body.seats,
+          grantedByUserId: session.user.id,
+        });
+        await logEvent({
+          action: "license.created",
+          entityType: "license",
+          entityId: grant.licenseId,
+          actorId: session.user.id,
+          metadata: {
+            kind: "admin_grant_lifetime",
+            targetUserId: userId,
+            targetEmail: user.email,
+            code: grant.code,
+          },
+        });
+        return NextResponse.json({ success: true, grant });
+      }
+
+      case "grant-months": {
+        if (!body.months || body.months < 1) {
+          return NextResponse.json(
+            { success: false, error: "months >= 1 verplicht" },
+            { status: 400 },
+          );
+        }
+        const grant = await grantFreeMonthsLicense({
+          userId,
+          months: body.months,
+          type: body.licenseType ?? "consumer",
+          seats: body.seats,
+          grantedByUserId: session.user.id,
+        });
+        await logEvent({
+          action: "license.created",
+          entityType: "license",
+          entityId: grant.licenseId,
+          actorId: session.user.id,
+          metadata: {
+            kind: "admin_grant_months",
+            months: body.months,
+            targetUserId: userId,
+            targetEmail: user.email,
+            code: grant.code,
+            expiresAt: grant.expiresAt?.toISOString(),
+          },
+        });
+        return NextResponse.json({ success: true, grant });
       }
 
       case "ban": {
