@@ -2,12 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Clock, Download, Mail } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import {
-  claimTrialForUser,
-  logEvent,
-  sendTrialStartedEmail,
-  trackEvent,
-} from "@/lib/services";
+import { claimAndNotifyTrial } from "@/lib/services";
 import { CopyButtonClient } from "@/app/checkout/success/copy-button-client";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +14,13 @@ export default async function TrialStartPage() {
     redirect("/auth/sign-up?next=/trial/start");
   }
 
-  // Claim trial server-side. Same logic as POST /api/license/trial but
-  // inlined so this page is one round-trip and can render result inline.
-  const result = await claimTrialForUser({ userId: session.user.id });
+  // Claim trial + mail + audit-log in één service-call. Zelfde flow als
+  // POST /api/license/trial — page rendert het resultaat inline.
+  const result = await claimAndNotifyTrial({
+    userId: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+  });
 
   if (!result.success) {
     return (
@@ -53,29 +52,6 @@ export default async function TrialStartPage() {
   }
 
   const { license, isExisting } = result;
-
-  // First-time claim → send the trial start email.
-  if (!isExisting && license.expiresAt) {
-    const mail = await sendTrialStartedEmail({
-      to: session.user.email,
-      name: session.user.name,
-      licenseCode: license.code,
-      expiresAt: license.expiresAt,
-      userId: session.user.id,
-      licenseId: license.id,
-    });
-    if (!mail.success) {
-      console.warn("[trial] start mail failed", mail.error, mail.code);
-    }
-    await logEvent({
-      action: "license.created",
-      entityType: "license",
-      entityId: license.id,
-      actorId: session.user.id,
-      metadata: { kind: "trial", expiresAt: license.expiresAt.toISOString() },
-    });
-    await trackEvent("trial_claimed", { isExisting: false });
-  }
 
   const daysLeft = license.expiresAt
     ? Math.max(

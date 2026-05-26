@@ -82,7 +82,11 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
-    sendOnSignUp: false, // Voor nu: trial-flow vraagt geen verificatie. Aan zetten als we dat strenger willen.
+    // sendOnSignUp: true zorgt dat elke nieuwe user direct een verify-mail
+    // krijgt. requireEmailVerification blijft FALSE — gebruiker kan
+    // gewoon de trial claimen / inloggen, de mail is een nudge zodat we
+    // verified e-mails opbouwen tegen throwaway-spam (CRM-segmentatie).
+    sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
       void sendEmailVerificationEmail({
         to: user.email,

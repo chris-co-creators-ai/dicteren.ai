@@ -55,17 +55,7 @@ import {
   getUserIdByMollieCustomerId,
 } from "@/lib/services/identity";
 
-function appBase(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000"
-  );
-}
-
-function webhookUrlFor(base: string): string | undefined {
-  if (/localhost|127\.0\.0\.1/.test(base)) return undefined;
-  return `${base}/api/mollie/webhook`;
-}
+import { appBase, webhookUrlFor } from "@/lib/url";
 
 async function extractPaymentId(request: Request): Promise<string | null> {
   const url = new URL(request.url);

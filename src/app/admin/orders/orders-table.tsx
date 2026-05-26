@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Download, ExternalLink, Search } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { cn } from "@/lib/utils";
+import { RefundButton } from "./refund-button";
 
 type OrderStatus = "pending" | "paid" | "failed" | "refunded" | "canceled";
 type TabKey = "all" | OrderStatus;
@@ -239,17 +240,25 @@ export function OrdersTable({ orders, kpis }: { orders: OrderRow[]; kpis: Kpi[] 
                           })}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {o.molliePaymentId ? (
-                            <a
-                              href={`https://my.mollie.com/dashboard/payments/${o.molliePaymentId}`}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                              aria-label="Bekijk in Mollie"
-                              className="inline-flex rounded p-1.5 text-[color:var(--text-soft)] hover:bg-[color:var(--bg-deep)]"
-                            >
-                              <ExternalLink className="size-3.5" strokeWidth={2} />
-                            </a>
-                          ) : null}
+                          <div className="inline-flex items-center gap-1">
+                            <RefundButton
+                              orderId={o.id}
+                              reference={o.reference}
+                              amount={o.amount}
+                              status={o.status}
+                            />
+                            {o.molliePaymentId ? (
+                              <a
+                                href={`https://my.mollie.com/dashboard/payments/${o.molliePaymentId}`}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                aria-label="Bekijk in Mollie"
+                                className="inline-flex rounded p-1.5 text-[color:var(--text-soft)] hover:bg-[color:var(--bg-deep)]"
+                              >
+                                <ExternalLink className="size-3.5" strokeWidth={2} />
+                              </a>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     );

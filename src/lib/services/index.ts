@@ -31,6 +31,7 @@ export {
   mapMollieStatus,
   createMollieCustomer,
   getMollieSubscription,
+  createMollieRefund,
   type MollieMetadataRecord,
 } from "./mollie";
 
@@ -60,6 +61,7 @@ export {
 
 export {
   claimTrialForUser,
+  claimAndNotifyTrial,
   trialAlreadyUsedOnDevice,
   type ClaimTrialResult,
   type TrialErrorCode,

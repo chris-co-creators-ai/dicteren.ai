@@ -38,6 +38,7 @@ import {
 } from "@/lib/services/affiliate";
 import { validateDiscountCode } from "@/lib/services/discount";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
+import { appBase, webhookUrlFor } from "@/lib/url";
 
 type BillingInput = {
   organizationName: string;
@@ -50,18 +51,6 @@ type BillingInput = {
   vatNumber?: string | null;
   purchaseOrderNumber?: string | null;
 };
-
-function webhookUrlFor(base: string): string | undefined {
-  if (/localhost|127\.0\.0\.1/.test(base)) return undefined;
-  return `${base}/api/mollie/webhook`;
-}
-
-function appBase(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000"
-  );
-}
 
 function clientError(status: number, error: string, code: string) {
   return NextResponse.json({ success: false, error, code }, { status });

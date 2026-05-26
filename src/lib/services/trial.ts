@@ -21,6 +21,8 @@ import {
   hashLicenseCode,
   isExpired,
 } from "./license";
+import { logEvent, trackEvent } from "./audit";
+import { sendTrialStartedEmail } from "./email";
 
 export type ClaimTrialResult =
   | {
@@ -131,6 +133,48 @@ export async function claimTrialForUser(args: {
   }
 
   return { success: true, license, isExisting: false };
+}
+
+/**
+ * Claim trial + verstuur welkomstmail + audit-log + analytics-event.
+ * Eén orchestration die zowel /trial/start page als POST /api/license/trial
+ * aanroepen — verschil is alleen response-shape (HTML vs JSON).
+ *
+ * Bij `isExisting=true` (race-loser of returning user) wordt geen email
+ * verstuurd en geen event gelogd — dat is al gedaan bij de eerste claim.
+ */
+export async function claimAndNotifyTrial(args: {
+  userId: string;
+  email: string;
+  name: string | null;
+}): Promise<ClaimTrialResult> {
+  const result = await claimTrialForUser({ userId: args.userId });
+  if (!result.success) return result;
+
+  const { license, isExisting } = result;
+  if (!isExisting && license.expiresAt) {
+    const mail = await sendTrialStartedEmail({
+      to: args.email,
+      name: args.name ?? undefined,
+      licenseCode: license.code,
+      expiresAt: license.expiresAt,
+      userId: args.userId,
+      licenseId: license.id,
+    });
+    if (!mail.success) {
+      console.warn("[trial] start mail failed", mail.error, mail.code);
+    }
+    await logEvent({
+      action: "license.created",
+      entityType: "license",
+      entityId: license.id,
+      actorId: args.userId,
+      metadata: { kind: "trial", expiresAt: license.expiresAt.toISOString() },
+    });
+    await trackEvent("trial_claimed", { isExisting: false });
+  }
+
+  return result;
 }
 
 /**

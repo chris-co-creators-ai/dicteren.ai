@@ -13,7 +13,7 @@ import {
   type Plan,
 } from "@/lib/db/schema";
 import { generateLicenseCode, hashLicenseCode } from "./license";
-import { createMollieCustomer } from "./mollie";
+import { createMollieCustomer, createMollieRefund } from "./mollie";
 import {
   buildMollieMetadata,
   segmentForLicenseType,
@@ -571,6 +571,70 @@ export async function getUserBilling(userId: string): Promise<{
 export async function getOrderById(orderId: string): Promise<Order | null> {
   const rows = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Admin-initiated refund.
+ *  - Validatie: order moet status="paid" zijn én een molliePaymentId hebben.
+ *  - Mollie POST /payments/{id}/refunds → refund start (status queued/pending).
+ *  - Onze license + order status wordt NIET hier omgezet; dat doet de webhook
+ *    bij definitieve refund-bevestiging (idempotent, single source of truth).
+ *  - Audit-log met actorId en bedrag voor traceability.
+ */
+export async function refundOrder(args: {
+  orderId: string;
+  actorUserId: string;
+  /** Cents. Weglaten = volledig. */
+  amountCents?: number;
+  description?: string;
+}): Promise<
+  | { success: true; refundId: string; status: string; amountCents: number }
+  | { success: false; error: string; code: string }
+> {
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, args.orderId))
+    .limit(1);
+  if (!order) {
+    return { success: false, error: "Order niet gevonden", code: "NOT_FOUND" };
+  }
+  if (!order.molliePaymentId) {
+    return {
+      success: false,
+      error: "Order heeft geen Mollie payment-id (admin-grant?)",
+      code: "NO_PAYMENT_ID",
+    };
+  }
+  if (order.status !== "paid") {
+    return {
+      success: false,
+      error: `Order is niet betaald (status=${order.status}); refund niet mogelijk.`,
+      code: "NOT_PAID",
+    };
+  }
+
+  const result = await createMollieRefund({
+    paymentId: order.molliePaymentId,
+    amountCents: args.amountCents,
+    currency: order.currency,
+    description: args.description,
+  });
+
+  if (!result.success) {
+    return {
+      success: false,
+      error: result.error,
+      code: result.code ?? "MOLLIE_REFUND_FAILED",
+    };
+  }
+
+  return {
+    success: true,
+    refundId: result.data.refundId,
+    status: result.data.status,
+    amountCents: result.data.amountCents,
+  };
 }
 
 /** Composite receipt-view voor /checkout/success. Ownership-check ingebakken:

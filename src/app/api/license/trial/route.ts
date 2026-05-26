@@ -10,13 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import {
-  claimTrialForUser,
-  enforceRateLimit,
-  sendTrialStartedEmail,
-  logEvent,
-  trackEvent,
-} from "@/lib/services";
+import { claimAndNotifyTrial, enforceRateLimit } from "@/lib/services";
 
 type TrialResponse =
   | {
@@ -46,7 +40,11 @@ export async function POST(request: Request): Promise<NextResponse<TrialResponse
   const blocked = await enforceRateLimit(request, "license:trial");
   if (blocked) return blocked as NextResponse<TrialResponse>;
 
-  const result = await claimTrialForUser({ userId: session.user.id });
+  const result = await claimAndNotifyTrial({
+    userId: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+  });
   if (!result.success) {
     return NextResponse.json<TrialResponse>(
       { success: false, error: result.error, code: result.code },
@@ -54,40 +52,14 @@ export async function POST(request: Request): Promise<NextResponse<TrialResponse
     );
   }
 
-  const { license, isExisting } = result;
-
-  // Only mail on FIRST claim. Reactivation returns the existing code without
-  // spamming the user with the welcome again.
-  if (!isExisting && license.expiresAt) {
-    const mail = await sendTrialStartedEmail({
-      to: session.user.email,
-      name: session.user.name,
-      licenseCode: license.code,
-      expiresAt: license.expiresAt,
-      userId: session.user.id,
-      licenseId: license.id,
-    });
-    if (!mail.success) {
-      console.warn("[trial] start mail failed", mail.error, mail.code);
-    }
-    await logEvent({
-      action: "license.created",
-      entityType: "license",
-      entityId: license.id,
-      actorId: session.user.id,
-      metadata: { kind: "trial", expiresAt: license.expiresAt.toISOString() },
-    });
-    await trackEvent("trial_claimed", { isExisting: false });
-  }
-
   return NextResponse.json<TrialResponse>({
     success: true,
     license: {
-      id: license.id,
-      code: license.code,
-      expiresAt: license.expiresAt!.toISOString(),
+      id: result.license.id,
+      code: result.license.code,
+      expiresAt: result.license.expiresAt!.toISOString(),
       type: "beta",
     },
-    isExisting,
+    isExisting: result.isExisting,
   });
 }

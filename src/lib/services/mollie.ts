@@ -484,6 +484,86 @@ export async function cancelMollieSubscription(args: {
   }
 }
 
+interface CreateRefundParams {
+  paymentId: string;
+  /** Cents. Weglaten = volledig (Mollie default). */
+  amountCents?: number;
+  currency?: string;
+  description?: string;
+}
+
+interface RefundResult {
+  refundId: string;
+  status: string;
+  amountCents: number;
+}
+
+/**
+ * POST /v2/payments/{paymentId}/refunds — initiate refund.
+ *
+ * - amountCents weglaten = volledige refund van wat nog niet eerder gerefund is.
+ * - Refunds hebben eigen webhook (zelfde URL, payment komt opnieuw); fetch
+ *   payment met ?embed=refunds voor refund-status details.
+ * - Voor SEPA: status loopt queued → pending → processing → refunded (1-2 dagen).
+ */
+export async function createMollieRefund(
+  params: CreateRefundParams,
+): Promise<ServiceResult<RefundResult>> {
+  const auth = authHeader();
+  if (!auth) {
+    return {
+      success: false,
+      error: "Mollie API key ontbreekt",
+      code: "MOLLIE_NOT_CONFIGURED",
+    };
+  }
+
+  const body: Record<string, unknown> = {};
+  if (typeof params.amountCents === "number") {
+    body.amount = {
+      currency: params.currency ?? "EUR",
+      value: (params.amountCents / 100).toFixed(2),
+    };
+  }
+  if (params.description) body.description = params.description;
+
+  try {
+    const res = await fetch(
+      `${MOLLIE_BASE}/payments/${params.paymentId}/refunds`,
+      {
+        method: "POST",
+        headers: { ...auth, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        error: detail.detail || `Mollie returned ${res.status}`,
+        code: res.status === 404 ? "MOLLIE_NOT_FOUND" : "MOLLIE_ERROR",
+      };
+    }
+
+    const data = await res.json();
+    return {
+      success: true,
+      data: {
+        refundId: data.id,
+        status: data.status ?? "queued",
+        amountCents: Math.round(parseFloat(data.amount?.value ?? "0") * 100),
+      },
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: (err as Error).message,
+      code: "MOLLIE_NETWORK_ERROR",
+    };
+  }
+}
+
 /** Convert a plan period into Mollie's `interval` string. Lifetime → not supported. */
 export function periodToMollieInterval(
   period: "monthly" | "quarterly" | "yearly" | "lifetime",

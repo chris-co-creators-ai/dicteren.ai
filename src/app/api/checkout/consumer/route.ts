@@ -12,19 +12,8 @@ import { createCustomerPayment, createPayment } from "@/lib/services/mollie";
 import { buildMollieMetadata } from "@/lib/services/mollie-metadata";
 import { logEvent, trackEvent } from "@/lib/services/audit";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
-
-function appBase(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "http://localhost:3000"
-  );
-}
-
-/** Mollie rejects unreachable webhook URLs. Skip on localhost. */
-function webhookUrlFor(base: string): string | undefined {
-  if (/localhost|127\.0\.0\.1/.test(base)) return undefined;
-  return `${base}/api/mollie/webhook`;
-}
+import { validateDiscountCode } from "@/lib/services/discount";
+import { appBase, webhookUrlFor } from "@/lib/url";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -40,7 +29,7 @@ export async function POST(request: Request) {
   });
   if (blocked) return blocked;
 
-  let body: { planSlug?: string };
+  let body: { planSlug?: string; discountCode?: string | null };
   try {
     body = await request.json();
   } catch {
@@ -64,6 +53,29 @@ export async function POST(request: Request) {
       { success: false, error: "Plan niet beschikbaar" },
       { status: 400 },
     );
+  }
+
+  // Discount-code validatie + payable-amount override. Codes met
+  // appliesTo="organization" worden geweigerd voor consumer-checkout.
+  const listAmountCents = plan.priceCents;
+  let payableAmountCents = listAmountCents;
+  let resolvedDiscountId: string | null = null;
+  if (body.discountCode) {
+    const validation = await validateDiscountCode({
+      code: body.discountCode,
+      basisAmountCents: listAmountCents,
+      planId: plan.id,
+      seats: 1,
+      audience: "consumer",
+    });
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error, code: `DISCOUNT_${validation.code}` },
+        { status: 400 },
+      );
+    }
+    payableAmountCents = validation.payableAmountCents;
+    resolvedDiscountId = validation.discount.id;
   }
 
   await trackEvent("checkout_started", {
@@ -99,6 +111,8 @@ export async function POST(request: Request) {
     userId: session.user.id,
     planSlug,
     quantity: 1,
+    discountCodeId: resolvedDiscountId,
+    amountCentsOverride: payableAmountCents,
   });
 
   const base = appBase();
