@@ -11,6 +11,7 @@ import {
 import { createCustomerPayment, createPayment } from "@/lib/services/mollie";
 import { buildMollieMetadata } from "@/lib/services/mollie-metadata";
 import { logEvent, trackEvent } from "@/lib/services/audit";
+import { enforceRateLimit } from "@/lib/services/rateLimit";
 
 function appBase(): string {
   return (
@@ -33,6 +34,11 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
+
+  const blocked = await enforceRateLimit(request, "checkout:consumer", {
+    key: `user:${session.user.id}`,
+  });
+  if (blocked) return blocked;
 
   let body: { planSlug?: string };
   try {
