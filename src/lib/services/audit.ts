@@ -40,7 +40,28 @@ export type AuditAction =
   | "affiliate.commission_recorded"
   | "affiliate.commission_status_changed"
   | "organization.billing_updated"
-  | "organization.member_invited";
+  | "organization.member_invited"
+  | "organization.member_joined"
+  | "organization.member_left"
+  | "organization.invitation_canceled"
+  | "organization.invitation_resent"
+  | "organization.invitation_expired"
+  | "organization.ownership_transferred"
+  | "organization.seat_assigned"
+  | "organization.seat_unassigned"
+  | "organization.seat_reassigned"
+  | "organization.seats_expanded"
+  | "organization.seats_reduced"
+  | "organization.tier_changed"
+  | "organization.subscription_replaced"
+  | "organization.subscription_failed"
+  | "organization.proration_charged"
+  | "organization.proration_refunded"
+  | "organization.seat_limit_warning"
+  | "license.activation_revoked"
+  | "license.seat_claimed"
+  | "license.seat_released"
+  | "license.code_revealed";
 
 type AuditParams = {
   action: AuditAction;

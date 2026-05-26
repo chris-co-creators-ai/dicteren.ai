@@ -4,6 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Minus, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  CUSTOM_QUOTE_FROM,
+  getTierForSeats,
+  nextTier as nextTierForSeats,
+} from "@/lib/services/pricingTiers";
 
 type Billing = "month" | "quarter" | "year";
 
@@ -28,35 +33,18 @@ const COMPARE: { feature: string; beta: boolean | string; persoonlijk: boolean |
   { feature: "Facturatie & inkoop-PO", beta: false, persoonlijk: false, zakelijk: true },
 ];
 
-const SEAT_BASE_PRICE = 120;
-const CUSTOM_QUOTE_FROM = 50;
-
-function getSeatDiscount(seats: number): number | "custom" {
-  if (seats >= CUSTOM_QUOTE_FROM) return "custom";
-  if (seats >= 25) return 0.2;
-  if (seats >= 10) return 0.15;
-  if (seats >= 5) return 0.1;
-  return 0;
-}
-
-/** Volgende staffel-mijlpaal — voor "Nog X seats voor 15%" nudge. */
-function nextTier(
-  seats: number,
-): { atSeats: number; pct: number } | null {
-  if (seats < 5) return { atSeats: 5, pct: 10 };
-  if (seats < 10) return { atSeats: 10, pct: 15 };
-  if (seats < 25) return { atSeats: 25, pct: 20 };
-  return null;
-}
+// Pricing tiers + custom-quote drempel komen uit services/pricingTiers.
 
 export default function PrijzenPage() {
   const [billing, setBilling] = useState<Billing>("year");
   const [seats, setSeats] = useState(8);
 
-  const discount = getSeatDiscount(seats);
-  const annualPerSeat =
-    discount === "custom" ? null : Math.round(SEAT_BASE_PRICE * (1 - discount));
+  const tier = getTierForSeats(seats);
+  const isCustom = tier.id === "tier_custom";
+  const discount = isCustom ? "custom" : tier.discountPct / 100;
+  const annualPerSeat = isCustom ? null : tier.pricePerSeatCents / 100;
   const total = annualPerSeat ? annualPerSeat * seats : null;
+  const upcoming = nextTierForSeats(seats);
   const currentPlan = PLANS[billing];
 
   return (
@@ -307,11 +295,11 @@ export default function PrijzenPage() {
                 className="mt-2 w-full"
                 style={{ accentColor: "var(--aqua)" }}
               />
-              {nextTier(seats) && discount !== "custom" && (
+              {upcoming && !isCustom && (
                 <p className="mt-1 text-[0.6875rem] text-[#9db1d6]">
-                  Nog {nextTier(seats)!.atSeats - seats}{" "}
-                  {nextTier(seats)!.atSeats - seats === 1 ? "seat" : "seats"} →{" "}
-                  {nextTier(seats)!.pct}% korting
+                  Nog {upcoming.min - seats}{" "}
+                  {upcoming.min - seats === 1 ? "seat" : "seats"} →{" "}
+                  {upcoming.discountPct}% korting
                 </p>
               )}
             </div>

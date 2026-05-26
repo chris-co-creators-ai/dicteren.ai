@@ -222,6 +222,42 @@ export {
 } from "./identity";
 
 export {
+  SEAT_BASE_PRICE_CENTS,
+  CUSTOM_QUOTE_FROM,
+  SEAT_TIERS,
+  CUSTOM_TIER,
+  getTierForSeats,
+  nextTier,
+  calculateTotalCents,
+  calculateProrationCents,
+  tierLabel,
+  type SeatTier,
+  type SeatTierId,
+} from "./pricingTiers";
+
+export {
+  getOrgSeatSnapshot,
+  getOrgSeatSnapshotBulk,
+  listOrgSeats,
+  listOrgDevices,
+  findUnassignedSeat,
+  assignSeatToMember,
+  reserveSeatForInvitation,
+  releaseSeatReservation,
+  revokeSeat,
+  reassignSeat,
+  revokeActivation,
+  revokeAllActivationsForMember,
+  createUnassignedSeats,
+  getOrgOwner,
+  getOrgInfo,
+  tierIdString,
+  type OrgSeatSnapshot,
+  type SeatRow,
+  type SeatDeviceRow,
+} from "./orgSeats";
+
+export {
   generateAffiliateCode,
   getAffiliateByCode,
   getAffiliateById,
