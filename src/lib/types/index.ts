@@ -1,14 +1,22 @@
 // Dicteren.ai — Shared Types
+//
+// Holds:
+//  - String-union mirrors of pgEnums (LicenseType, LicenseStatus, LicensePeriod).
+//    These mirror `db/schema.ts` enums and are the typed values that cross
+//    the API boundary (web ↔ Tauri).
+//  - API request/response contracts (ActivationRequest/Response).
+//  - ServiceResult discriminated union used by services that wrap external
+//    SDKs (Mollie, Resend) to surface success/error without throwing.
+//
+// Entity row types (License, Order, Plan, ...) komen uit Drizzle:
+//   import type { License } from "@/lib/db/schema";
+// Dat is de canonical source — niet hier handmatig gespiegeld.
 
 // ============================================================
-// License
+// License — value types (string-unions mirroring pgEnums)
 // ============================================================
 
-// License-type matches the `licenses.type` Drizzle enum (`beta | consumer | team`).
-// Note: a license is "team" when it's bought BY an organization. The buyer's
-// customerType is "organization" — these are two related but distinct concepts.
 export type LicenseType = "beta" | "consumer" | "team" | "partner";
-// Mirrors the `license_status` Drizzle pgEnum in db/schema.ts. Keep in sync.
 export type LicenseStatus =
   | "trial"
   | "active"
@@ -19,39 +27,9 @@ export type LicenseStatus =
   | "revoked";
 export type LicensePeriod = "monthly" | "quarterly" | "yearly" | "lifetime";
 
-export interface License {
-  id: string;
-  licenseCode: string;
-  licenseCodeHash: string;
-  type: LicenseType;
-  status: LicenseStatus;
-  period: LicensePeriod | null;
-  email: string | null;
-  organizationId: string | null;
-  planId: string | null;
-  maxActivations: number;
-  maxUsers: number;
-  paymentRequired: boolean;
-  expiresAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 // ============================================================
-// License Activation
+// API contract — POST /api/license/activate
 // ============================================================
-
-export interface LicenseActivation {
-  id: string;
-  licenseId: string;
-  deviceFingerprint: string;
-  platform: string;
-  appVersion: string;
-  email: string | null;
-  activatedAt: Date;
-  lastSeenAt: Date;
-  deactivatedAt: Date | null;
-}
 
 export interface ActivationRequest {
   licenseCode: string;
@@ -74,124 +52,6 @@ export interface ActivationResponse {
     deviceFingerprint: string;
     activatedAt: string;
   };
-}
-
-// ============================================================
-// Orders & Payments
-// ============================================================
-
-export type OrderStatus = "pending" | "paid" | "failed" | "canceled" | "refunded";
-
-export interface Order {
-  id: string;
-  userId: string | null;
-  organizationId: string | null;
-  planId: string;
-  amount: number;
-  currency: string;
-  status: OrderStatus;
-  molliePaymentId: string | null;
-  discountCodeId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Payment {
-  id: string;
-  orderId: string;
-  molliePaymentId: string;
-  amount: number;
-  currency: string;
-  status: string;
-  method: string | null;
-  paidAt: Date | null;
-  createdAt: Date;
-}
-
-// ============================================================
-// Plans
-// ============================================================
-
-export interface Plan {
-  id: string;
-  name: string;
-  slug: string;
-  type: "consumer" | "organization";
-  period: LicensePeriod;
-  priceEur: number;
-  maxActivations: number;
-  maxUsers: number;
-  isActive: boolean;
-}
-
-// ============================================================
-// Organizations
-// ============================================================
-
-export interface Organization {
-  id: string;
-  name: string;
-  slug: string;
-  seatCount: number;
-  billingEmail: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface OrganizationMember {
-  id: string;
-  organizationId: string;
-  userId: string;
-  role: "owner" | "admin" | "member";
-  joinedAt: Date;
-}
-
-// ============================================================
-// Users
-// ============================================================
-
-export interface User {
-  id: string;
-  email: string;
-  name: string | null;
-  role: "user" | "admin";
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// ============================================================
-// Discount Codes
-// ============================================================
-
-export type DiscountType = "percentage" | "fixed" | "free_months";
-
-export interface DiscountCode {
-  id: string;
-  code: string;
-  type: DiscountType;
-  value: number;
-  appliesTo: "consumer" | "organization" | "all";
-  maxRedemptions: number | null;
-  redemptionCount: number;
-  validFrom: Date;
-  validUntil: Date | null;
-  minimumSeats: number | null;
-  affiliateId: string | null;
-  status: "active" | "paused" | "expired";
-}
-
-// ============================================================
-// Events & Audit
-// ============================================================
-
-export interface AuditEvent {
-  id: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  actorId: string | null;
-  metadata: Record<string, unknown>;
-  createdAt: Date;
 }
 
 // ============================================================
