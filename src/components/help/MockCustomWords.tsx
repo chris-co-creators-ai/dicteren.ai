@@ -1,7 +1,7 @@
 import { Plus, X } from "lucide-react";
 import { TauriWindow } from "./TauriWindow";
 
-const WORDS = ["Bleeker", "Kranenburg", "Keyholders", "Dicteren.ai", "Cialdini"];
+const WORDS = ["factuur", "offerte", "Achterhoek", "spreekuur", "btw-aangifte"];
 
 export function MockCustomWords() {
   return (
