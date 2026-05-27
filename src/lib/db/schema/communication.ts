@@ -48,6 +48,8 @@ export const emailCategory = pgEnum("email_category", [
   "affiliate_first_commission",
   "affiliate_payout_scheduled",
   "affiliate_payout_paid",
+  "b2b_payment_link",
+  "b2b_welcome_with_codes",
   "other",
 ]);
 

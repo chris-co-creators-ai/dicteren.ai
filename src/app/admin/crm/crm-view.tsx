@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { CrmTabs } from "./crm-tabs";
 import { cn } from "@/lib/utils";
 import {
   COLUMN_LABELS,
@@ -461,6 +462,7 @@ export function CrmView({
       <AdminTopbar />
 
       <div className="flex flex-col gap-5 px-5 py-7 lg:px-7">
+        <CrmTabs />
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-[1.625rem]">
             CRM

@@ -43,6 +43,13 @@ import {
   sendRefundEmail,
   sendRenewalEmail,
 } from "@/lib/services/email";
+import { sendB2BWelcomeWithCodesEmail } from "@/lib/services/orgEmail";
+import {
+  findCrmOrgByPaymentLinkOrderId,
+  logCrmEvent,
+  upsertCrmOrgFromAuthOrganization,
+} from "@/lib/services/crmDeals";
+import { crmOrganizations } from "@/lib/db/schema/crmDeals";
 import {
   attributeUserToAffiliate,
   getAffiliateById,
@@ -407,8 +414,104 @@ export async function POST(request: Request) {
         amountCents: payment.data.amount,
       });
 
-      if (metadata?.email) {
-        const userIdFromMeta = (metadata as { userId?: string } | null)?.userId;
+      // ───── B2B detectie + welkomstmail ─────
+      const isTeam = fulfilled.plan.customerType === "organization";
+      const crmOrgIdFromMeta = (metadata as { crmOrgId?: string } | null)
+        ?.crmOrgId;
+      const userIdFromMeta = (metadata as { userId?: string } | null)?.userId;
+
+      if (isTeam && fulfilled.organizationId && metadata?.email) {
+        // Route 2: self-service B2B (organization is in checkout aangemaakt).
+        // Owner krijgt ALLE codes in één mail. Plus crm_organizations upsert.
+        const welcomeResult = await sendB2BWelcomeWithCodesEmail({
+          to: metadata.email,
+          ownerName: metadata.name,
+          organizationName:
+            (metadata as { organizationName?: string } | null)
+              ?.organizationName ?? "je organisatie",
+          licenseCodes: fulfilled.licenseCodes,
+          ownerCode: fulfilled.licenseCode,
+          expiresAt: fulfilled.expiresAt ?? null,
+          organizationId: fulfilled.organizationId,
+          userId: userIdFromMeta,
+        });
+        if (!welcomeResult.success) {
+          console.warn(
+            "[webhook] b2b welcome email failed",
+            welcomeResult.error,
+            welcomeResult.code,
+          );
+        }
+        // Upsert crm_organizations zodat self-service deals óók in /admin/crm
+        // verschijnen. Source = consumer_upgrade als de klant via /account
+        // is geüpgraded, anders self_service.
+        const isUpgrade =
+          (metadata as { upgradeFromConsumer?: number | string } | null)
+            ?.upgradeFromConsumer === 1 ||
+          (metadata as { upgradeFromConsumer?: number | string } | null)
+            ?.upgradeFromConsumer === "1";
+        await upsertCrmOrgFromAuthOrganization({
+          authOrganizationId: fulfilled.organizationId,
+          name:
+            (metadata as { organizationName?: string } | null)
+              ?.organizationName ?? "Onbekend bedrijf",
+          source: isUpgrade ? "consumer_upgrade" : "self_service",
+          primaryContactUserId: userIdFromMeta,
+          primaryContactName: metadata.name,
+          primaryContactEmail: metadata.email,
+          proposedSeats: fulfilled.seats,
+          proposedAmountCents: payment.data.amount,
+          proposedPlanSlug: fulfilled.plan.slug,
+          paidAt: new Date(),
+        });
+      } else if (crmOrgIdFromMeta) {
+        // Route 3: AM-initiated. Geen auth.organization aangemaakt (komt later
+        // handmatig via admin). Mark crm_organizations als 'won' + paidAt.
+        await db
+          .update(crmOrganizations)
+          .set({
+            status: "won",
+            paidAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(crmOrganizations.id, crmOrgIdFromMeta));
+        await logCrmEvent({
+          crmOrganizationId: crmOrgIdFromMeta,
+          kind: "payment_received",
+          payload: {
+            orderId: fulfilled.orderId,
+            paymentId: payment.data.paymentId,
+            amountCents: payment.data.amount,
+            note:
+              "Betaling ontvangen. Maak handmatig auth.organization aan en koppel licenties.",
+          },
+        });
+        // Ook welkomstmail naar de contact-email uit de metadata.
+        const contactEmail = (metadata as { crmContactEmail?: string } | null)
+          ?.crmContactEmail;
+        const contactName = (metadata as { crmContactName?: string } | null)
+          ?.crmContactName;
+        if (contactEmail) {
+          const welcomeResult = await sendB2BWelcomeWithCodesEmail({
+            to: contactEmail,
+            ownerName: contactName,
+            organizationName:
+              (metadata as { organizationName?: string } | null)
+                ?.organizationName ?? "je organisatie",
+            licenseCodes: fulfilled.licenseCodes,
+            ownerCode: fulfilled.licenseCode,
+            expiresAt: fulfilled.expiresAt ?? null,
+            organizationId: crmOrgIdFromMeta,
+          });
+          if (!welcomeResult.success) {
+            console.warn(
+              "[webhook] am b2b welcome email failed",
+              welcomeResult.error,
+            );
+          }
+        }
+      } else if (metadata?.email) {
+        // Consumer-order: 1 mail met 1 code (bestaande gedrag).
         const emailResult = await sendLicenseEmail({
           to: metadata.email,
           name: metadata.name,

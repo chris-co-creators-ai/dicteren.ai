@@ -188,6 +188,37 @@ export default async function AccountHomePage() {
           </div>
         </Link>
       </div>
+
+      {/* Upgrade naar zakelijk CTA — alleen voor consumer-klanten (geen org) */}
+      {paid.length > 0 && (
+        <div
+          className="mt-8 rounded-2xl border p-6"
+          style={{
+            background: "var(--aqua-50)",
+            borderColor: "var(--aqua-200)",
+          }}
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-[color:var(--navy)]">
+                Werk je in een team?
+              </h2>
+              <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+                Upgrade naar een zakelijk abonnement met seats voor je
+                collega&apos;s. Je krijgt staffelkorting vanaf 5 seats en kunt
+                vanaf één dashboard alles beheren.
+              </p>
+            </div>
+            <Link
+              href="/zakelijk/start?plan=org-yearly&from=consumer_upgrade"
+              className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-bold text-white"
+              style={{ background: "var(--orange-500)" }}
+            >
+              Upgrade naar zakelijk
+            </Link>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

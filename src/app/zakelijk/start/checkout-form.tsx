@@ -11,6 +11,7 @@ type Props = {
   affiliateCode: string | null;
   initialDiscountCode?: string | null;
   defaultBillingEmail: string;
+  upgradeFromConsumer?: boolean;
 };
 
 function eur(cents: number): string {
@@ -29,6 +30,7 @@ export function CheckoutForm({
   affiliateCode,
   initialDiscountCode,
   defaultBillingEmail,
+  upgradeFromConsumer,
 }: Props) {
   const [seats, setSeats] = useState(initialSeats);
   const [organizationName, setOrganizationName] = useState("");
@@ -62,6 +64,7 @@ export function CheckoutForm({
           seats,
           affiliateCode,
           discountCode: discountCode || null,
+          upgradeFromConsumer: upgradeFromConsumer ?? false,
           billing: {
             organizationName,
             billingEmail,

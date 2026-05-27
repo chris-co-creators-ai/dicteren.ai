@@ -61,7 +61,19 @@ export type AuditAction =
   | "license.activation_revoked"
   | "license.seat_claimed"
   | "license.seat_released"
-  | "license.code_revealed";
+  | "license.code_revealed"
+  | "crm_org.created"
+  | "crm_org.updated"
+  | "crm_org.deleted"
+  | "crm_org.status_changed"
+  | "crm_org.contact_added"
+  | "crm_org.contact_removed"
+  | "crm_org.payment_link_sent"
+  | "crm_org.payment_link_resent"
+  | "crm_org.marked_paid_offline"
+  | "crm_org.converted_to_auth_org"
+  | "crm_org.task_added"
+  | "crm_org.task_completed";
 
 type AuditParams = {
   action: AuditAction;

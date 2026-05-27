@@ -19,6 +19,7 @@ export * from "./licensing";
 export * from "./billing";
 export * from "./identity-extensions";
 export * from "./crm";
+export * from "./crmDeals";
 export * from "./partner";
 export * from "./affiliate";
 export * from "./communication";

@@ -806,3 +806,217 @@ function orgSubscriptionCanceledText(params: {
     "Dicteren.ai",
   ].join("\n");
 }
+
+// ───── 11. B2B payment-link (AM-initiated) ────────────────────────
+
+export async function sendB2BPaymentLinkEmail(params: {
+  to: string;
+  contactName?: string;
+  organizationName: string;
+  seats: number;
+  amountCents: number;
+  planLabel: string;
+  checkoutUrl: string;
+  accountManagerName?: string;
+  isResend?: boolean;
+}): Promise<ServiceResult<SendResult>> {
+  const subject = params.isResend
+    ? `Herinnering: betaal-link voor ${params.organizationName}`
+    : `Je betaal-link voor Dicteren.ai (${params.organizationName})`;
+  return sendEmail({
+    to: params.to,
+    subject,
+    html: b2bPaymentLinkHtml(params),
+    text: b2bPaymentLinkText(params),
+    tags: [{ name: "category", value: "b2b_payment_link" }],
+    log: { category: "b2b_payment_link" },
+  });
+}
+
+function b2bPaymentLinkHtml(params: {
+  contactName?: string;
+  organizationName: string;
+  seats: number;
+  amountCents: number;
+  planLabel: string;
+  checkoutUrl: string;
+  accountManagerName?: string;
+  isResend?: boolean;
+}): string {
+  const amount = new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+  }).format(params.amountCents / 100);
+  const intro = params.isResend
+    ? `<p style="margin:0 0 14px 0;">Hoi${params.contactName ? " " + params.contactName : ""}, voor de zekerheid hier nog een keer je betaal-link voor <strong>${params.organizationName}</strong>.</p>`
+    : `<p style="margin:0 0 14px 0;">Hoi${params.contactName ? " " + params.contactName : ""}, fijn dat je met Dicteren.ai aan de slag wilt.</p>
+       <p style="margin:0 0 14px 0;">Voor <strong>${params.organizationName}</strong> staat je betaling klaar. Eén klik en je hebt direct toegang.</p>`;
+  return shellHtml(
+    "Je betaal-link staat klaar",
+    `${intro}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0;background:${BRAND.aquaWash};border-radius:12px;width:100%;">
+      <tr>
+        <td style="padding:18px 20px;">
+          <div style="font-size:13px;color:${BRAND.textMuted};margin-bottom:6px;">Wat je krijgt</div>
+          <div style="font-size:18px;font-weight:700;color:${BRAND.navy};margin-bottom:4px;">${params.planLabel}</div>
+          <div style="font-size:15px;color:${BRAND.text};">${params.seats} ${params.seats === 1 ? "licentie" : "licenties"} voor je team</div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid ${BRAND.aquaSoft};font-size:13px;color:${BRAND.textMuted};">Totaal te betalen</div>
+          <div style="font-size:22px;font-weight:700;color:${BRAND.navy};">${amount}</div>
+        </td>
+      </tr>
+    </table>
+    ${cta(params.checkoutUrl, "Betalen via Mollie")}
+    <p style="margin:18px 0 14px 0;">Na betaling krijg je direct alle ${params.seats} licentiecodes in je inbox.${params.accountManagerName ? ` Vragen? Mail ${params.accountManagerName} of info@dicteren.ai.` : ""}</p>
+    <p style="margin:0;font-size:13px;color:${BRAND.textMuted};">Liever per factuur betalen? Antwoord op deze mail.</p>`,
+  );
+}
+
+function b2bPaymentLinkText(params: {
+  contactName?: string;
+  organizationName: string;
+  seats: number;
+  amountCents: number;
+  planLabel: string;
+  checkoutUrl: string;
+  isResend?: boolean;
+}): string {
+  const amount = new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+  }).format(params.amountCents / 100);
+  return [
+    params.isResend
+      ? `Hoi${params.contactName ? " " + params.contactName : ""}, hier nog een keer de betaal-link voor ${params.organizationName}.`
+      : `Hoi${params.contactName ? " " + params.contactName : ""}, fijn dat je met Dicteren.ai aan de slag wilt.`,
+    "",
+    `Voor ${params.organizationName} staat je betaling klaar:`,
+    "",
+    `${params.planLabel}`,
+    `${params.seats} ${params.seats === 1 ? "licentie" : "licenties"} voor je team`,
+    `Totaal: ${amount}`,
+    "",
+    "Betalen via Mollie:",
+    params.checkoutUrl,
+    "",
+    `Na betaling krijg je direct alle ${params.seats} licentiecodes in je inbox.`,
+    "Liever per factuur betalen? Antwoord op deze mail.",
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}
+
+// ───── 12. B2B welkomstmail met ALLE seat-codes (Route 2 + AM) ────
+
+export async function sendB2BWelcomeWithCodesEmail(params: {
+  to: string;
+  ownerName?: string;
+  organizationName: string;
+  licenseCodes: string[];
+  ownerCode: string;
+  expiresAt: Date | null;
+  organizationId: string;
+  userId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: `Welkom — alle ${params.licenseCodes.length} licentiecodes voor ${params.organizationName}`,
+    html: b2bWelcomeWithCodesHtml(params),
+    text: b2bWelcomeWithCodesText(params),
+    tags: [{ name: "category", value: "b2b_welcome_with_codes" }],
+    log: {
+      category: "b2b_welcome_with_codes",
+      userId: params.userId ?? null,
+    },
+  });
+}
+
+function b2bWelcomeWithCodesHtml(params: {
+  ownerName?: string;
+  organizationName: string;
+  licenseCodes: string[];
+  ownerCode: string;
+  expiresAt: Date | null;
+  organizationId: string;
+}): string {
+  const otherCodes = params.licenseCodes.filter((c) => c !== params.ownerCode);
+  const codesBlock = otherCodes
+    .map(
+      (code, i) =>
+        `<tr><td style="padding:6px 0;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:14px;color:${BRAND.navy};">${i + 1}. ${code}</td></tr>`,
+    )
+    .join("");
+  const expires = params.expiresAt
+    ? params.expiresAt.toLocaleDateString("nl-NL", { day: "2-digit", month: "long", year: "numeric" })
+    : "—";
+  return shellHtml(
+    `Welkom bij Dicteren.ai`,
+    `<p style="margin:0 0 14px 0;">${greet(params.ownerName)}</p>
+    <p style="margin:0 0 14px 0;">Top dat ${params.organizationName} met Dicteren.ai aan de slag gaat. Hieronder al jullie licentiecodes.</p>
+
+    <p style="margin:22px 0 8px 0;font-weight:700;color:${BRAND.navy};">Jouw eigen code</p>
+    ${codeBlock(params.ownerCode)}
+
+    ${
+      otherCodes.length > 0
+        ? `<p style="margin:22px 0 8px 0;font-weight:700;color:${BRAND.navy};">${otherCodes.length} codes voor je collega's</p>
+           <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.codeBg};border-radius:10px;width:100%;margin:8px 0 14px 0;">
+             <tr><td style="padding:8px 18px;">${codesBlock}</td></tr>
+           </table>
+           <p style="margin:0 0 14px 0;font-size:14px;color:${BRAND.textMuted};">Twee opties: stuur de codes door, óf nodig je teamleden uit via je dashboard zodat ze automatisch een code krijgen.</p>`
+        : ""
+    }
+
+    ${cta(`${emailBase()}/account/organization/${params.organizationId}`, "Open je dashboard")}
+
+    <p style="margin:18px 0 10px 0;font-weight:700;color:${BRAND.navy};">Goed om te weten</p>
+    <ul style="margin:0 0 0 18px;padding:0;color:${BRAND.text};">
+      <li style="margin-bottom:6px;">Elke code werkt op maximaal 2 apparaten.</li>
+      <li style="margin-bottom:6px;">Codes lopen tot ${expires}.</li>
+      <li style="margin-bottom:6px;">Download de app via ${brandLink(`${emailBase()}/download`, "dicteren.ai/download")}.</li>
+    </ul>`,
+  );
+}
+
+function b2bWelcomeWithCodesText(params: {
+  ownerName?: string;
+  organizationName: string;
+  licenseCodes: string[];
+  ownerCode: string;
+  expiresAt: Date | null;
+  organizationId: string;
+}): string {
+  const otherCodes = params.licenseCodes.filter((c) => c !== params.ownerCode);
+  const expires = params.expiresAt
+    ? params.expiresAt.toLocaleDateString("nl-NL", { day: "2-digit", month: "long", year: "numeric" })
+    : "—";
+  return [
+    greet(params.ownerName),
+    "",
+    `Top dat ${params.organizationName} met Dicteren.ai aan de slag gaat.`,
+    "",
+    "Jouw eigen code:",
+    params.ownerCode,
+    "",
+    ...(otherCodes.length > 0
+      ? [
+          `Codes voor je collega's (${otherCodes.length}):`,
+          ...otherCodes.map((c, i) => `${i + 1}. ${c}`),
+          "",
+          "Twee opties: stuur de codes door, of nodig je teamleden uit via je dashboard.",
+          "",
+        ]
+      : []),
+    "Open je dashboard:",
+    `${emailBase()}/account/organization/${params.organizationId}`,
+    "",
+    "Download de app:",
+    `${emailBase()}/download`,
+    "",
+    `Elke code werkt op maximaal 2 apparaten.`,
+    `Codes lopen tot ${expires}.`,
+    "",
+    "Dicteren.ai",
+  ].join("\n");
+}

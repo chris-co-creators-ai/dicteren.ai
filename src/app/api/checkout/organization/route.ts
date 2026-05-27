@@ -79,6 +79,7 @@ export async function POST(request: Request) {
     affiliateCode?: string | null;
     affiliateSlug?: string | null;
     discountCode?: string | null;
+    upgradeFromConsumer?: boolean;
   };
   try {
     body = await request.json();
@@ -372,6 +373,8 @@ export async function POST(request: Request) {
   const metadata: Record<string, string | number | null> = {
     ...baseMetadata,
     seats: seatCount,
+    upgradeFromConsumer: body.upgradeFromConsumer ? 1 : 0,
+    organizationName: billing?.organizationName ?? null,
   };
 
   const mollie =

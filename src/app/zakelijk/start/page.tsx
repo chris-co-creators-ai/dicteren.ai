@@ -11,6 +11,7 @@ type SearchParams = Promise<{
   seats?: string;
   ref?: string;
   code?: string;
+  from?: string;
 }>;
 
 export default async function ZakelijkStartPage({
@@ -23,7 +24,9 @@ export default async function ZakelijkStartPage({
     seats: seatsParam,
     ref,
     code,
+    from,
   } = await searchParams;
+  const upgradeFromConsumer = from === "consumer_upgrade";
   const session = await getSession();
 
   if (!session?.user) {
@@ -88,6 +91,7 @@ export default async function ZakelijkStartPage({
           affiliateCode={ref ?? null}
           initialDiscountCode={code ?? null}
           defaultBillingEmail={session.user.email}
+          upgradeFromConsumer={upgradeFromConsumer}
         />
       </div>
     </main>
