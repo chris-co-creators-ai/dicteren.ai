@@ -28,6 +28,20 @@ type ResendEvent = {
 
 const TERMINAL_NEGATIVE = new Set(["bounced", "complained", "failed"]);
 
+// Status-rang. Hogere rang overschrijft lagere — voorkomt dat een
+// laat-aankomende `email.sent` event een eerder gearriveerde `delivered`
+// status terugrolt. Negatieve statussen zijn terminal en raken niet
+// overschreven door positieve.
+const STATUS_RANK: Record<string, number> = {
+  queued: 1,
+  sent: 2,
+  delivered: 3,
+  opened: 4,
+  clicked: 5,
+  // Negatieve statussen krijgen geen rang hier; ze worden via
+  // TERMINAL_NEGATIVE-check afgevangen.
+};
+
 function mapStatus(eventType: string): {
   status: string | null;
   setDelivered: boolean;
@@ -137,13 +151,31 @@ export async function POST(request: Request) {
     });
   }
 
-  // Don't overwrite a terminal negative status with a later positive one.
+  // Status-update-regels:
+  //   1. Terminal-negative (bounced/complained/failed) wordt nooit
+  //      overschreven door een positieve status.
+  //   2. Een laat-aankomende lagere positieve status (bv `sent` na
+  //      `delivered`) overschrijft de hogere niet. Resend kan events
+  //      out-of-order leveren.
+  //   3. Negatieve statussen overschrijven elk positief — bounce na
+  //      delivered wint.
   const updates: Partial<typeof emailLogs.$inferInsert> = { lastEventAt: now };
-  if (
-    mapped.status &&
-    !(TERMINAL_NEGATIVE.has(existing.status) && !TERMINAL_NEGATIVE.has(mapped.status))
-  ) {
-    updates.status = mapped.status as typeof existing.status;
+  if (mapped.status) {
+    const newIsNegative = TERMINAL_NEGATIVE.has(mapped.status);
+    const oldIsNegative = TERMINAL_NEGATIVE.has(existing.status);
+    if (oldIsNegative && !newIsNegative) {
+      // Skip: positieve mag terminal-negative niet overschrijven.
+    } else if (!newIsNegative && !oldIsNegative) {
+      // Beide positief: hoogste rang wint.
+      const newRank = STATUS_RANK[mapped.status] ?? 0;
+      const oldRank = STATUS_RANK[existing.status] ?? 0;
+      if (newRank >= oldRank) {
+        updates.status = mapped.status as typeof existing.status;
+      }
+    } else {
+      // Nieuwe is negative, oude is positief (of beide negative) → overwrite.
+      updates.status = mapped.status as typeof existing.status;
+    }
   }
   if (mapped.setDelivered && !existing.deliveredAt) {
     updates.deliveredAt = now;
