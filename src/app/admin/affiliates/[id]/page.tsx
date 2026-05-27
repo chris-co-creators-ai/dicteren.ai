@@ -52,13 +52,32 @@ export default async function AffiliateDetailPage({
           affiliate={{
             id: affiliate.id,
             code: affiliate.code,
+            slug: affiliate.slug,
             name: affiliate.name,
+            displayName: affiliate.displayName,
+            welcomeMessage: affiliate.welcomeMessage,
             contactEmail: affiliate.contactEmail,
             contactPhone: affiliate.contactPhone,
             status: affiliate.status,
             commissionType: affiliate.commissionType,
             commissionPct: affiliate.commissionPct,
             commissionFixedCents: affiliate.commissionFixedCents,
+            consumerCommissionType: affiliate.consumerCommissionType,
+            consumerCommissionPct: affiliate.consumerCommissionPct,
+            consumerCommissionFixedCents: affiliate.consumerCommissionFixedCents,
+            consumerCommissionDurationMonths:
+              affiliate.consumerCommissionDurationMonths,
+            consumerRecurringCommissionPct:
+              affiliate.consumerRecurringCommissionPct,
+            businessCommissionType: affiliate.businessCommissionType,
+            businessCommissionPct: affiliate.businessCommissionPct,
+            businessCommissionFixedCents:
+              affiliate.businessCommissionFixedCents,
+            businessCommissionDurationMonths:
+              affiliate.businessCommissionDurationMonths,
+            businessRecurringCommissionPct:
+              affiliate.businessRecurringCommissionPct,
+            minimumPayoutCents: affiliate.minimumPayoutCents,
             payoutMethod: affiliate.payoutMethod,
             internalNotes: affiliate.internalNotes,
             totalEarnedCents: affiliate.totalEarnedCents,

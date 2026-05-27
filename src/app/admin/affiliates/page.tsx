@@ -33,11 +33,19 @@ export default async function AdminAffiliatesPage() {
               Commerciële resellers en hun commissies — beheer + uitbetalingen
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Users className="size-5" strokeWidth={2.2} />
-            <span className="text-sm font-semibold">
-              {affiliates.length} affiliates ({activeCount} actief)
-            </span>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/affiliates/payouts"
+              className="rounded-lg border px-3 py-1.5 text-xs font-semibold hover:bg-muted"
+            >
+              Bekijk payouts →
+            </Link>
+            <div className="flex items-center gap-2">
+              <Users className="size-5" strokeWidth={2.2} />
+              <span className="text-sm font-semibold">
+                {affiliates.length} affiliates ({activeCount} actief)
+              </span>
+            </div>
           </div>
         </div>
 
