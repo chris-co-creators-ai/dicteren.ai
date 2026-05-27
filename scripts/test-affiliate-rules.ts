@@ -6,7 +6,6 @@
 import {
   LOCKUP_DAYS,
   PAYOUT_DAY_OF_MONTH,
-  calculateProrationCents,
   calculateRuleCommissionCents,
   calculateUnlocksAt,
   customerTypeFromPlanType,
@@ -34,8 +33,6 @@ function assert(label: string, actual: unknown, expected: unknown) {
     );
   }
 }
-
-void calculateProrationCents; // unused
 
 console.log("\n=== LOCKUP_DAYS + PAYOUT_DAY ===");
 assert("LOCKUP_DAYS = 30", LOCKUP_DAYS, 30);

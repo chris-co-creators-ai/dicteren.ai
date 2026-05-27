@@ -14,9 +14,9 @@ import {
   affiliatePayouts,
   affiliateReferrals,
   affiliates,
-  authUser,
   orders,
 } from "../src/lib/db/schema";
+import { authUser } from "../src/lib/db/auth-schema";
 import { dbAuth } from "../src/lib/db";
 import {
   createAffiliate,
