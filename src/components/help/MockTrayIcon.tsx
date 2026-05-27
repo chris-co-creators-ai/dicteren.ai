@@ -23,7 +23,7 @@ export function MockTrayMac() {
         <span className="text-xs text-white/70">10:42</span>
       </div>
       <p className="mt-3 text-center text-xs text-[color:var(--text-muted)]">
-        Mac — rechtsboven in de menubalk
+        Op Mac, rechtsboven in de menubalk
       </p>
     </div>
   );
@@ -55,7 +55,7 @@ export function MockTrayWindows() {
         </div>
       </div>
       <p className="mt-3 text-center text-xs text-[color:var(--text-muted)]">
-        Windows — rechtsonder in de taakbalk
+        Op Windows, rechtsonder in de taakbalk
       </p>
     </div>
   );

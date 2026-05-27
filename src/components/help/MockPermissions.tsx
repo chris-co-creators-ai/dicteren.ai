@@ -58,7 +58,7 @@ function Row({
 
 export function MockPermissions() {
   return (
-    <TauriWindow title="Dicteren.ai — Toestemmingen" platform="mac" className="max-w-lg">
+    <TauriWindow title="Toestemmingen" platform="mac" className="max-w-lg">
       <div className="px-6 py-6">
         <h3 className="text-base font-bold text-[color:var(--navy)]">
           Twee dingen toestaan

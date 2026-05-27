@@ -14,7 +14,7 @@ import { MockCustomWords } from "@/components/help/MockCustomWords";
 import { QA, Section } from "@/components/help/QA";
 
 export const metadata = {
-  title: "Help — uitleg in gewone taal",
+  title: "Help, uitleg in gewone taal",
   description:
     "Alles over Dicteren.ai uitgelegd in eenvoudige taal. Met plaatjes van het programma erbij, zodat je precies weet wat je doet.",
 };
@@ -41,7 +41,7 @@ export default function HelpPage() {
           Alle vragen die je kan hebben. In gewone taal.
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-base text-[color:var(--text-muted)] sm:text-lg">
-          Geen technisch verhaal. Geen moeilijke woorden. Met plaatjes van het
+          Geen technisch verhaal, geen moeilijke woorden. Met plaatjes van het
           programma erbij, zodat je ziet wat je ziet als je het zelf doet.
         </p>
       </section>
@@ -78,12 +78,10 @@ export default function HelpPage() {
           id="wat-is-het"
           number="1"
           title="Wat is dit en wat heb ik er aan?"
-          intro="We leggen eerst rustig uit wat Dicteren.ai doet. Geen techniek. Gewoon: wat heb je eraan."
+          intro="We leggen eerst rustig uit wat Dicteren.ai doet. Geen techniek. Gewoon wat je eraan hebt."
         >
           <QA q="Wat doet Dicteren.ai eigenlijk?">
-            <p>
-              Je praat. Het programma typt voor je. Dat is het.
-            </p>
+            <p>Je praat. Het programma typt voor je. Dat is het.</p>
             <p>
               Je drukt een knop in. Je vertelt wat je wil opschrijven. Je laat
               de knop los. Een paar tellen later staat de tekst op je scherm.
@@ -94,8 +92,8 @@ export default function HelpPage() {
 
           <QA q="Wat heb ik daar aan?">
             <p>
-              Drie tot vier keer sneller dan typen. Geen pijn in je vingers.
-              Geen verkrampte schouders. Je werkt rustig terwijl je praat.
+              Drie tot vier keer sneller dan typen, en geen verkrampte
+              schouders na een lange werkdag.
             </p>
             <p>
               Veel mensen merken pas hoe vermoeiend typen is als ze het niet
@@ -109,9 +107,9 @@ export default function HelpPage() {
               nodig, geen automatische verlenging.
             </p>
             <p>
-              Daarna kost het <strong>&euro;12 per maand</strong>,{" "}
-              <strong>&euro;30 per kwartaal</strong> of{" "}
-              <strong>&euro;96 per jaar</strong>. Je kiest zelf. Voor bedrijven
+              Daarna kost het <strong>12 euro per maand</strong>,{" "}
+              <strong>30 euro per kwartaal</strong> of{" "}
+              <strong>96 euro per jaar</strong>. Je kiest zelf. Voor bedrijven
               is er een aparte prijs per medewerker.
             </p>
             <p>Je kan altijd weer stoppen. Geen kleine lettertjes.</p>
@@ -140,9 +138,10 @@ export default function HelpPage() {
               genoeg. Een eenvoudige headset werkt ook prima.
             </p>
             <p>
-              Het programma hoort Nederlands goed, ook met een accent. Geen
-              zorgen over Limburgs, Brabants, Twents of Fries — dat verstaat
-              het.
+              Het programma is gemaakt voor standaard-Nederlands (ABN).
+              Spreek je thuis Brabants, Limburgs, Fries of een ander sterk
+              dialect? Dan herkent het de woorden minder goed. Praat dan
+              tegen de microfoon in gewoon Nederlands.
             </p>
           </QA>
         </Section>
@@ -152,7 +151,7 @@ export default function HelpPage() {
           id="op-computer"
           number="2"
           title="Op je computer zetten"
-          intro="In stapjes. Je hoeft niets te onthouden — je leest het stap voor stap."
+          intro="In stapjes. Je hoeft niets te onthouden, je leest het stap voor stap."
         >
           <QA q="Hoe haal ik het programma op?">
             <ol className="ml-5 list-decimal space-y-1.5">
@@ -184,8 +183,8 @@ export default function HelpPage() {
             <ul className="ml-5 list-disc space-y-1">
               <li>Sluit je browser en open hem opnieuw.</li>
               <li>
-                Werkt je internet wel? Open een andere website om dat even
-                te checken.
+                Werkt je internet wel? Open een andere website om dat even te
+                checken.
               </li>
               <li>
                 Werk je op een computer van de zaak? Soms blokkeert je IT
@@ -196,8 +195,8 @@ export default function HelpPage() {
 
           <QA q="Mijn Mac zegt 'onbekende ontwikkelaar', wat nu?">
             <Annotation tone="warn">
-              Dit is normaal. Apple wil dat jij z&eacute;lf toestemming geeft
-              voor programma&apos;s buiten hun App Store. Wij zijn een echt
+              Dit is normaal. Apple wil dat jij zelf toestemming geeft voor
+              programma&apos;s buiten hun App Store. Wij zijn een echt
               Nederlands bedrijf en niemand maakt iets stuk.
             </Annotation>
             <p>
@@ -208,10 +207,9 @@ export default function HelpPage() {
                 Klik rechts op het Dicteren.ai-bestand (op een Mac:{" "}
                 <em>control</em> + klik).
               </li>
-              <li>Kies in het menu &ldquo;Open&rdquo;.</li>
+              <li>Kies in het menu de optie Open.</li>
               <li>
-                Klik nog een keer op &ldquo;Open&rdquo; in het venster dat
-                verschijnt.
+                Klik nog een keer op Open in het venster dat verschijnt.
               </li>
             </ol>
             <p>Vanaf nu opent het altijd gewoon zonder vragen.</p>
@@ -221,11 +219,11 @@ export default function HelpPage() {
             <p>
               <strong>Op een Mac:</strong> in de map Programma&apos;s
               (Applications). Je vindt het ook via Spotlight: klik op het
-              vergrootglas rechtsboven en typ &ldquo;Dicteren&rdquo;.
+              vergrootglas rechtsboven en typ Dicteren.
             </p>
             <p>
               <strong>Op Windows:</strong> in het Start-menu (linksonder).
-              Klik op de Start-knop en typ &ldquo;Dicteren&rdquo;.
+              Klik op de Start-knop en typ Dicteren.
             </p>
           </QA>
         </Section>
@@ -248,8 +246,7 @@ export default function HelpPage() {
             </div>
             <Annotation>
               Het luistert nog niet naar je. Het zet alleen even het
-              woordenboek klaar. Je hoeft niets te doen — wachten en koffie
-              halen.
+              woordenboek klaar. Pak ondertussen een kop koffie.
             </Annotation>
           </QA>
 
@@ -263,19 +260,19 @@ export default function HelpPage() {
           <QA q="Het vraagt om microfoon-toestemming. Mag dat?">
             <p>
               Ja, dat is nodig. Anders kan het programma je niet horen. Klik
-              op &ldquo;Toestaan&rdquo;.
+              op Toestaan.
             </p>
             <p>
-              Het luistert alleen wanneer j&iacute;j de sneltoets indrukt.
-              Niet op andere momenten.
+              Het luistert alleen wanneer jij de sneltoets indrukt. Niet op
+              andere momenten.
             </p>
           </QA>
 
-          <QA q="En 'toegankelijkheid' — wat is dat?">
+          <QA q="En 'toegankelijkheid', wat is dat?">
             <p>
-              Dat klinkt vaag, maar het is simpel: hierdoor mag het programma
-              je tekst in andere programma&apos;s zetten. In Word. In je mail.
-              In WhatsApp Web. Zonder die toestemming komt de tekst nergens
+              Dat klinkt vaag, maar het is simpel. Hierdoor mag het programma
+              je tekst in andere programma&apos;s zetten. In Word, in je mail,
+              in WhatsApp Web. Zonder die toestemming komt de tekst nergens
               uit.
             </p>
             <div className="my-5">
@@ -283,8 +280,8 @@ export default function HelpPage() {
             </div>
             <Annotation>
               Toestemming staat in de Systeeminstellingen van je Mac onder
-              &ldquo;Privacy en beveiliging&rdquo;. Het programma legt dit zelf
-              ook stap voor stap uit als je het de eerste keer opent.
+              Privacy en beveiliging. Het programma legt dit zelf ook stap
+              voor stap uit als je het de eerste keer opent.
             </Annotation>
           </QA>
 
@@ -305,9 +302,8 @@ export default function HelpPage() {
               <strong>De sneltoets is: option + spatie.</strong>
             </p>
             <p>
-              Op een Mac heet de option-knop ook wel &ldquo;alt&rdquo;. Hij zit
-              tussen <em>cmd</em> en <em>ctrl</em>. Op Windows heet hij gewoon
-              alt.
+              Op een Mac heet de option-knop ook wel alt. Hij zit tussen{" "}
+              <em>cmd</em> en <em>ctrl</em>. Op Windows heet hij gewoon alt.
             </p>
             <div className="my-5">
               <MockShortcutKeys />
@@ -328,13 +324,13 @@ export default function HelpPage() {
             </div>
             <ul className="ml-5 list-disc space-y-1">
               <li>
-                <strong>Grijs</strong> — wacht, niets aan de hand.
+                <strong>Grijs:</strong> wacht, niets aan de hand.
               </li>
               <li>
-                <strong>Oranje</strong> — luistert, praat maar.
+                <strong>Oranje:</strong> luistert, praat maar.
               </li>
               <li>
-                <strong>Aqua/blauw met cirkeltje</strong> — bezig met
+                <strong>Aqua/blauw met cirkeltje:</strong> bezig met
                 opschrijven, even wachten.
               </li>
             </ul>
@@ -375,15 +371,13 @@ export default function HelpPage() {
               waar de cursor staat en zet de tekst daar neer.
             </p>
             <Annotation>
-              Tip: een &ldquo;cursor&rdquo; is dat knipperende streepje in een
-              tekstvak. Daar komt jouw tekst terecht.
+              Tip: een cursor is dat knipperende streepje in een tekstvak.
+              Daar komt jouw tekst terecht.
             </Annotation>
           </QA>
 
           <QA q="Hoe stop ik met dicteren?">
-            <p>
-              Laat de sneltoets los. Klaar. De tekst verschijnt vanzelf.
-            </p>
+            <p>Laat de sneltoets los. Klaar. De tekst verschijnt vanzelf.</p>
           </QA>
         </Section>
 
@@ -392,7 +386,7 @@ export default function HelpPage() {
           id="niet-werkt"
           number="5"
           title="Als iets niet werkt"
-          intro="Geen paniek. Hieronder staan de problemen die mensen het meest hebben. Met de oplossing erbij."
+          intro="Geen paniek. Hieronder staan de problemen die mensen het meest hebben, met de oplossing erbij."
         >
           <QA q="Er gebeurt niks als ik op de sneltoets druk">
             <ol className="ml-5 list-decimal space-y-1.5">
@@ -403,7 +397,8 @@ export default function HelpPage() {
               </li>
               <li>
                 Heb je toestemming gegeven voor de microfoon en
-                toegankelijkheid? Open het programma en kijk bij Instellingen.
+                toegankelijkheid? Open het programma en kijk bij
+                Instellingen.
               </li>
               <li>Klik eerst met je muis in een tekstvak. Dan pas drukken.</li>
             </ol>
@@ -416,8 +411,8 @@ export default function HelpPage() {
               <li>Zit niet te ver van je microfoon. Een halve meter is prima.</li>
               <li>Zet de tv of radio uit. Of doe de deur even dicht.</li>
               <li>
-                Voor namen die het vaak verkeerd hoort: voeg ze toe bij
-                &ldquo;Eigen woorden&rdquo;. Zie sectie 8.
+                Voor namen die het vaak verkeerd hoort: voeg ze toe bij Eigen
+                woorden. Zie sectie 8.
               </li>
             </ul>
           </QA>
@@ -425,11 +420,11 @@ export default function HelpPage() {
           <QA q="De microfoon doet het niet">
             <p>Test eerst of de microfoon van je computer überhaupt werkt:</p>
             <p>
-              <strong>Op Mac:</strong> Systeeminstellingen → Geluid → Invoer.
+              <strong>Op Mac:</strong> Systeeminstellingen, Geluid, Invoer.
               Praat en kijk of het balkje beweegt.
             </p>
             <p>
-              <strong>Op Windows:</strong> Instellingen → Systeem → Geluid →
+              <strong>Op Windows:</strong> Instellingen, Systeem, Geluid,
               Invoerapparaat testen.
             </p>
             <p>
@@ -442,17 +437,15 @@ export default function HelpPage() {
           <QA q="Het programma is helemaal weg">
             <p>Geen zorgen, niets is kwijt. Open het opnieuw via:</p>
             <ul className="ml-5 list-disc space-y-1">
-              <li>
-                Mac: vergrootglas rechtsboven → typ &ldquo;Dicteren&rdquo;.
-              </li>
-              <li>Windows: Start-knop → typ &ldquo;Dicteren&rdquo;.</li>
+              <li>Mac: vergrootglas rechtsboven, typ Dicteren.</li>
+              <li>Windows: Start-knop, typ Dicteren.</li>
             </ul>
           </QA>
 
           <QA q="Het ziet er ineens anders uit">
             <p>
               Je hebt waarschijnlijk een nieuwere versie binnengehaald. Dat
-              gebeurt automatisch. De knoppen werken hetzelfde — de jas is
+              gebeurt automatisch. De knoppen werken hetzelfde, de jas is
               alleen even gewisseld.
             </p>
           </QA>
@@ -468,8 +461,8 @@ export default function HelpPage() {
                 info@dicteren.ai
               </a>
               . Vertel zo precies mogelijk wat er gebeurt en wat je hebt
-              geprobeerd. We reageren meestal binnen één werkdag. Echte mensen,
-              geen robot.
+              geprobeerd. We reageren meestal binnen één werkdag. Echte
+              mensen, geen robot.
             </p>
           </QA>
         </Section>
@@ -496,8 +489,8 @@ export default function HelpPage() {
               </li>
               <li>Je krijgt direct een mail met een code.</li>
               <li>
-                Open het programma. Klik op &ldquo;Licentie&rdquo;. Plak de
-                code en klik &ldquo;Activeer&rdquo;.
+                Open het programma. Klik op Licentie. Plak de code en klik op
+                Activeer.
               </li>
             </ol>
             <div className="my-5">
@@ -509,8 +502,7 @@ export default function HelpPage() {
             <p>
               In de mail die we je hebben gestuurd. Het mailadres is{" "}
               <strong>info@dicteren.ai</strong>. Kijk ook even in je map
-              &ldquo;ongewenste mail&rdquo; of &ldquo;spam&rdquo; als je hem
-              niet ziet.
+              ongewenste mail of spam als je hem niet ziet.
             </p>
           </QA>
 
@@ -518,7 +510,7 @@ export default function HelpPage() {
             <p>
               Elke licentie mag op <strong>twee apparaten</strong>.
               Bijvoorbeeld je werklaptop en je computer thuis. Krijg je een
-              derde computer? Geen probleem — mail ons en we verhuizen je
+              derde computer? Geen probleem. Mail ons en we verhuizen je
               licentie.
             </p>
           </QA>
@@ -533,20 +525,19 @@ export default function HelpPage() {
               >
                 dicteren.ai/account
               </Link>
-              . Klik op &ldquo;Abonnement&rdquo; en daarna op &ldquo;Stop
-              abonnement&rdquo;. Klaar. Je kan tot het einde van de betaalde
-              periode blijven gebruiken.
+              . Klik op Abonnement en daarna op Stop abonnement. Klaar. Je
+              kan tot het einde van de betaalde periode blijven gebruiken.
             </p>
           </QA>
 
           <QA q="Ik heb een nieuwe computer. Hoe verhuis ik?">
             <p>
-              Installeer Dicteren.ai op de nieuwe computer. Log in met dezelfde
-              mail. Activeer je code. Klaar.
+              Installeer Dicteren.ai op de nieuwe computer. Log in met
+              dezelfde mail. Activeer je code. Klaar.
             </p>
             <p>
-              Zit je oude computer in de weg met je tweede &ldquo;plek&rdquo;?
-              Mail ons even — we maken hem vrij.
+              Zit je oude computer in de weg met je tweede plek? Mail ons
+              even, we maken hem vrij.
             </p>
           </QA>
         </Section>
@@ -572,18 +563,18 @@ export default function HelpPage() {
               hem niet.
             </p>
             <p>
-              <em>Behalve</em> als je zelf de AI-nabewerking aanzet en koppelt
-              aan een dienst zoals ChatGPT. Dan stuur je je tekst — niet je
-              stem — naar die dienst. Maar dat doe je alleen als je dat zelf
-              instelt. Standaard staat dat uit.
+              Behalve als je zelf de AI-nabewerking aanzet en koppelt aan een
+              dienst zoals ChatGPT. Dan stuur je je tekst (niet je stem) naar
+              die dienst. Dat doe je alleen als je dat zelf instelt.
+              Standaard staat het uit.
             </p>
           </QA>
 
           <QA q="Kan iemand meeluisteren?">
             <p>
-              Niemand kan meeluisteren. Niet wij, niet je internet-provider,
-              niet je werkgever. Het programma luistert alleen als jij de
-              sneltoets indrukt en alleen op die seconden.
+              Niemand kan meeluisteren. Wij niet, en je werkgever ook niet.
+              Het programma luistert alleen als jij de sneltoets indrukt, en
+              alleen op die seconden.
             </p>
           </QA>
 
@@ -616,8 +607,8 @@ export default function HelpPage() {
 
           <QA q="Wat als mijn computer kapot gaat?">
             <p>
-              Geen probleem. Je licentie hangt aan je e-mailadres, niet aan je
-              computer. Installeer Dicteren.ai op een nieuwe computer en
+              Geen probleem. Je licentie hangt aan je e-mailadres, niet aan
+              je computer. Installeer Dicteren.ai op een nieuwe computer en
               activeer opnieuw. Klaar.
             </p>
           </QA>
@@ -628,30 +619,31 @@ export default function HelpPage() {
           id="slimme-dingen"
           number="8"
           title="Slimme functies"
-          intro="Voor als je het wat handiger wil. Dit hoeft allemaal niet — het programma werkt ook prima zonder."
+          intro="Voor als je het wat handiger wil. Dit hoeft allemaal niet. Het programma werkt ook prima zonder."
         >
           <QA q="Kan ik eigen woorden toevoegen?">
             <p>
-              Ja. Bijvoorbeeld de namen van klanten, collega&apos;s, je dorp,
+              Ja. Bijvoorbeeld de namen van klanten, collega&apos;s, je dorp
               of moeilijke vaktermen. Hoe vaker je een woord toevoegt, hoe
               beter het programma het herkent.
             </p>
             <div className="my-5">
               <MockCustomWords />
             </div>
-            <p>Te vinden onder Instellingen → &ldquo;Eigen woorden&rdquo;.</p>
+            <p>Te vinden onder Instellingen, bij Eigen woorden.</p>
           </QA>
 
           <QA q="Wat is AI-nabewerking?">
             <p>
               Dit is optioneel. Met AI-nabewerking kan het programma je tekst
-              netter maken: hoofdletters, leestekens, een taalfout-vrij maken.
-              Of een opsomming maken van wat je hebt verteld.
+              netter maken: hoofdletters erin, leestekens kloppend, en
+              taalfouten eruit. Of een opsomming maken van wat je hebt
+              verteld.
             </p>
             <p>
-              Hiervoor heb je een eigen account nodig bij OpenAI, Anthropic of
-              een ander AI-bedrijf. Of je laat het uit en doet de opmaak zelf
-              — ook prima.
+              Hiervoor heb je een eigen account nodig bij OpenAI, Anthropic
+              of een ander AI-bedrijf. Of je laat het uit en doet de opmaak
+              zelf. Ook prima.
             </p>
             <Annotation tone="warn">
               Belangrijk: als je dit aanzet stuurt het programma je{" "}
@@ -670,17 +662,17 @@ export default function HelpPage() {
 
           <QA q="Kan ik een andere sneltoets kiezen?">
             <p>
-              Ja. Onder Instellingen → &ldquo;Sneltoetsen&rdquo;. Bijvoorbeeld
-              als <em>option + spatie</em> al iets anders doet op jouw
-              computer, kies je een andere combinatie.
+              Ja. Onder Instellingen, bij Sneltoetsen. Bijvoorbeeld als{" "}
+              <em>option + spatie</em> al iets anders doet op jouw computer,
+              kies je een andere combinatie.
             </p>
           </QA>
 
           <QA q="Hoe vind ik wat ik eerder heb gedicteerd?">
             <p>
-              In het programma onder &ldquo;Geschiedenis&rdquo;. Je ziet daar
-              wat je laatst hebt opgeschreven. Standaard worden de laatste 50
-              opnames bewaard — dat kan je zelf instellen.
+              In het programma onder Geschiedenis. Je ziet daar wat je laatst
+              hebt opgeschreven. Standaard worden de laatste 50 opnames
+              bewaard. Dat kan je zelf instellen.
             </p>
           </QA>
         </Section>
@@ -722,17 +714,18 @@ export default function HelpPage() {
           <QA q="Horen collega's mij dicteren?">
             <p>
               Alleen als ze fysiek in dezelfde kamer zitten. De microfoon
-              hoort wat jij zegt. Net als bij een telefoongesprek. Een headset
-              met microfoon vlakbij je mond helpt om geluid voor jezelf te
-              houden.
+              hoort wat jij zegt, net als bij een telefoongesprek. Een
+              headset met microfoon vlakbij je mond helpt om geluid voor
+              jezelf te houden.
             </p>
           </QA>
 
           <QA q="Kan onze IT dit voor het hele team uitrollen?">
             <p>
-              Ja. We hebben zakelijke licenties met centrale uitnodigingen. Je
-              IT-collega kan medewerkers per e-mail uitnodigen. Iedereen krijgt
-              een eigen code maar je betaalt &eacute;&eacute;n factuur.
+              Ja. We hebben zakelijke licenties met centrale uitnodigingen.
+              Je IT-collega kan medewerkers per e-mail uitnodigen. Iedereen
+              krijgt een eigen code, maar je betaalt &eacute;&eacute;n
+              factuur.
             </p>
             <p>
               Lees meer op{" "}
@@ -794,8 +787,8 @@ export default function HelpPage() {
             Staat je vraag er niet bij?
           </h2>
           <p className="mt-2 text-sm text-[color:var(--text-muted)] sm:text-base">
-            Geen domme vragen. Echt niet. Stuur ons een mail of bel ons —
-            we helpen je er stap voor stap doorheen.
+            Geen domme vragen. Echt niet. Stuur ons een mail of bel ons. We
+            helpen je er stap voor stap doorheen.
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a

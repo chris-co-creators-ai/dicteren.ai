@@ -3,7 +3,7 @@ import { TauriWindow } from "./TauriWindow";
 
 export function MockOnboardingDownload() {
   return (
-    <TauriWindow title="Dicteren.ai — Welkom" platform="mac" className="max-w-md">
+    <TauriWindow title="Welkom" platform="mac" className="max-w-md">
       <div className="px-8 py-10 text-center">
         <div
           className="mx-auto grid size-16 place-items-center rounded-2xl"
@@ -53,7 +53,7 @@ export function MockOnboardingDownload() {
 
 export function MockOnboardingDone() {
   return (
-    <TauriWindow title="Dicteren.ai — Klaar" platform="mac" className="max-w-md">
+    <TauriWindow title="Klaar" platform="mac" className="max-w-md">
       <div className="px-8 py-10 text-center">
         <div
           className="mx-auto grid size-16 place-items-center rounded-2xl"

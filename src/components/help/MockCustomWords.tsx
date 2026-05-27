@@ -6,7 +6,7 @@ const WORDS = ["factuur", "offerte", "Achterhoek", "spreekuur", "btw-aangifte"];
 export function MockCustomWords() {
   return (
     <TauriWindow
-      title="Dicteren.ai — Eigen woorden"
+      title="Eigen woorden"
       platform="mac"
       className="max-w-lg"
     >

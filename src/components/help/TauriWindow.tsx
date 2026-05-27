@@ -37,7 +37,7 @@ export function TauriWindow({
               {title}
             </span>
             <div className="flex gap-1 text-xs text-[color:var(--text-muted)]">
-              <span className="px-2">—</span>
+              <span className="px-2">_</span>
               <span className="px-2">□</span>
               <span className="px-2">✕</span>
             </div>

@@ -4,7 +4,7 @@ import { TauriWindow } from "./TauriWindow";
 export function MockActivation() {
   return (
     <TauriWindow
-      title="Dicteren.ai — Licentie"
+      title="Licentie"
       platform="mac"
       className="max-w-md"
     >
