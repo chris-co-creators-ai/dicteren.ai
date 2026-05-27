@@ -46,7 +46,7 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
       { time: "07:45", title: "Inbox legen", desc: "Vier mailtjes in vier minuten beantwoorden." },
       { time: "10:20", title: "Offerte concept", desc: "Brief naar nieuwe klant in één take." },
       { time: "14:00", title: "AI-prompt", desc: "Marketingideeën met de juiste achtergrond." },
-      { time: "18:15", title: "Onderweg notities", desc: "Idee voor morgen in de auto invoegen." },
+      { time: "18:15", title: "Avond-memo", desc: "Memo voor morgen inspreken in plaats van uitwerken." },
     ],
     quote: {
       text: "Ik dicteerde nooit eerder. Maar mijn ChatGPT-prompts zijn beter geworden. En ik sluit nu 's avonds gewoon op tijd m'n laptop.",
@@ -67,16 +67,16 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
   advocaten: {
     slug: "advocaten",
     chip: "Advocaten & juristen",
-    title: "Notities tijdens het gesprek. Geen achterstand na afloop.",
+    title: "Dossiermemo direct na het gesprek. Geen achterstand na afloop.",
     subtitle: "Voor zaken waar elk detail telt en je tijd schaars is.",
     intro:
-      "Een uur cliëntoverleg betekent vaak twee uur uitwerken. Spreek je waarnemingen tijdens of direct na de zitting in. Gestructureerd, citaten intact, lokaal op je apparaat.",
+      "Een uur cliëntoverleg betekent vaak twee uur uitwerken. Spreek je waarnemingen direct na de zitting in, zolang alles vers is. Gestructureerd op papier, lokaal op je apparaat.",
     heroImageLabel: "advocaat · dossier · pen",
     savingsLabel: "Dossier-tijd bespaard",
     savingsValue: "2u 18m",
     useCasesHeading: "Vier momenten waarop het écht helpt.",
     useCases: [
-      { time: "09:10", title: "Cliëntintake", desc: "Concept-feitencomplex tijdens het gesprek." },
+      { time: "09:10", title: "Post-intake", desc: "Feitencomplex inspreken zolang de intake nog vers is." },
       { time: "11:30", title: "Pleitnotitie", desc: "Argumentatielijn dicteren tussen zittingen door." },
       { time: "15:00", title: "Dossiermemo", desc: "Bevindingen vastleggen voor het team." },
       { time: "17:45", title: "Brief naar klant", desc: "Toelichting in begrijpelijke taal." },
@@ -94,7 +94,7 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
     related: [
       { title: "Beroepsgeheim en lokale spraakherkenning: een korte juridische check", meta: "Privacy & AI · 9 min" },
       { title: "Snel een pleitnotitie dicteren: een werkwijze", meta: "Productiviteit · 7 min" },
-      { title: "Citaten vastleggen tijdens een zitting", meta: "Productiviteit · 5 min" },
+      { title: "Dossiermemo's na zittingen: een werkwijze", meta: "Productiviteit · 5 min" },
     ],
   },
   zorgprofessionals: {
@@ -103,15 +103,15 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
     title: "Rapporteren tussen consulten door, niet erna.",
     subtitle: "Voor huisartsen, fysiotherapeuten, psychologen en specialisten.",
     intro:
-      "Administratie kost meer tijd dan ooit. Spreek je SOEP-rapportage in tijdens of na het consult. Direct in je EPD. Lokaal verwerkt. Geen audio-upload.",
+      "Administratie kost meer tijd dan ooit. Spreek je SOEP-rapportage in direct na het consult. Direct in je EPD. Lokaal verwerkt. Geen audio-upload.",
     heroImageLabel: "zorgprofessional · praktijk",
     savingsLabel: "Administratie per dag",
     savingsValue: "55 min",
     useCasesHeading: "Vier momenten waarop het écht helpt.",
     useCases: [
-      { time: "08:30", title: "Consult rapporteren", desc: "SOEP direct in het EPD." },
+      { time: "08:30", title: "Consult rapporteren", desc: "SOEP direct in het EPD na het consult." },
       { time: "11:00", title: "Verwijsbrief", desc: "Brief aan specialist in eigen woorden." },
-      { time: "14:15", title: "Multidisciplinair overleg", desc: "Notulen tijdens het overleg." },
+      { time: "14:15", title: "MDO-conclusie", desc: "Eigen samenvatting direct na het overleg." },
       { time: "17:00", title: "Patiëntbrief", desc: "Heldere uitleg voor de patiënt thuis." },
     ],
     quote: {
@@ -199,19 +199,19 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
   makelaars: {
     slug: "makelaars",
     chip: "Makelaars",
-    title: "Bezichtigingsnotities tussen twee deurklinken.",
-    subtitle: "Voor woning- en bedrijfsmakelaars die de hele dag onderweg zijn.",
+    title: "Bezichtigingsverslag dat nog ruikt naar de woning.",
+    subtitle: "Voor woning- en bedrijfsmakelaars die 's avonds niet meer aan typen toekomen.",
     intro:
-      "Acht bezichtigingen op een dag betekent 's avonds vier uur uitwerken. Spreek je observaties per object in. Direct in de auto, of op de stoep voor de volgende afspraak.",
-    heroImageLabel: "makelaar · woonkamer · auto",
+      "Acht bezichtigingen op een dag betekent 's avonds vier uur uitwerken. Open je laptop tussen twee afspraken in en spreek je observaties in zolang de woning vers in je hoofd zit. Geen avond meer kwijt aan rapportage.",
+    heroImageLabel: "makelaar · laptop · auto",
     savingsLabel: "Per bezichtiging",
     savingsValue: "9 min",
     useCasesHeading: "Vier momenten waarop het écht helpt.",
     useCases: [
-      { time: "10:15", title: "Buitenkant", desc: "Eerste indruk vóór binnenkomst." },
-      { time: "10:25", title: "Per kamer", desc: "Korte aantekening per ruimte." },
-      { time: "10:45", title: "Naar de klant", desc: "Direct mail met indruk." },
-      { time: "18:30", title: "Vraagprijs-onderbouwing", desc: "Argumentatie van de dag." },
+      { time: "10:45", title: "Direct na de bezichtiging", desc: "Eerste indruk inspreken op je laptop in de auto." },
+      { time: "12:30", title: "Tussen twee woningen", desc: "Observaties van de vorige afspraak afwerken." },
+      { time: "14:15", title: "Klantmail", desc: "Persoonlijke indruk verzenden tussen twee afspraken." },
+      { time: "18:30", title: "Vraagprijs-onderbouwing", desc: "Argumentatie van de dag op kantoor." },
     ],
     quote: {
       text: "Mijn bezichtigingsverslagen zijn rijker dan ooit. Klanten krijgen 's avonds een mail met de echte sfeer, niet alleen een checklist.",
@@ -219,9 +219,9 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
       role: "Woningmakelaar · Haarlem",
     },
     objections: [
-      { q: "Tijdens een bezichtiging dicteren?", a: "In de auto of op de stoep, niet binnen. Tussen de afspraken door is genoeg." },
-      { q: "Werkt het buiten?", a: "Het taalmodel werkt lokaal. Geen internet nodig. Werkt overal." },
-      { q: "Vertrouwelijke klantinfo?", a: "Audio verlaat je apparaat niet. Veilig voor portefeuille-informatie." },
+      { q: "Tijdens een bezichtiging dicteren?", a: "Niet binnen tussen klanten — wel achter je laptop in de auto direct na afloop. Daar gaat de kracht in zitten." },
+      { q: "Werkt het zonder internet?", a: "Het taalmodel staat lokaal op je laptop. Geen internet nodig, dus ook in de auto bij slecht bereik." },
+      { q: "Vertrouwelijke klantinfo?", a: "Audio en transcript verlaten je apparaat niet. Veilig voor portefeuille-informatie." },
     ],
     related: [
       { title: "Bezichtigingsroutes en dicteer-pauzes", meta: "Productiviteit · 5 min" },
@@ -232,7 +232,7 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
   "recruiters-hr": {
     slug: "recruiters-hr",
     chip: "Recruiters & HR",
-    title: "Intakegesprekken vastleggen zonder mee te typen.",
+    title: "Intakeverslagen schrijven zonder mee te typen tijdens het gesprek.",
     subtitle: "Voor recruiters, hiring managers en HR-business partners.",
     intro:
       "Een intake waarin je zit te notuleren is een gemiste intake. Spreek je observaties, beoordeling en vervolgstappen in zodra het gesprek klaar is. Terwijl alles nog vers is.",
@@ -265,18 +265,18 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
   "studenten-onderzoekers": {
     slug: "studenten-onderzoekers",
     chip: "Studenten & onderzoekers",
-    title: "Van gesprek naar samenvatting in één stap.",
+    title: "Van gedachte naar leesbare tekst in één stap.",
     subtitle: "Voor universitair en wetenschappelijk werk.",
     intro:
-      "Een veldnotitie bij een interview. Een idee tijdens het lezen. Een snelle reflectie na een werkgroep. Spreek het in, krijg leesbare tekst, werk later uit.",
+      "Een reflectie tijdens het lezen. Een veldnotitie direct na het interview. Een samenvatting na een werkgroep. Spreek het in, krijg leesbare tekst, werk later uit.",
     heroImageLabel: "student · boeken · laptop",
     savingsLabel: "Per veldnotitie",
     savingsValue: "8 min",
     useCasesHeading: "Vier momenten waarop het écht helpt.",
     useCases: [
       { time: "10:00", title: "Lees-reflectie", desc: "Gedachte bij een artikel direct vasthouden." },
-      { time: "13:00", title: "Interview-notitie", desc: "Veldverslag tijdens veldwerk." },
-      { time: "15:30", title: "Werkgroep-samenvatting", desc: "Belangrijkste argumenten." },
+      { time: "13:00", title: "Veldnotitie", desc: "Verslag direct na het interview, zolang het vers is." },
+      { time: "15:30", title: "Werkgroep-samenvatting", desc: "Belangrijkste argumenten inspreken." },
       { time: "21:00", title: "Reflectie-dagboek", desc: "Inzicht van de dag vastleggen." },
     ],
     quote: {
@@ -286,7 +286,7 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
     },
     objections: [
       { q: "Wetenschappelijke termen?", a: "Voeg je vakgebied-terminologie toe aan de woordenlijst. Werkt vanaf dag 1." },
-      { q: "Engels en Nederlands?", a: "V3 is geoptimaliseerd voor Nederlands. Engels werkt, andere talen volgen." },
+      { q: "Engels schrijven?", a: "Dicteren v3 werkt alleen voor Nederlands. Voor Engelse tekst blijf je voor nu typen. Andere talen onderzoeken we voor een volgende versie." },
       { q: "Anonimiseren?", a: "Lokale verwerking. Audio en transcript verlaten je apparaat niet." },
     ],
     related: [
