@@ -21,6 +21,7 @@ import {
 import { formatMollieAmount } from "@/lib/services/mollie";
 import { listOpenPartnerTasks } from "@/lib/services/partnerTasks";
 import { OpenTasksWidget } from "./open-tasks-widget";
+import { RevenueRoadmap } from "./revenue-roadmap";
 
 export const dynamic = "force-dynamic";
 
@@ -178,6 +179,8 @@ export default async function AdminOverviewPage() {
             · {kpis.activationsLast24h} activaties laatste 24 uur.
           </p>
         </div>
+
+        <RevenueRoadmap />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {overviewKpiCards.map((kpi) => {
