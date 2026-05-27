@@ -92,7 +92,7 @@ export default function PrivacyPage() {
             <h3 className="mt-5 text-base font-bold">Wat we niet verwerken</h3>
             <p className="mt-2">
               Geen audio. Geen transcripties. Geen toetsaanslagen. Geen
-              browse-gedrag. Geen tracking-cookies van derden op deze website.
+              browse-gedrag zonder jouw toestemming.
             </p>
           </section>
 
@@ -193,9 +193,24 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-bold">Cookies</h2>
             <p className="mt-3">
-              We gebruiken alleen functionele cookies — om je ingelogd te
-              houden en je sessie te onthouden. Geen analytics-cookies, geen
-              tracking-pixels, geen cookies van derden voor marketing.
+              We werken met vier categorieën cookies: noodzakelijk,
+              functioneel, analytisch en marketing. Alleen noodzakelijke
+              cookies worden zonder toestemming geplaatst — denk aan je
+              sessie-token en de cookie-keuze zelf. De andere drie
+              categorieën staan standaard uit en worden pas actief als jij
+              dat aanvinkt in de cookie-banner of op{" "}
+              <a href="/cookies" className="underline">
+                /cookies
+              </a>
+              .
+            </p>
+            <p className="mt-3">
+              We gebruiken Google Analytics 4 (anoniem, IP-gemaskeerd) als
+              je voor de analytische categorie kiest. Met de Google Consent
+              Mode v2 wordt geen data naar Google gestuurd zolang je nog
+              geen toestemming hebt gegeven. Je kunt je keuze op elk moment
+              wijzigen via de footer-link &ldquo;Cookie-voorkeuren
+              wijzigen&rdquo;.
             </p>
           </section>
 

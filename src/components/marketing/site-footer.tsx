@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
+import { CookiePreferencesButton } from "@/components/cookie/CookiePreferencesButton";
 
 type FooterColumn = {
   title: string;
@@ -44,6 +45,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Blog", href: "/blog" },
       { label: "Over ons", href: "/over-ons" },
       { label: "Privacy", href: "/privacy" },
+      { label: "Cookies", href: "/cookies" },
       { label: "Voorwaarden", href: "/voorwaarden" },
     ],
   },
@@ -87,7 +89,12 @@ export function SiteFooter() {
 
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-[color:var(--border-soft)] pt-8 text-sm text-[color:var(--text-muted)] md:flex-row md:items-center">
           <p>&copy; {year} Dicteren.ai. Alle rechten voorbehouden.</p>
-          <p>Gemaakt in Nederland. Lokaal verwerkt.</p>
+          <div className="flex flex-wrap items-center gap-4">
+            <CookiePreferencesButton className="underline hover:text-[color:var(--navy)]">
+              Cookie-voorkeuren wijzigen
+            </CookiePreferencesButton>
+            <p>Gemaakt in Nederland. Lokaal verwerkt.</p>
+          </div>
         </div>
       </div>
     </footer>

@@ -1,5 +1,7 @@
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { CookieBanner } from "@/components/cookie/CookieBanner";
+import { ConsentProvider } from "@/lib/consent/ConsentProvider";
 import { getSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -23,10 +25,11 @@ export default async function MarketingLayout({
     : null;
 
   return (
-    <>
+    <ConsentProvider>
       <SiteHeader initialUser={initialUser} />
       <main className="flex-1">{children}</main>
       <SiteFooter />
-    </>
+      <CookieBanner />
+    </ConsentProvider>
   );
 }

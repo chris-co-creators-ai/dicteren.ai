@@ -3,6 +3,10 @@ import { Suspense } from "react";
 import { Nunito_Sans, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ErrorToast } from "@/components/shared/error-toast";
+import {
+  ConsentModeBootstrap,
+  GoogleAnalytics,
+} from "@/components/analytics/GoogleAnalytics";
 import "./globals.css";
 
 const nunitoSans = Nunito_Sans({
@@ -88,12 +92,18 @@ export default function RootLayout({
       lang="nl"
       className={`${nunitoSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Google Consent Mode v2: default-denied state. MOET in <head> staan
+            zodat gtag-checks na consent-update werken vóór de eerste pageview. */}
+        <ConsentModeBootstrap />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         {children}
         <Toaster richColors closeButton position="top-center" />
         <Suspense fallback={null}>
           <ErrorToast />
         </Suspense>
+        <GoogleAnalytics />
       </body>
     </html>
   );
