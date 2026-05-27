@@ -1,23 +1,33 @@
 // Dicteren.ai — Admin: CRM organisaties (lijst + aanmaken)
+//
+// Scope-regel: account_manager ziet alleen eigen rijen (account_owner_id =
+// self.id). Admin ziet alles. Voor account_manager wordt accountOwnerId
+// automatisch geforceerd op self.id bij POST, ongeacht body.
+//
+// Dedup-regel: POST checkt eerst checkDedupBeforeCreate op name+kvk. Bij
+// exact_kvk-match → 409 met match-data.
 
 import { NextResponse } from "next/server";
-import { requireStaffApi } from "@/lib/auth/session";
+import { requireScopedAm } from "@/lib/auth/session";
 import {
   createCrmOrganization,
   listCrmOrganizations,
 } from "@/lib/services/crmDeals";
+import { checkDedupBeforeCreate } from "@/lib/services/contactDedup";
 
 export async function GET() {
-  const guard = await requireStaffApi();
+  const guard = await requireScopedAm();
   if (guard.response) return guard.response;
-  const rows = await listCrmOrganizations();
+  const rows = await listCrmOrganizations({
+    accountOwnerId: guard.isAdmin ? null : guard.ownerUserId,
+  });
   return NextResponse.json({ success: true, data: rows });
 }
 
 export async function POST(request: Request) {
-  const guard = await requireStaffApi();
+  const guard = await requireScopedAm();
   if (guard.response) return guard.response;
-  const { session } = guard;
+  const { session, isAdmin, ownerUserId } = guard;
 
   let body: Record<string, unknown>;
   try {
@@ -36,6 +46,28 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  // Dedup-check vóór create
+  const dedup = await checkDedupBeforeCreate({
+    name,
+    kvk: (body.kvk as string | null) ?? null,
+  });
+  if (!dedup.ok && dedup.reason === "exact_match") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Deze organisatie bestaat al",
+        code: "DUPLICATE",
+        matches: dedup.matches,
+      },
+      { status: 409 },
+    );
+  }
+
+  // Account-manager mag accountOwnerId NIET overschrijven (force = self)
+  const forcedOwnerId = isAdmin
+    ? ((body.accountOwnerId as string | undefined) ?? session.user.id)
+    : ownerUserId!;
 
   const created = await createCrmOrganization({
     actorUserId: session.user.id,
@@ -58,8 +90,7 @@ export async function POST(request: Request) {
           | "lead_form"
           | undefined) ?? "am_outreach",
       status: "lead",
-      accountOwnerId:
-        (body.accountOwnerId as string | undefined) ?? session.user.id,
+      accountOwnerId: forcedOwnerId,
       notes: (body.notes as string | null) ?? null,
       proposedSeats: body.proposedSeats
         ? Number(body.proposedSeats)
@@ -71,5 +102,10 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ success: true, data: created });
+  return NextResponse.json({
+    success: true,
+    data: created,
+    fuzzyMatches:
+      "reason" in dedup && dedup.reason === "fuzzy_only" ? dedup.matches : [],
+  });
 }

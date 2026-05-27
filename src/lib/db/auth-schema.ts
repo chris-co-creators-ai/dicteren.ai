@@ -45,6 +45,8 @@ export const authUser = authNs.table(
     banned: boolean("banned").default(false),
     banReason: text("banReason"),
     banExpires: timestamp("banExpires", { withTimezone: true }),
+    // AM-team plan: koppel AI-naam aan human (Kai/Vegeta/Goku/Popo)
+    assistantName: text("assistant_name"),
   },
   (t) => [uniqueIndex("auth_user_email_unique").on(t.email)],
 );

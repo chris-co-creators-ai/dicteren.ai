@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { MiniPricingCalculator } from "./mini-pricing-calculator";
+import {
+  DedupAlert,
+  searchContactMatches,
+  type ContactMatch,
+} from "@/components/admin/DedupAlert";
 
 type Admin = { id: string; name: string; email: string };
 
@@ -21,6 +26,8 @@ export function NewOrgPanel({
 }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dedupMatches, setDedupMatches] = useState<ContactMatch[]>([]);
+  const [hasExactMatch, setHasExactMatch] = useState(false);
   const [form, setForm] = useState({
     name: "",
     kvk: "",
@@ -35,6 +42,26 @@ export function NewOrgPanel({
     discountCode: "",
     notes: "",
   });
+
+  // Debounced dedup-check zodra naam/kvk/email een drempel halen
+  useEffect(() => {
+    const handle = setTimeout(async () => {
+      const args = {
+        name: form.name.length >= 3 ? form.name : null,
+        kvk: form.kvk.length >= 4 ? form.kvk : null,
+        email: form.contactEmail.includes("@") ? form.contactEmail : null,
+      };
+      if (!args.name && !args.kvk && !args.email) {
+        setDedupMatches([]);
+        setHasExactMatch(false);
+        return;
+      }
+      const result = await searchContactMatches(args);
+      setDedupMatches(result.matches);
+      setHasExactMatch(result.hasExactMatch);
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [form.name, form.kvk, form.contactEmail]);
 
   function handleInject(data: {
     seats: number;
@@ -151,6 +178,13 @@ export function NewOrgPanel({
         >
           {/* Linkerkolom: form */}
           <div className="space-y-4">
+            {dedupMatches.length > 0 && (
+              <DedupAlert
+                matches={dedupMatches}
+                hasExactMatch={hasExactMatch}
+              />
+            )}
+
             <Section title="Bedrijf">
               <TextField
                 label="Bedrijfsnaam *"

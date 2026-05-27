@@ -6,6 +6,7 @@ import {
   addCrmContact,
   listContactsForOrg,
 } from "@/lib/services/crmDeals";
+import { checkDedupBeforeCreate } from "@/lib/services/contactDedup";
 
 type Params = Promise<{ id: string }>;
 
@@ -45,6 +46,20 @@ export async function POST(
     return NextResponse.json(
       { success: false, error: "Naam en e-mail zijn verplicht" },
       { status: 400 },
+    );
+  }
+
+  // Dedup-check: zelfde email kan al ergens in onze 5 bronnen leven
+  const dedup = await checkDedupBeforeCreate({ email });
+  if (!dedup.ok && dedup.reason === "exact_match") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Dit e-mailadres bestaat al in het systeem",
+        code: "DUPLICATE",
+        matches: dedup.matches,
+      },
+      { status: 409 },
     );
   }
 

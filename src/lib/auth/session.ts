@@ -165,6 +165,45 @@ export async function requireStaffApi(
   return { session };
 }
 
+/**
+ * Voor scoped admin-routes: returnt session + scope-filter.
+ * - Admin krijgt scope = null (geen filter, ziet alles)
+ * - account_manager krijgt scope met userId (filter op account_owner_id)
+ * - andere rollen: 403
+ */
+export async function requireScopedAm(): Promise<
+  | {
+      session: AuthSession;
+      isAdmin: boolean;
+      ownerUserId: string | null; // null = admin, ziet alles
+      response?: undefined;
+    }
+  | { response: Response; session?: undefined }
+> {
+  const session = await getSession();
+  if (!session?.user) {
+    return {
+      response: Response.json(
+        { success: false, error: "Inloggen vereist" },
+        { status: 401 },
+      ),
+    };
+  }
+  const role = session.user.role;
+  if (role === "admin") {
+    return { session, isAdmin: true, ownerUserId: null };
+  }
+  if (role === "account_manager") {
+    return { session, isAdmin: false, ownerUserId: session.user.id };
+  }
+  return {
+    response: Response.json(
+      { success: false, error: "Account-manager- of admin-rechten vereist" },
+      { status: 403 },
+    ),
+  };
+}
+
 /** Helper for JSON API routes: 401 if no session, 403 if not admin. */
 export async function adminOnlyJson<T>(
   handler: (session: AuthSession) => Promise<T> | T,

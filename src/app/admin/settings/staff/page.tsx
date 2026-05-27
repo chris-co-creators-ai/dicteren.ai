@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { assertAdminOnly } from "@/lib/auth/session";
 import { listAdminUsers } from "@/lib/services/leadList";
@@ -7,6 +9,9 @@ import {
   STAFF_BLOCKABLE_PATHS,
 } from "@/lib/services/staffPermissions";
 import { getEventsByActor } from "@/lib/services/audit";
+import { authUsers } from "@/lib/db/schema/auth-bridge";
+import { getPermissionsFor } from "@/lib/services/staffActionPermissions";
+import { ACTION_KEYS } from "@/lib/db/schema/staffActionPermissions";
 import { StaffSettingsClient } from "./staff-settings-client";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +27,21 @@ export default async function StaffSettingsPage() {
   // Audit-feed per staff-user. Voor MVP: 50 events per user.
   const auditByUser = await Promise.all(
     staff.map((u) => getEventsByActor(u.id, 50)),
+  );
+
+  // Assistant_name per staff
+  const assistantsRows = await db
+    .select({ id: authUsers.id, assistantName: authUsers.assistantName })
+    .from(authUsers);
+  const assistantsByUser = new Map(
+    assistantsRows.map((r) => [r.id, r.assistantName ?? null]),
+  );
+
+  // Action-permissies per staff
+  const actionsByUser = await Promise.all(
+    staff.map((u) =>
+      getPermissionsFor({ userId: u.id, role: u.role ?? null }),
+    ),
   );
 
   return (
@@ -49,7 +69,9 @@ export default async function StaffSettingsPage() {
             name: u.name,
             email: u.email,
             role: u.role,
+            assistantName: assistantsByUser.get(u.id) ?? null,
             blockedPaths: blockMap.get(u.id) ?? [],
+            actions: actionsByUser[idx],
             events: auditByUser[idx].map((e) => ({
               id: e.id,
               eventType: e.eventType,
@@ -58,6 +80,7 @@ export default async function StaffSettingsPage() {
             })),
           }))}
           allPaths={STAFF_BLOCKABLE_PATHS}
+          allActions={[...ACTION_KEYS]}
         />
       </main>
     </>

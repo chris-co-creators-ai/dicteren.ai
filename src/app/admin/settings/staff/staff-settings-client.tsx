@@ -17,7 +17,9 @@ type Staff = {
   name: string;
   email: string;
   role: string | null;
+  assistantName: string | null;
   blockedPaths: string[];
+  actions: Record<string, boolean | undefined>;
   events: AuditEvent[];
 };
 
@@ -37,6 +39,7 @@ type PathDef = {
 type Props = {
   staff: Staff[];
   allPaths: PathDef[];
+  allActions: string[];
 };
 
 function formatDateTime(iso: string): string {
@@ -56,7 +59,7 @@ function describeEvent(e: AuditEvent): string {
   return e.eventType.replace(/^audit\./, "");
 }
 
-export function StaffSettingsClient({ staff, allPaths }: Props) {
+export function StaffSettingsClient({ staff, allPaths, allActions }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [openId, setOpenId] = useState<string | null>(staff[0]?.id ?? null);
@@ -77,6 +80,7 @@ export function StaffSettingsClient({ staff, allPaths }: Props) {
           key={s.id}
           staff={s}
           allPaths={allPaths}
+          allActions={allActions}
           open={openId === s.id}
           onToggle={() => setOpenId(openId === s.id ? null : s.id)}
           onSaved={() => startTransition(() => router.refresh())}
@@ -89,12 +93,14 @@ export function StaffSettingsClient({ staff, allPaths }: Props) {
 function StaffCard({
   staff,
   allPaths,
+  allActions,
   open,
   onToggle,
   onSaved,
 }: {
   staff: Staff;
   allPaths: PathDef[];
+  allActions: string[];
   open: boolean;
   onToggle: () => void;
   onSaved: () => void;
@@ -102,8 +108,15 @@ function StaffCard({
   const [blocked, setBlocked] = useState<Set<string>>(
     new Set(staff.blockedPaths),
   );
+  const [actions, setActions] = useState<Record<string, boolean>>(() => {
+    const map: Record<string, boolean> = {};
+    for (const k of allActions) map[k] = staff.actions[k] === true;
+    return map;
+  });
   const [saving, setSaving] = useState(false);
+  const [savingActions, setSavingActions] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [actionsSavedAt, setActionsSavedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isAdmin = staff.role === "admin";
@@ -113,6 +126,10 @@ function StaffCard({
     if (next.has(path)) next.delete(path);
     else next.add(path);
     setBlocked(next);
+  }
+
+  function toggleAction(key: string) {
+    setActions((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
   async function save() {
@@ -136,6 +153,32 @@ function StaffCard({
       setError("Netwerkprobleem.");
     }
     setSaving(false);
+  }
+
+  async function saveActions() {
+    setSavingActions(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/staff-permissions/${staff.id}/actions`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(actions),
+        },
+      );
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error ?? "Opslaan mislukt.");
+        setSavingActions(false);
+        return;
+      }
+      setActionsSavedAt(new Date().toLocaleTimeString("nl-NL"));
+      onSaved();
+    } catch {
+      setError("Netwerkprobleem.");
+    }
+    setSavingActions(false);
   }
 
   return (
@@ -175,6 +218,11 @@ function StaffCard({
               Account Manager
             </span>
           )}
+          {staff.assistantName && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-aqua-50 px-2 py-0.5 text-[0.6875rem] font-semibold text-[color:var(--navy)]" style={{ background: "var(--aqua-50)" }}>
+              AI: {staff.assistantName}
+            </span>
+          )}
           {!isAdmin && staff.blockedPaths.length > 0 && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[0.625rem] font-semibold text-red-800">
               {staff.blockedPaths.length} geblokkeerd
@@ -187,7 +235,7 @@ function StaffCard({
       </button>
 
       {open && (
-        <div className="grid gap-6 border-t p-5 lg:grid-cols-2">
+        <div className="grid gap-6 border-t p-5 lg:grid-cols-[1fr_1fr_1fr]">
           <div>
             <h3 className="text-sm font-bold">Page-toegang</h3>
             {isAdmin ? (
@@ -250,6 +298,59 @@ function StaffCard({
                     <span className="inline-flex items-center gap-1 text-xs text-green-700">
                       <Check className="size-3" />
                       Opgeslagen om {savedAt}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold">Acties</h3>
+            {isAdmin ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Admin = automatisch alle acties. Geen toggles.
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Per-actie rechten. Werkt naast Page-toegang.
+                </p>
+                <ul className="mt-3 grid gap-1">
+                  {allActions.map((k) => (
+                    <li key={k}>
+                      <label className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted/40">
+                        <input
+                          type="checkbox"
+                          checked={actions[k] === true}
+                          onChange={() => toggleAction(k)}
+                        />
+                        <span className="flex-1 font-mono text-[0.6875rem]">
+                          {k}
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    onClick={saveActions}
+                    disabled={savingActions}
+                    className="btn btn-primary disabled:opacity-50"
+                  >
+                    {savingActions ? (
+                      "Opslaan…"
+                    ) : (
+                      <>
+                        <Save className="size-3.5" strokeWidth={2.2} />
+                        Acties opslaan
+                      </>
+                    )}
+                  </button>
+                  {actionsSavedAt && (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-700">
+                      <Check className="size-3" />
+                      Opgeslagen om {actionsSavedAt}
                     </span>
                   )}
                 </div>

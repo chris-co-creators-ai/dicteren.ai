@@ -35,7 +35,9 @@ export type CrmOrgListItem = CrmOrganization & {
   openTaskCount: number;
 };
 
-export async function listCrmOrganizations(): Promise<CrmOrgListItem[]> {
+export async function listCrmOrganizations(
+  opts: { accountOwnerId?: string | null } = {},
+): Promise<CrmOrgListItem[]> {
   const rows = await db
     .select({
       org: crmOrganizations,
@@ -43,6 +45,11 @@ export async function listCrmOrganizations(): Promise<CrmOrgListItem[]> {
     })
     .from(crmOrganizations)
     .leftJoin(authUsers, eq(authUsers.id, crmOrganizations.accountOwnerId))
+    .where(
+      opts.accountOwnerId
+        ? eq(crmOrganizations.accountOwnerId, opts.accountOwnerId)
+        : undefined,
+    )
     .orderBy(desc(crmOrganizations.updatedAt));
 
   if (rows.length === 0) return [];

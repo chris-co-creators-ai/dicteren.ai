@@ -57,6 +57,7 @@ export function CsvImportModal({ adminUsers, onClose, onDone }: Props) {
   const [listName, setListName] = useState(
     `CSV import ${new Date().toLocaleDateString("nl-NL")}`,
   );
+  const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [listColor, setListColor] = useState("blue");
   const [createList, setCreateList] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -133,6 +134,34 @@ export function CsvImportModal({ adminUsers, onClose, onDone }: Props) {
       }
     }
 
+    // Eerst dedup-check per rij. Sla exact-match rijen over.
+    const skipEmails = new Set<string>();
+    if (skipDuplicates) {
+      const candidates = rows
+        .map((row) => {
+          const idx = emailColIdx;
+          const val = idx >= 0 ? (row[idx] ?? "").trim() : "";
+          return val ? val.toLowerCase() : null;
+        })
+        .filter((v): v is string => !!v);
+
+      const checks = await Promise.all(
+        candidates.map(async (email) => {
+          try {
+            const r = await fetch(
+              `/api/admin/contacts/search?email=${encodeURIComponent(email)}`,
+            );
+            if (!r.ok) return null;
+            const data = await r.json();
+            return data?.data?.hasExactMatch ? email : null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      for (const e of checks) if (e) skipEmails.add(e);
+    }
+
     const prospects = rows
       .map((row) => {
         const data: Record<string, string> = {};
@@ -142,6 +171,7 @@ export function CsvImportModal({ adminUsers, onClose, onDone }: Props) {
           if (val) data[field] = val;
         });
         if (!data.email) return null;
+        if (skipEmails.has(data.email.toLowerCase())) return null;
         return {
           email: data.email,
           name: data.name ?? null,
@@ -412,6 +442,23 @@ export function CsvImportModal({ adminUsers, onClose, onDone }: Props) {
               </div>
             )}
 
+            <div
+              className="rounded-lg border bg-white p-3 text-xs"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <label className="flex items-center gap-2 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={skipDuplicates}
+                  onChange={(e) => setSkipDuplicates(e.target.checked)}
+                />
+                Sla rijen over die al ergens in onze database staan (cross-table dedup)
+              </label>
+              <p className="mt-1 pl-6 text-[color:var(--text-muted)]">
+                Aanbevolen. Anders krijg je dezelfde klant twee keer in onze CRM, partner-lijst of affiliate-tabel.
+              </p>
+            </div>
+
             <div className="flex justify-end gap-3">
               <button onClick={onClose} className="btn btn-secondary">
                 Annuleer
@@ -424,7 +471,7 @@ export function CsvImportModal({ adminUsers, onClose, onDone }: Props) {
               >
                 {submitting
                   ? "Importeren…"
-                  : `Importeer ${rows.length} prospects`}
+                  : `Importeer ${rows.length} prospects${skipDuplicates ? " (skip duplicates)" : ""}`}
               </button>
             </div>
           </div>

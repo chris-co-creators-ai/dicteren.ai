@@ -1,7 +1,11 @@
-// Dicteren.ai — Admin: CRM organisatie detail (PATCH + DELETE)
+// Dicteren.ai — Admin: CRM organisatie detail (GET + PATCH + DELETE)
+//
+// Scope-regel: account_manager mag alleen eigen rijen lezen/wijzigen
+// (account_owner_id = self.id). 403 als niet eigenaar.
+// Admin: geen filter, alle rijen.
 
 import { NextResponse } from "next/server";
-import { requireStaffApi } from "@/lib/auth/session";
+import { requireScopedAm, requireStaffApi } from "@/lib/auth/session";
 import {
   deleteCrmOrganization,
   getCrmOrganization,
@@ -10,13 +14,36 @@ import {
 
 type Params = Promise<{ id: string }>;
 
+async function assertOwnership(
+  orgId: string,
+  guard: { isAdmin: boolean; ownerUserId: string | null },
+): Promise<Response | null> {
+  if (guard.isAdmin) return null;
+  const org = await getCrmOrganization(orgId);
+  if (!org) {
+    return NextResponse.json(
+      { success: false, error: "Niet gevonden" },
+      { status: 404 },
+    );
+  }
+  if (org.accountOwnerId !== guard.ownerUserId) {
+    return NextResponse.json(
+      { success: false, error: "Geen toegang tot deze organisatie" },
+      { status: 403 },
+    );
+  }
+  return null;
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Params },
 ) {
-  const guard = await requireStaffApi();
+  const guard = await requireScopedAm();
   if (guard.response) return guard.response;
   const { id } = await params;
+  const blocked = await assertOwnership(id, guard);
+  if (blocked) return blocked;
   const org = await getCrmOrganization(id);
   if (!org) {
     return NextResponse.json(
@@ -31,10 +58,11 @@ export async function PATCH(
   request: Request,
   { params }: { params: Params },
 ) {
-  const guard = await requireStaffApi();
+  const guard = await requireScopedAm();
   if (guard.response) return guard.response;
-  const { session } = guard;
   const { id } = await params;
+  const blocked = await assertOwnership(id, guard);
+  if (blocked) return blocked;
 
   let body: Record<string, unknown>;
   try {
@@ -46,7 +74,6 @@ export async function PATCH(
     );
   }
 
-  // Whitelist: alleen velden die we via PATCH toestaan
   const patch: Record<string, unknown> = {};
   const allowed = [
     "name",
@@ -61,7 +88,6 @@ export async function PATCH(
     "status",
     "source",
     "temperature",
-    "accountOwnerId",
     "notes",
     "nextAction",
     "nextActionAt",
@@ -71,6 +97,9 @@ export async function PATCH(
     "discountCode",
     "lostReason",
   ];
+  // Alleen admin mag account_owner_id veranderen (overdracht naar andere AM)
+  if (guard.isAdmin) allowed.push("accountOwnerId");
+
   for (const key of allowed) {
     if (key in body) patch[key] = body[key];
   }
@@ -78,7 +107,7 @@ export async function PATCH(
   const updated = await updateCrmOrganization({
     id,
     patch,
-    actorUserId: session.user.id,
+    actorUserId: guard.session.user.id,
   });
   if (!updated) {
     return NextResponse.json(
