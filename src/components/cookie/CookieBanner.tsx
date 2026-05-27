@@ -67,16 +67,6 @@ export function CookieBanner() {
                 style={{ mixBlendMode: "multiply" }}
                 priority={false}
               />
-              <div
-                className="absolute inset-x-0 bottom-0 px-4 py-2 text-center text-xs italic"
-                style={{
-                  color: "var(--navy)",
-                  background:
-                    "linear-gradient(transparent, rgba(255,255,255,0.75) 70%)",
-                }}
-              >
-                Ursula zou trots zijn 🎉
-              </div>
             </div>
 
             <div className="p-5">
