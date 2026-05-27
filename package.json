@@ -50,6 +50,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "marked": "^18.0.4",
     "tailwindcss": "^4.3.0",
     "typescript": "^6"
   },
