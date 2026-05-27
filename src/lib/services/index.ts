@@ -275,6 +275,28 @@ export {
 } from "./orgSeats";
 
 export {
+  RESERVED_SLUGS,
+  validateSlugFormat,
+  validateSlugAvailable,
+  getAffiliateBySlug,
+  suggestSlugFromName,
+  countActiveSlugs,
+  type SlugValidation,
+} from "./affiliateSlug";
+
+export {
+  LOCKUP_DAYS,
+  PAYOUT_DAY_OF_MONTH,
+  pickCommissionRule,
+  calculateRuleCommissionCents,
+  calculateUnlocksAt,
+  monthsSince,
+  customerTypeFromPlanType,
+  type CommissionRule,
+  type CustomerTypeKey,
+} from "./affiliateRules";
+
+export {
   generateAffiliateCode,
   getAffiliateByCode,
   getAffiliateById,
