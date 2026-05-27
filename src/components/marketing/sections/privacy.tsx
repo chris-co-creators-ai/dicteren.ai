@@ -14,7 +14,7 @@ import {
 export function PrivacySection() {
   const features = [
     { icon: Shield, title: "Spraak blijft lokaal", desc: "Je audio wordt op je eigen apparaat verwerkt, niet in de cloud." },
-    { icon: Settings, title: "Jij kiest", desc: "Beheer zelf je modellen, geluiden en sneltoetsen." },
+    { icon: Settings, title: "Jij kiest", desc: "Beheer zelf je sneltoetsen, geluiden en eigen woorden." },
     { icon: Eye, title: "Niemand luistert mee", desc: "We trainen niet op jouw stem." },
     { icon: RefreshCw, title: "Dicteren werkt offline", desc: "Voor het transcriberen heb je geen internet nodig." },
   ];
