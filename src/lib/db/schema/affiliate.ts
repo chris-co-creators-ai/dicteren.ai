@@ -242,7 +242,10 @@ export const affiliateCommissions = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("affiliate_commissions_order_unique").on(t.orderId),
+    uniqueIndex("affiliate_commissions_order_seq_unique").on(
+      t.orderId,
+      t.sequenceNumber,
+    ),
     index("affiliate_commissions_affiliate_idx").on(t.affiliateId),
     index("affiliate_commissions_status_idx").on(t.status),
     index("affiliate_commissions_unlocks_idx").on(t.unlocksAt),

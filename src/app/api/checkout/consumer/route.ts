@@ -13,6 +13,13 @@ import { buildMollieMetadata } from "@/lib/services/mollie-metadata";
 import { logEvent, trackEvent } from "@/lib/services/audit";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
 import { validateDiscountCode } from "@/lib/services/discount";
+import {
+  attributeUserToAffiliate,
+  getAffiliateByCode,
+  getReferralForUser,
+} from "@/lib/services/affiliate";
+import { getAffiliateBySlug } from "@/lib/services/affiliateSlug";
+import { getRefCookie } from "@/lib/affiliateCookie";
 import { appBase, webhookUrlFor } from "@/lib/url";
 
 export async function POST(request: Request) {
@@ -29,7 +36,12 @@ export async function POST(request: Request) {
   });
   if (blocked) return blocked;
 
-  let body: { planSlug?: string; discountCode?: string | null };
+  let body: {
+    planSlug?: string;
+    discountCode?: string | null;
+    affiliateCode?: string | null;
+    affiliateSlug?: string | null;
+  };
   try {
     body = await request.json();
   } catch {
@@ -82,6 +94,61 @@ export async function POST(request: Request) {
     planSlug,
     customerType: "consumer",
   });
+
+  // ───── Affiliate attribution ─────
+  // Volgorde: expliciete affiliateCode body-field > affiliateSlug body-field
+  // > ref_aff_id cookie (gezet door /[slug]-route). First-touch wins:
+  // attributeUserToAffiliate doet onConflictDoNothing op userId.
+  let resolvedAffiliateId: string | null = null;
+  if (body.affiliateCode) {
+    const aff = await getAffiliateByCode(body.affiliateCode);
+    if (aff && aff.status === "active") resolvedAffiliateId = aff.id;
+  }
+  if (!resolvedAffiliateId && body.affiliateSlug) {
+    const aff = await getAffiliateBySlug(body.affiliateSlug);
+    if (aff && aff.status === "active") resolvedAffiliateId = aff.id;
+  }
+  if (!resolvedAffiliateId) {
+    const cookie = await getRefCookie();
+    if (cookie?.affiliateId) {
+      const existingRef = await getReferralForUser(session.user.id);
+      // Lookup om te checken of affiliate nog active is bij gebruik
+      const aff = await (
+        await import("@/lib/services/affiliate")
+      ).getAffiliateById(cookie.affiliateId);
+      if (aff && aff.status === "active") {
+        resolvedAffiliateId = aff.id;
+      }
+      void existingRef;
+    }
+  }
+  if (resolvedAffiliateId) {
+    const result = await attributeUserToAffiliate({
+      affiliateId: resolvedAffiliateId,
+      userId: session.user.id,
+      attributionSource: body.affiliateCode
+        ? "url-ref"
+        : body.affiliateSlug
+          ? "slug"
+          : "cookie",
+    });
+    if (result.created) {
+      await logEvent({
+        action: "affiliate.attributed",
+        entityType: "affiliate",
+        entityId: resolvedAffiliateId,
+        actorId: session.user.id,
+        metadata: {
+          source: body.affiliateCode
+            ? "url-ref"
+            : body.affiliateSlug
+              ? "slug"
+              : "cookie",
+          customerType: "consumer",
+        },
+      });
+    }
+  }
 
   const customerId = await ensureMollieCustomerId({
     userId: session.user.id,

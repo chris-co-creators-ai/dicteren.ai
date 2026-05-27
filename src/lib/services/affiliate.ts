@@ -19,6 +19,14 @@ import {
   type AffiliateReferral,
   type AffiliateCommission,
 } from "@/lib/db/schema";
+import {
+  calculateRuleCommissionCents,
+  calculateUnlocksAt,
+  customerTypeFromPlanType,
+  monthsSince,
+  pickCommissionRule,
+  type CustomerTypeKey,
+} from "./affiliateRules";
 
 export type CommissionType = "percentage" | "fixed_per_seat";
 export type AffiliateStatusValue = "active" | "paused" | "disabled";
@@ -194,6 +202,181 @@ export async function recordCommission(args: {
   }
 
   return row ?? null;
+}
+
+/** V2: Record commission met per-customer-type rule + lockup + sequenceNumber.
+ *
+ *  Returns null als:
+ *    - affiliate niet active
+ *    - geen commission-rule voor dit customer-type
+ *    - bij renewal: duration is verstreken
+ *    - commissie 0
+ *
+ *  Idempotent op orderId (UNIQUE).
+ */
+export async function recordCommissionV2(args: {
+  affiliate: Affiliate;
+  referral: AffiliateReferral;
+  orderId: string;
+  licenseId: string | null;
+  paymentId: string | null;
+  basisAmountCents: number;
+  seats: number;
+  customerType: CustomerTypeKey;
+  isRenewal: boolean;
+  paidAt: Date;
+}): Promise<AffiliateCommission | null> {
+  if (args.affiliate.status !== "active") return null;
+
+  const monthsSinceFirstSeen = monthsSince(args.referral.firstSeenAt, args.paidAt);
+  const rule = pickCommissionRule({
+    affiliate: args.affiliate,
+    customerType: args.customerType,
+    isRenewal: args.isRenewal,
+    monthsSinceFirstSeen,
+  });
+  if (!rule) return null;
+
+  const amountCents = calculateRuleCommissionCents({
+    rule,
+    basisAmountCents: args.basisAmountCents,
+    seats: args.seats,
+  });
+  if (amountCents <= 0) return null;
+
+  const unlocksAt = calculateUnlocksAt(args.paidAt);
+
+  // Sequence-number: per-orderId. First-payment = 1, renewal-1 = 2, etc.
+  // Idempotency draait op UNIQUE(order_id, sequence_number) — een retry van
+  // de webhook met dezelfde paymentId ziet hetzelfde sequenceNumber en
+  // wordt door onConflictDoNothing afgevangen.
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(affiliateCommissions)
+    .where(eq(affiliateCommissions.orderId, args.orderId));
+  const sequenceNumber = (count ?? 0) + 1;
+
+  // Voor renewal: check of er al een commission met deze paymentId is
+  // (webhook-retry). Skip dan.
+  if (args.paymentId) {
+    const [existing] = await db
+      .select({ id: affiliateCommissions.id })
+      .from(affiliateCommissions)
+      .where(
+        and(
+          eq(affiliateCommissions.orderId, args.orderId),
+          eq(affiliateCommissions.paymentId, args.paymentId),
+        ),
+      )
+      .limit(1);
+    if (existing) return null;
+  }
+
+  const [row] = await db
+    .insert(affiliateCommissions)
+    .values({
+      affiliateId: args.affiliate.id,
+      referralId: args.referral.id,
+      orderId: args.orderId,
+      licenseId: args.licenseId,
+      paymentId: args.paymentId,
+      basisAmountCents: args.basisAmountCents,
+      seats: args.seats,
+      commissionType: rule.type,
+      commissionPct: rule.commissionPct,
+      commissionFixedCents: rule.commissionFixedCents,
+      amountCents,
+      status: "pending",
+      customerType: args.customerType === "business" ? "organization" : "consumer",
+      unlocksAt,
+      isRenewal: args.isRenewal,
+      sequenceNumber,
+    })
+    .onConflictDoNothing({
+      target: [
+        affiliateCommissions.orderId,
+        affiliateCommissions.sequenceNumber,
+      ],
+    })
+    .returning();
+
+  if (row) {
+    await db
+      .update(affiliates)
+      .set({
+        totalEarnedCents: sql`${affiliates.totalEarnedCents} + ${amountCents}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(affiliates.id, args.affiliate.id));
+  }
+
+  return row ?? null;
+}
+
+/** Void een commissie. Reduceert totalEarnedCents tenzij hij al paid was. */
+export async function voidCommission(args: {
+  commissionId: string;
+  reason: "refund" | "cancel_in_lockup" | "manual_admin";
+}): Promise<void> {
+  const [row] = await db
+    .select({
+      id: affiliateCommissions.id,
+      affiliateId: affiliateCommissions.affiliateId,
+      amountCents: affiliateCommissions.amountCents,
+      status: affiliateCommissions.status,
+    })
+    .from(affiliateCommissions)
+    .where(eq(affiliateCommissions.id, args.commissionId))
+    .limit(1);
+  if (!row) return;
+  if (row.status === "voided" || row.status === "paid") return;
+
+  await db
+    .update(affiliateCommissions)
+    .set({
+      status: "voided",
+      voidedReason: args.reason,
+      updatedAt: new Date(),
+    })
+    .where(eq(affiliateCommissions.id, args.commissionId));
+
+  // Verminder de totalEarnedCents (was nog niet uitbetaald).
+  await db
+    .update(affiliates)
+    .set({
+      totalEarnedCents: sql`GREATEST(0, ${affiliates.totalEarnedCents} - ${row.amountCents})`,
+      updatedAt: new Date(),
+    })
+    .where(eq(affiliates.id, row.affiliateId));
+}
+
+/** Void alle non-paid commissions voor een orderId. Voor refund-flow. */
+export async function voidCommissionsForOrder(args: {
+  orderId: string;
+  reason: "refund" | "cancel_in_lockup";
+}): Promise<{ voidedCount: number }> {
+  const rows = await db
+    .select({
+      id: affiliateCommissions.id,
+      status: affiliateCommissions.status,
+    })
+    .from(affiliateCommissions)
+    .where(eq(affiliateCommissions.orderId, args.orderId));
+  let count = 0;
+  for (const r of rows) {
+    if (r.status === "pending" || r.status === "payable") {
+      await voidCommission({ commissionId: r.id, reason: args.reason });
+      count++;
+    }
+  }
+  return { voidedCount: count };
+}
+
+/** Type-helper voor `customer_type` enum-cast naar onze CustomerTypeKey. */
+export function customerTypeFromOrderPlan(
+  planCustomerType: "consumer" | "organization",
+): CustomerTypeKey {
+  return customerTypeFromPlanType(planCustomerType);
 }
 
 /** Affiliate aanmaken vanuit admin. */

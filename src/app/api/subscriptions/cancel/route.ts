@@ -15,6 +15,8 @@ import { cancelMollieSubscription } from "@/lib/services/mollie";
 import { logEvent } from "@/lib/services/audit";
 import { sendCancelEmail } from "@/lib/services/email";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
+import { voidCommissionsForOrder } from "@/lib/services/affiliate";
+import { LOCKUP_DAYS } from "@/lib/services/affiliateRules";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -86,16 +88,51 @@ export async function POST(request: Request) {
     },
   });
 
-  // Find the linked license's expiresAt so we can tell the user how long
-  // their access continues (they paid for the current period already).
+  // Find the linked license's expiresAt + orderId zodat we de affiliate-
+  // commission kunnen voiden bij cancel-in-lockup.
   let licenseExpiresAt: Date | null = null;
+  let linkedOrderId: string | null = null;
   if (sub.licenseId) {
     const [lic] = await db
-      .select({ expiresAt: licenses.expiresAt })
+      .select({ expiresAt: licenses.expiresAt, orderId: licenses.orderId })
       .from(licenses)
       .where(eq(licenses.id, sub.licenseId))
       .limit(1);
     licenseExpiresAt = lic?.expiresAt ?? null;
+    linkedOrderId = lic?.orderId ?? null;
+  }
+
+  // Cancel-in-lockup: als opgezegd binnen 30 dagen na order → void pending
+  // commission ('klant blijft' garantie). Order's createdAt = referentie-punt.
+  if (linkedOrderId) {
+    const { orders } = await import("@/lib/db/schema");
+    const [order] = await db
+      .select({ createdAt: orders.createdAt })
+      .from(orders)
+      .where(eq(orders.id, linkedOrderId))
+      .limit(1);
+    if (order) {
+      const ageMs = Date.now() - order.createdAt.getTime();
+      if (ageMs < LOCKUP_DAYS * 24 * 60 * 60 * 1000) {
+        const voided = await voidCommissionsForOrder({
+          orderId: linkedOrderId,
+          reason: "cancel_in_lockup",
+        });
+        if (voided.voidedCount > 0) {
+          await logEvent({
+            action: "affiliate.commission_status_changed",
+            entityType: "order",
+            entityId: linkedOrderId,
+            actorId: session.user.id,
+            metadata: {
+              reason: "cancel_in_lockup",
+              voidedCount: voided.voidedCount,
+              daysAge: Math.floor(ageMs / 86_400_000),
+            },
+          });
+        }
+      }
+    }
   }
 
   const mail = await sendCancelEmail({

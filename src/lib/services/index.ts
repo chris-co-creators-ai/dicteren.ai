@@ -306,6 +306,9 @@ export {
   markReferralConverted,
   calculateCommissionCents,
   recordCommission,
+  recordCommissionV2,
+  voidCommission,
+  voidCommissionsForOrder,
   createAffiliate,
   updateAffiliate,
   listAffiliates,
@@ -313,6 +316,7 @@ export {
   updateCommissionStatus,
   listAffiliateReferrals,
   listAffiliateCommissions,
+  customerTypeFromOrderPlan,
   type CommissionType,
   type AffiliateStatusValue,
 } from "./affiliate";

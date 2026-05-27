@@ -34,8 +34,11 @@ import {
 import {
   attributeUserToAffiliate,
   getAffiliateByCode,
+  getAffiliateById,
   getReferralForUser,
 } from "@/lib/services/affiliate";
+import { getAffiliateBySlug } from "@/lib/services/affiliateSlug";
+import { getRefCookie } from "@/lib/affiliateCookie";
 import { validateDiscountCode } from "@/lib/services/discount";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
 import { getTierForSeats } from "@/lib/services/pricingTiers";
@@ -74,6 +77,7 @@ export async function POST(request: Request) {
     organizationId?: string;
     billing?: BillingInput;
     affiliateCode?: string | null;
+    affiliateSlug?: string | null;
     discountCode?: string | null;
   };
   try {
@@ -221,37 +225,62 @@ export async function POST(request: Request) {
   }
 
   // ───── Affiliate attribution (lifetime, first-touch) ─────
+  // Volgorde: affiliateCode body > affiliateSlug body > ref_aff_id cookie.
+  let attributionAffiliateId: string | null = null;
+  let attributionSource = "url-ref";
   if (affiliateCode) {
     const aff = await getAffiliateByCode(affiliateCode);
     if (aff && aff.status === "active") {
-      const existing = await getReferralForUser(session.user.id);
-      if (!existing) {
-        const result = await attributeUserToAffiliate({
-          affiliateId: aff.id,
-          userId: session.user.id,
-          organizationId: resolvedOrgId,
-          attributionSource: "url-ref",
-        });
-        if (result.created) {
-          await logEvent({
-            action: "affiliate.attributed",
-            entityType: "affiliate",
-            entityId: aff.id,
-            actorId: session.user.id,
-            metadata: { code: affiliateCode, organizationId: resolvedOrgId },
-          });
-        }
-      } else if (!existing.organizationId && resolvedOrgId) {
-        // Koppel orgId aan bestaande referral. Service-functie doet de
-        // conditional update — niet inline omdat we de regel "user-pages
-        // / routes raken DB alleen via services" volgen.
-        await attributeUserToAffiliate({
-          affiliateId: existing.affiliateId,
-          userId: session.user.id,
-          organizationId: resolvedOrgId,
-          attributionSource: existing.attributionSource ?? "url-ref",
+      attributionAffiliateId = aff.id;
+    }
+  }
+  if (!attributionAffiliateId && body.affiliateSlug) {
+    const aff = await getAffiliateBySlug(body.affiliateSlug);
+    if (aff && aff.status === "active") {
+      attributionAffiliateId = aff.id;
+      attributionSource = "slug";
+    }
+  }
+  if (!attributionAffiliateId) {
+    const cookie = await getRefCookie();
+    if (cookie?.affiliateId) {
+      const aff = await getAffiliateById(cookie.affiliateId);
+      if (aff && aff.status === "active") {
+        attributionAffiliateId = aff.id;
+        attributionSource = "cookie";
+      }
+    }
+  }
+  if (attributionAffiliateId) {
+    const existing = await getReferralForUser(session.user.id);
+    if (!existing) {
+      const result = await attributeUserToAffiliate({
+        affiliateId: attributionAffiliateId,
+        userId: session.user.id,
+        organizationId: resolvedOrgId,
+        attributionSource,
+      });
+      if (result.created) {
+        await logEvent({
+          action: "affiliate.attributed",
+          entityType: "affiliate",
+          entityId: attributionAffiliateId,
+          actorId: session.user.id,
+          metadata: {
+            source: attributionSource,
+            organizationId: resolvedOrgId,
+            customerType: "business",
+          },
         });
       }
+    } else if (!existing.organizationId && resolvedOrgId) {
+      // Koppel orgId aan bestaande referral.
+      await attributeUserToAffiliate({
+        affiliateId: existing.affiliateId,
+        userId: session.user.id,
+        organizationId: resolvedOrgId,
+        attributionSource: existing.attributionSource ?? attributionSource,
+      });
     }
   }
 

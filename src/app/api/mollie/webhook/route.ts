@@ -17,7 +17,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { discountCodes } from "@/lib/db/schema";
+import { discountCodes, licenses, plans } from "@/lib/db/schema";
 import {
   createMollieSubscription,
   mapMollieStatus,
@@ -49,6 +49,9 @@ import {
   getReferralForUser,
   markReferralConverted,
   recordCommission,
+  recordCommissionV2,
+  voidCommissionsForOrder,
+  customerTypeFromOrderPlan,
 } from "@/lib/services/affiliate";
 import { incrementDiscountRedemption } from "@/lib/services/discount";
 import {
@@ -204,6 +207,66 @@ export async function POST(request: Request) {
           amountCents: payment.data.amount,
         });
 
+        // ───── Renewal-commission (V2 rule-based + lockup) ─────
+        // Boek commissie voor de affiliate van deze user — alleen als nog
+        // binnen `*_commission_duration_months`. Onfflict-key is
+        // (orderId, sequenceNumber), webhook-retries no-op.
+        try {
+          const [lic] = await db
+            .select({
+              userId: licenses.userId,
+              orderId: licenses.orderId,
+              planCustomerType: plans.customerType,
+              seats: licenses.seats,
+            })
+            .from(licenses)
+            .leftJoin(plans, eq(plans.id, licenses.planId))
+            .where(eq(licenses.id, renewed.licenseId))
+            .limit(1);
+          if (lic?.userId && lic.orderId && lic.planCustomerType) {
+            const ref = await getReferralForUser(lic.userId);
+            if (ref) {
+              const aff = await getAffiliateById(ref.affiliateId);
+              if (aff && aff.status === "active") {
+                const customerType = customerTypeFromOrderPlan(
+                  lic.planCustomerType as "consumer" | "organization",
+                );
+                const renewalCommission = await recordCommissionV2({
+                  affiliate: aff,
+                  referral: ref,
+                  orderId: lic.orderId,
+                  licenseId: renewed.licenseId,
+                  paymentId: null,
+                  basisAmountCents: payment.data.amount,
+                  seats: lic.seats,
+                  customerType,
+                  isRenewal: true,
+                  paidAt: new Date(),
+                });
+                if (renewalCommission) {
+                  await logEvent({
+                    action: "affiliate.commission_recorded",
+                    entityType: "affiliate",
+                    entityId: aff.id,
+                    metadata: {
+                      orderId: lic.orderId,
+                      licenseId: renewed.licenseId,
+                      amountCents: renewalCommission.amountCents,
+                      basisAmountCents: payment.data.amount,
+                      seats: lic.seats,
+                      customerType,
+                      isRenewal: true,
+                      sequenceNumber: renewalCommission.sequenceNumber,
+                    },
+                  });
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("[webhook] renewal-commission failed", err);
+        }
+
         const contact = await getContactByLicenseId(renewed.licenseId);
         if (contact) {
           const mail = await sendRenewalEmail({
@@ -272,6 +335,23 @@ export async function POST(request: Request) {
       // A refund on a recurring charge: lock immediately via order route.
       await markOrderStatus(payment.data.paymentId, "refunded");
       const contact = await getContactByMolliePaymentId(payment.data.paymentId);
+      if (contact?.orderId) {
+        const voided = await voidCommissionsForOrder({
+          orderId: contact.orderId,
+          reason: "refund",
+        });
+        if (voided.voidedCount > 0) {
+          await logEvent({
+            action: "affiliate.commission_status_changed",
+            entityType: "order",
+            entityId: contact.orderId,
+            metadata: {
+              reason: "refund",
+              voidedCount: voided.voidedCount,
+            },
+          });
+        }
+      }
       if (contact) {
         const mail = await sendRefundEmail({
           to: contact.email,
@@ -387,22 +467,30 @@ export async function POST(request: Request) {
         }
       }
 
-      // ───── Affiliate commission ─────
+      // ───── Affiliate commission (V2: rule-based + lockup) ─────
       // Lifetime attributie: als deze user via een affiliate kwam, krijgt die
       // commission op deze paid order. Idempotent op orderId (unique index).
+      // Status begint 'pending' — cron unlock-commissions flipt na 30 dagen
+      // naar 'payable' tenzij refund/cancel-in-lockup hem void heeft.
       if (fulfilled.userId) {
         const referral = await getReferralForUser(fulfilled.userId);
         if (referral) {
           const affiliate = await getAffiliateById(referral.affiliateId);
           if (affiliate && affiliate.status === "active") {
-            const commission = await recordCommission({
+            const customerType = customerTypeFromOrderPlan(
+              fulfilled.plan.customerType as "consumer" | "organization",
+            );
+            const commission = await recordCommissionV2({
               affiliate,
-              referralId: referral.id,
+              referral,
               orderId: fulfilled.orderId,
               licenseId: fulfilled.licenseId,
               paymentId: fulfilled.paymentId,
               basisAmountCents: payment.data.amount,
               seats: fulfilled.seats,
+              customerType,
+              isRenewal: false,
+              paidAt: new Date(),
             });
             await markReferralConverted({ userId: fulfilled.userId });
             if (commission) {
@@ -416,6 +504,10 @@ export async function POST(request: Request) {
                   amountCents: commission.amountCents,
                   basisAmountCents: payment.data.amount,
                   seats: fulfilled.seats,
+                  customerType,
+                  isRenewal: false,
+                  unlocksAt: commission.unlocksAt?.toISOString() ?? null,
+                  sequenceNumber: commission.sequenceNumber,
                 },
               });
               await trackEvent("affiliate_commission_recorded", {
@@ -555,6 +647,24 @@ export async function POST(request: Request) {
         entityId: orderId,
         metadata: { paymentId: payment.data.paymentId },
       });
+      // Void affiliate-commissions die nog pending/payable zijn voor deze
+      // order. Paid commissions blijven staan (admin moet handmatig terug-
+      // vorderen — buiten scope automation).
+      const voided = await voidCommissionsForOrder({
+        orderId,
+        reason: "refund",
+      });
+      if (voided.voidedCount > 0) {
+        await logEvent({
+          action: "affiliate.commission_status_changed",
+          entityType: "order",
+          entityId: orderId,
+          metadata: {
+            reason: "refund",
+            voidedCount: voided.voidedCount,
+          },
+        });
+      }
     }
     const contact = await getContactByMolliePaymentId(payment.data.paymentId);
     if (contact) {
