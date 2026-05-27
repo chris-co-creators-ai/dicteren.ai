@@ -45,20 +45,34 @@ export function CookieBanner() {
                 "0 20px 60px -10px rgba(4,38,96,0.25), 0 4px 12px rgba(0,0,0,0.08)",
             }}
           >
-            <div className="relative aspect-[16/9] w-full overflow-hidden bg-[color:var(--bg-deep)]">
+            <div
+              className="relative aspect-[16/9] w-full overflow-hidden"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--aqua-50) 0%, #fff5ec 45%, #FFE0C2 100%)",
+              }}
+            >
+              {/* Dicteren.ai gradient als achtergrond. De Ursula-PNG is
+                  8-bit RGB zonder alpha-kanaal (witte achtergrond, geen
+                  echte transparantie). Met `mix-blend-mode: multiply`
+                  rekent CSS `wit × gradient = gradient` af: witte pixels
+                  worden vervangen door de gradient, kleurpixels (huid,
+                  haar, kleding) blijven intact. */}
               <Image
-                src="/ursula_cookie.png"
+                src="/ursela_cookie.png"
                 alt="Ursula viert dat je over cookies nadenkt"
                 fill
                 sizes="(max-width: 768px) 100vw, 28rem"
-                className="object-cover"
+                className="object-contain"
+                style={{ mixBlendMode: "multiply" }}
                 priority={false}
               />
               <div
-                className="absolute inset-x-0 bottom-0 px-4 py-2 text-center text-xs italic text-white"
+                className="absolute inset-x-0 bottom-0 px-4 py-2 text-center text-xs italic"
                 style={{
+                  color: "var(--navy)",
                   background:
-                    "linear-gradient(transparent, rgba(0,0,0,0.55) 60%)",
+                    "linear-gradient(transparent, rgba(255,255,255,0.75) 70%)",
                 }}
               >
                 Ursula zou trots zijn 🎉
