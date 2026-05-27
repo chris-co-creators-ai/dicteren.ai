@@ -64,6 +64,13 @@ export {
 } from "./email";
 
 export {
+  sendAffiliateApprovedEmail,
+  sendAffiliateFirstCommissionEmail,
+  sendAffiliatePayoutScheduledEmail,
+  sendAffiliatePayoutPaidEmail,
+} from "./affiliateEmail";
+
+export {
   sendOrgMemberWelcomeEmail,
   sendOrgOwnerMemberJoinedEmail,
   sendOrgMemberRemovedEmail,

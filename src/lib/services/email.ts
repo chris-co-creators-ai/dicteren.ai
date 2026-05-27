@@ -35,6 +35,10 @@ export type EmailCategory =
   | "org_tier_changed"
   | "org_device_revoked"
   | "org_subscription_canceled"
+  | "affiliate_approved"
+  | "affiliate_first_commission"
+  | "affiliate_payout_scheduled"
+  | "affiliate_payout_paid"
   | "other";
 
 interface EmailLogContext {
