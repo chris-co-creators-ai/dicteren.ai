@@ -25,3 +25,4 @@ export * from "./affiliate";
 export * from "./communication";
 export * from "./audit";
 export * from "./orgSeats";
+export * from "./staffActionPermissions";
