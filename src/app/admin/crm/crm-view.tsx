@@ -248,6 +248,8 @@ export function CrmView({
   columnPrefs,
   customColumns,
   kpis,
+  activeTab,
+  onTabChange,
 }: {
   currentUserId: string;
   customers: Customer[];
@@ -259,6 +261,8 @@ export function CrmView({
   customColumns: CustomColumnDef[];
   stageCounts: Record<Stage, number>;
   kpis: Kpi[];
+  activeTab: "people" | "organizations";
+  onTabChange: (k: "people" | "organizations") => void;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -462,7 +466,7 @@ export function CrmView({
       <AdminTopbar />
 
       <div className="flex flex-col gap-5 px-5 py-7 lg:px-7">
-        <CrmTabs />
+        <CrmTabs active={activeTab} onChange={onTabChange} />
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-[1.625rem]">
             CRM

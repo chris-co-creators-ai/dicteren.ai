@@ -65,6 +65,8 @@ type Props = {
     totalForecastCents: number;
   };
   admins: { id: string; name: string; email: string }[];
+  activeTab: "people" | "organizations";
+  onTabChange: (k: "people" | "organizations") => void;
 };
 
 function fmtCents(cents: number | null): string {
@@ -81,6 +83,8 @@ export function OrganizationsView({
   organizations: initialOrgs,
   kpis,
   admins,
+  activeTab,
+  onTabChange,
 }: Props) {
   const router = useRouter();
   const [view, setView] = useState<"list" | "kanban">("kanban");
@@ -129,7 +133,7 @@ export function OrganizationsView({
     <>
       <AdminTopbar />
       <main className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-7 lg:px-7">
-        <CrmTabs />
+        <CrmTabs active={activeTab} onChange={onTabChange} />
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

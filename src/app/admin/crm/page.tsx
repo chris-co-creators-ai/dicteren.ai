@@ -24,8 +24,7 @@ import {
   crmDealsKpis,
   listCrmOrganizations,
 } from "@/lib/services/crmDeals";
-import { CrmView } from "./crm-view";
-import { OrganizationsView } from "./organizations/organizations-view";
+import { CrmContainer } from "./crm-container";
 
 export const dynamic = "force-dynamic";
 
@@ -40,62 +39,35 @@ export default async function AdminCrmPage({
   if (!session?.user) redirect("/auth/sign-in?next=/admin/crm");
 
   const { tab } = await searchParams;
+  const initialTab: "people" | "organizations" =
+    tab === "organizations" ? "organizations" : "people";
 
-  // ───── Organisaties-tab ─────
-  if (tab === "organizations") {
-    const [orgs, orgKpis, orgAdmins] = await Promise.all([
-      listCrmOrganizations(),
-      crmDealsKpis(),
-      listAdminUsers(),
-    ]);
-
-    return (
-      <OrganizationsView
-        currentUserId={session.user.id}
-        organizations={orgs.map((o) => ({
-          id: o.id,
-          name: o.name,
-          status: o.status,
-          source: o.source,
-          temperature: o.temperature,
-          accountOwnerId: o.accountOwnerId,
-          ownerName: o.ownerName,
-          primaryContactName: o.primaryContactName,
-          primaryContactEmail: o.primaryContactEmail,
-          contactCount: o.contactCount,
-          openTaskCount: o.openTaskCount,
-          proposedSeats: o.proposedSeats,
-          proposedAmountCents: o.proposedAmountCents,
-          nextAction: o.nextAction,
-          nextActionAt: o.nextActionAt?.toISOString() ?? null,
-          city: o.city,
-          kvk: o.kvk,
-          updatedAt: o.updatedAt.toISOString(),
-          createdAt: o.createdAt.toISOString(),
-        }))}
-        kpis={orgKpis}
-        admins={orgAdmins.map((a) => ({
-          id: a.id,
-          name: a.name,
-          email: a.email,
-        }))}
-      />
-    );
-  }
-
-
-  const [rows, stages, kpis, affiliates, discounts, lists, admins, prefs, customColumns] =
-    await Promise.all([
-      listCustomerFunnel(),
-      funnelStageCounts(),
-      identityKpis(),
-      listAffiliates(),
-      listDiscounts(),
-      listLeadLists({ userId: session.user.id }),
-      listAdminUsers(),
-      getColumnPrefs(session.user.id),
-      listCustomColumns(),
-    ]);
+  // Beide datasets parallel laden — client-side tab switcht zonder reload.
+  const [
+    rows,
+    stages,
+    kpis,
+    affiliates,
+    discounts,
+    lists,
+    admins,
+    prefs,
+    customColumns,
+    orgs,
+    orgKpis,
+  ] = await Promise.all([
+    listCustomerFunnel(),
+    funnelStageCounts(),
+    identityKpis(),
+    listAffiliates(),
+    listDiscounts(),
+    listLeadLists({ userId: session.user.id }),
+    listAdminUsers(),
+    getColumnPrefs(session.user.id),
+    listCustomColumns(),
+    listCrmOrganizations(),
+    crmDealsKpis(),
+  ]);
 
   const userIds = rows.map((r) => r.id);
   const [attrs, memberships] = await Promise.all([
@@ -118,95 +90,127 @@ export default async function AdminCrmPage({
   ).length;
 
   return (
-    <CrmView
-      currentUserId={session.user.id}
-      customers={rows.map((r) => {
-        const attr = attrs.get(r.id);
-        return {
-          id: r.id,
-          name: r.name,
-          email: r.email,
-          emailVerified: r.emailVerified,
-          role: r.role,
-          createdAt: r.createdAt.toISOString(),
-          trialStartedAt: r.trialStartedAt?.toISOString() ?? null,
-          trialExpiresAt: r.trialExpiresAt?.toISOString() ?? null,
-          trialStatus: r.trialStatus,
-          paidLicenseCount: r.paidLicenseCount,
-          emailsSent: r.emailsSent,
-          emailsOpened: r.emailsOpened,
-          emailsClicked: r.emailsClicked,
-          emailsBounced: r.emailsBounced,
-          stage: classifyStage(r),
-          segment: r.segment,
-          licenseSource: r.licenseSource,
-          discountType: r.discountType,
-          discountValue: r.discountValue,
-          mollieCustomerId: r.mollieCustomerId,
-          subscriptionStatus: r.subscriptionStatus,
-          nextBillingAt: r.nextBillingAt?.toISOString() ?? null,
-          accountOwner: r.accountOwner
-            ? {
-                affiliateId: r.accountOwner.affiliateId,
-                code: r.accountOwner.code,
-                name: r.accountOwner.name,
-                convertedAt:
-                  r.accountOwner.convertedAt?.toISOString() ?? null,
-              }
-            : null,
-          discountCodeUsed: r.discountCodeUsed
-            ? {
-                id: r.discountCodeUsed.id,
-                code: r.discountCodeUsed.code,
-                affiliateId: r.discountCodeUsed.affiliateId,
-              }
-            : null,
-          // CRM-attributen: stage/temp/assignee/notes — default-afleiding als
-          // er nog geen rij in customer_attributes is.
-          crmStage:
-            attr?.stage ??
-            defaultStageFor(r.paidLicenseCount, r.trialStatus),
-          crmTemperature:
-            attr?.temperature ??
-            defaultTemperatureFor(r.trialStatus, r.paidLicenseCount),
-          assignedToUserId: attr?.assignedToUserId ?? null,
-          notes: attr?.notes ?? null,
-          customFields:
-            (attr?.customFields as Record<string, string | number | null>) ??
-            null,
-          listIds: memberships.get(r.id) ?? [],
-        };
-      })}
-      customColumns={customColumns}
-      affiliates={affiliates.map((a) => ({
-        id: a.id,
-        code: a.code,
-        name: a.name,
-        status: a.status,
-      }))}
-      discountCodes={discounts.map((d) => ({
-        id: d.id,
-        code: d.code,
-        affiliateId: d.affiliateId,
-        isActive: d.isActive,
-      }))}
-      lists={lists.map((l) => ({
-        id: l.id,
-        name: l.name,
-        description: l.description,
-        color: l.color,
-        memberCount: l.memberCount,
-        ownerUserId: l.ownerUserId,
-        isShared: l.isShared,
-      }))}
-      adminUsers={admins.map((a) => ({
-        id: a.id,
-        name: a.name,
-        email: a.email,
-      }))}
-      columnPrefs={prefs}
-      stageCounts={stages}
-      kpis={[
+    <CrmContainer
+      initialTab={initialTab}
+      orgsProps={{
+        currentUserId: session.user.id,
+        organizations: orgs.map((o) => ({
+          id: o.id,
+          name: o.name,
+          status: o.status,
+          source: o.source,
+          temperature: o.temperature,
+          accountOwnerId: o.accountOwnerId,
+          ownerName: o.ownerName,
+          primaryContactName: o.primaryContactName,
+          primaryContactEmail: o.primaryContactEmail,
+          contactCount: o.contactCount,
+          openTaskCount: o.openTaskCount,
+          proposedSeats: o.proposedSeats,
+          proposedAmountCents: o.proposedAmountCents,
+          nextAction: o.nextAction,
+          nextActionAt: o.nextActionAt?.toISOString() ?? null,
+          city: o.city,
+          kvk: o.kvk,
+          updatedAt: o.updatedAt.toISOString(),
+          createdAt: o.createdAt.toISOString(),
+        })),
+        kpis: orgKpis,
+        admins: admins.map((a) => ({
+          id: a.id,
+          name: a.name,
+          email: a.email,
+        })),
+      }}
+      peopleProps={{
+        currentUserId: session.user.id,
+        customers: rows.map((r) => {
+          const attr = attrs.get(r.id);
+          return {
+            id: r.id,
+            name: r.name,
+            email: r.email,
+            emailVerified: r.emailVerified,
+            role: r.role,
+            createdAt: r.createdAt.toISOString(),
+            trialStartedAt: r.trialStartedAt?.toISOString() ?? null,
+            trialExpiresAt: r.trialExpiresAt?.toISOString() ?? null,
+            trialStatus: r.trialStatus,
+            paidLicenseCount: r.paidLicenseCount,
+            emailsSent: r.emailsSent,
+            emailsOpened: r.emailsOpened,
+            emailsClicked: r.emailsClicked,
+            emailsBounced: r.emailsBounced,
+            stage: classifyStage(r),
+            segment: r.segment,
+            licenseSource: r.licenseSource,
+            discountType: r.discountType,
+            discountValue: r.discountValue,
+            mollieCustomerId: r.mollieCustomerId,
+            subscriptionStatus: r.subscriptionStatus,
+            nextBillingAt: r.nextBillingAt?.toISOString() ?? null,
+            accountOwner: r.accountOwner
+              ? {
+                  affiliateId: r.accountOwner.affiliateId,
+                  code: r.accountOwner.code,
+                  name: r.accountOwner.name,
+                  convertedAt:
+                    r.accountOwner.convertedAt?.toISOString() ?? null,
+                }
+              : null,
+            discountCodeUsed: r.discountCodeUsed
+              ? {
+                  id: r.discountCodeUsed.id,
+                  code: r.discountCodeUsed.code,
+                  affiliateId: r.discountCodeUsed.affiliateId,
+                }
+              : null,
+            crmStage:
+              attr?.stage ??
+              defaultStageFor(r.paidLicenseCount, r.trialStatus),
+            crmTemperature:
+              attr?.temperature ??
+              defaultTemperatureFor(r.trialStatus, r.paidLicenseCount),
+            assignedToUserId: attr?.assignedToUserId ?? null,
+            notes: attr?.notes ?? null,
+            customFields:
+              (attr?.customFields as Record<
+                string,
+                string | number | null
+              >) ?? null,
+            listIds: memberships.get(r.id) ?? [],
+          };
+        }),
+        customColumns,
+        affiliates: affiliates.map((a) => ({
+          id: a.id,
+          code: a.code,
+          name: a.name,
+          status: a.status,
+        })),
+        discountCodes: discounts.map((d) => ({
+          id: d.id,
+          code: d.code,
+          affiliateId: d.affiliateId,
+          isActive: d.isActive,
+        })),
+        lists: lists.map((l) => ({
+          id: l.id,
+          name: l.name,
+          description: l.description,
+          color: l.color,
+          memberCount: l.memberCount,
+          ownerUserId: l.ownerUserId,
+          isShared: l.isShared,
+        })),
+        adminUsers: admins.map((a) => ({
+          id: a.id,
+          name: a.name,
+          email: a.email,
+        })),
+        columnPrefs: prefs,
+        stageCounts: stages,
+        kpis: [
         {
           label: "Totaal klanten",
           value: String(kpis.totalUsers),
@@ -227,7 +231,8 @@ export default async function AdminCrmPage({
           value: String(mollieCount),
           detail: `${activeSubCount} actieve subscription`,
         },
-      ]}
+        ],
+      }}
     />
   );
 }

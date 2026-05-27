@@ -1,42 +1,49 @@
 "use client";
 
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Building2, Users } from "lucide-react";
 
-export function CrmTabs() {
-  const sp = useSearchParams();
-  const tab = sp.get("tab");
-  const isOrgs = tab === "organizations";
+export type CrmTabKey = "people" | "organizations";
+
+export function CrmTabs({
+  active,
+  onChange,
+}: {
+  active: CrmTabKey;
+  onChange: (k: CrmTabKey) => void;
+}) {
   return (
     <div
       className="inline-flex items-center gap-1 rounded-lg border bg-white p-1 text-sm"
       style={{ borderColor: "var(--border)" }}
     >
-      <Link
-        href="/admin/crm"
+      <button
+        type="button"
+        onClick={() => onChange("people")}
         className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
-          !isOrgs
+          active === "people"
             ? "text-white"
             : "text-[color:var(--text-muted)] hover:bg-[color:var(--bg)]"
         }`}
-        style={!isOrgs ? { background: "#042660" } : undefined}
+        style={active === "people" ? { background: "#042660" } : undefined}
       >
         <Users className="size-4" strokeWidth={2} />
         Personen
-      </Link>
-      <Link
-        href="/admin/crm?tab=organizations"
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("organizations")}
         className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
-          isOrgs
+          active === "organizations"
             ? "text-white"
             : "text-[color:var(--text-muted)] hover:bg-[color:var(--bg)]"
         }`}
-        style={isOrgs ? { background: "#042660" } : undefined}
+        style={
+          active === "organizations" ? { background: "#042660" } : undefined
+        }
       >
         <Building2 className="size-4" strokeWidth={2} />
         Organisaties
-      </Link>
+      </button>
     </div>
   );
 }
