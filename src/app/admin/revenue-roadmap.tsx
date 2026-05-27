@@ -183,6 +183,11 @@ export function RevenueRoadmap() {
                   </div>
                 </div>
 
+                {/* Maand-label net boven de lijn */}
+                <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-[color:var(--navy)]">
+                  {p.label}
+                </div>
+
                 {/* Bolletje op de lijn */}
                 <div
                   className="size-3 rounded-full border-2 border-white shadow-md"
@@ -194,17 +199,6 @@ export function RevenueRoadmap() {
                         : "#042660",
                   }}
                 />
-
-                {/* Datum-label */}
-                <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[color:var(--navy)]">
-                  {p.label}
-                </div>
-                <div className="text-[9px] text-[color:var(--text-muted)]">
-                  1{" "}
-                  {p.date.slice(5, 7) === "01"
-                    ? "jan"
-                    : ""}
-                </div>
 
                 {/* MRR onder lijn */}
                 <div
