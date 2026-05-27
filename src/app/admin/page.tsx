@@ -22,6 +22,8 @@ import { formatMollieAmount } from "@/lib/services/mollie";
 import { listOpenPartnerTasks } from "@/lib/services/partnerTasks";
 import { OpenTasksWidget } from "./open-tasks-widget";
 import { RevenueRoadmap } from "./revenue-roadmap";
+import { ActualRevenueTimeline } from "./actual-revenue-timeline";
+import { getActualB2BMrrTimeline } from "@/lib/services/revenueTimeline";
 
 export const dynamic = "force-dynamic";
 
@@ -89,8 +91,19 @@ function eventLabel(eventType: string): string {
   return labels[eventType] ?? eventType.replace(/^audit\./, "");
 }
 
+const ROADMAP_DATES = [
+  new Date("2026-06-01T00:00:00Z"),
+  new Date("2026-07-01T00:00:00Z"),
+  new Date("2026-08-01T00:00:00Z"),
+  new Date("2026-09-01T00:00:00Z"),
+  new Date("2026-10-01T00:00:00Z"),
+  new Date("2026-11-01T00:00:00Z"),
+  new Date("2026-12-01T00:00:00Z"),
+  new Date("2027-01-01T00:00:00Z"),
+];
+
 export default async function AdminOverviewPage() {
-  const [session, kpis, distribution, activations, activity, openTasks] =
+  const [session, kpis, distribution, activations, activity, openTasks, actualMrr] =
     await Promise.all([
       getSession(),
       overviewKpis(),
@@ -98,6 +111,7 @@ export default async function AdminOverviewPage() {
       activationsLastNDays(14),
       listRecentActivity(8),
       listOpenPartnerTasks(20),
+      getActualB2BMrrTimeline(ROADMAP_DATES),
     ]);
 
   const greetingName = session?.user.name?.split(" ")[0] ?? "Christian";
@@ -181,6 +195,7 @@ export default async function AdminOverviewPage() {
         </div>
 
         <RevenueRoadmap />
+        <ActualRevenueTimeline points={actualMrr} today={now} />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {overviewKpiCards.map((kpi) => {
