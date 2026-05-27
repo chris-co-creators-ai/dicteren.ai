@@ -122,7 +122,10 @@ export default function HelpPage() {
             <ul className="ml-5 list-disc space-y-1">
               <li>Mac met chip M1, M2, M3 of M4 (van 2020 of later).</li>
               <li>Windows 10 of Windows 11.</li>
-              <li>Minstens 8 GB werkgeheugen.</li>
+              <li>
+                Minstens 2 GB werkgeheugen (RAM). Hoe meer geheugen, hoe
+                langere stukken je in &eacute;&eacute;n keer kan dicteren.
+              </li>
               <li>Ongeveer 1 GB vrije ruimte op je harde schijf.</li>
             </ul>
             <p>
