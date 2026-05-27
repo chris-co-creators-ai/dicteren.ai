@@ -87,9 +87,10 @@ export function CookieBanner() {
                 Cookies & privacy
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-[color:var(--text-muted)]">
-                We gebruiken cookies om de site te laten werken en om — als jij
-                dat goed vindt — beter te begrijpen hoe mensen Dicteren.ai
-                ontdekken. Jij kiest welke categorieën aan mogen.{" "}
+                Ursula zou trots op ons zijn. We gebruiken cookies om de site
+                te laten werken en om — als jij dat goed vindt — beter te
+                begrijpen hoe mensen Dicteren.ai ontdekken. Jij kiest welke
+                categorieën aan mogen.{" "}
                 <Link
                   href="/cookies"
                   className="underline hover:text-[color:var(--navy)]"
