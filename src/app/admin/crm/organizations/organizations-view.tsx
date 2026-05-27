@@ -12,7 +12,7 @@ import {
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { CrmTabs } from "../crm-tabs";
 import { OrgSidePanel } from "./org-side-panel";
-import { NewOrgModal } from "./new-org-modal";
+import { NewOrgPanel } from "./new-org-panel";
 
 const STATUSES = [
   { key: "lead", label: "Nieuw", color: "#94a3b8" },
@@ -259,7 +259,7 @@ export function OrganizationsView({
       )}
 
       {newModalOpen && (
-        <NewOrgModal
+        <NewOrgPanel
           admins={admins}
           currentUserId={currentUserId}
           onClose={() => setNewModalOpen(false)}

@@ -20,13 +20,69 @@ import {
 import { getColumnPrefs } from "@/lib/services/columnPrefs";
 import { listCustomColumns } from "@/lib/services/customColumns";
 import { getSession } from "@/lib/auth/session";
+import {
+  crmDealsKpis,
+  listCrmOrganizations,
+} from "@/lib/services/crmDeals";
 import { CrmView } from "./crm-view";
+import { OrganizationsView } from "./organizations/organizations-view";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminCrmPage() {
+type SearchParams = Promise<{ tab?: string }>;
+
+export default async function AdminCrmPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await getSession();
   if (!session?.user) redirect("/auth/sign-in?next=/admin/crm");
+
+  const { tab } = await searchParams;
+
+  // ───── Organisaties-tab ─────
+  if (tab === "organizations") {
+    const [orgs, orgKpis, orgAdmins] = await Promise.all([
+      listCrmOrganizations(),
+      crmDealsKpis(),
+      listAdminUsers(),
+    ]);
+
+    return (
+      <OrganizationsView
+        currentUserId={session.user.id}
+        organizations={orgs.map((o) => ({
+          id: o.id,
+          name: o.name,
+          status: o.status,
+          source: o.source,
+          temperature: o.temperature,
+          accountOwnerId: o.accountOwnerId,
+          ownerName: o.ownerName,
+          primaryContactName: o.primaryContactName,
+          primaryContactEmail: o.primaryContactEmail,
+          contactCount: o.contactCount,
+          openTaskCount: o.openTaskCount,
+          proposedSeats: o.proposedSeats,
+          proposedAmountCents: o.proposedAmountCents,
+          nextAction: o.nextAction,
+          nextActionAt: o.nextActionAt?.toISOString() ?? null,
+          city: o.city,
+          kvk: o.kvk,
+          updatedAt: o.updatedAt.toISOString(),
+          createdAt: o.createdAt.toISOString(),
+        }))}
+        kpis={orgKpis}
+        admins={orgAdmins.map((a) => ({
+          id: a.id,
+          name: a.name,
+          email: a.email,
+        }))}
+      />
+    );
+  }
+
 
   const [rows, stages, kpis, affiliates, discounts, lists, admins, prefs, customColumns] =
     await Promise.all([
