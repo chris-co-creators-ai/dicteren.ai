@@ -54,14 +54,14 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
       role: "Eigenaar adviesbureau · Utrecht",
     },
     objections: [
-      { q: "Mijn Nederlands is met accent", a: "Het V3-model is getraind op een breed scala aan accenten en sprekers." },
+      { q: "Mijn Nederlands is met accent", a: "Het model is gemaakt voor standaard-Nederlands (ABN). Een licht accent gaat meestal prima. Sterke dialecten zoals Brabants, Limburgs of Fries werken minder goed." },
       { q: "Ik werk met gevoelige info", a: "Lokale verwerking. Audio en tekst verlaten je computer niet." },
       { q: "Ik vind dicteren raar", a: "Begin met losse notities. De meeste mensen wennen binnen een paar dagen." },
     ],
     related: [
       { title: "Hoe ik mijn maandafsluiting halveerde met dicteren", meta: "Productiviteit · 6 min" },
       { title: "Privacy als ondernemer: wat blijft echt lokaal?", meta: "Privacy & AI · 8 min" },
-      { title: "Nederlands dicteren met een Brabants accent: werkt het?", meta: "Nederlandse taal · 5 min" },
+      { title: "Standaard-Nederlands en accenten: wat herkent het model wel?", meta: "Nederlandse taal · 5 min" },
     ],
   },
   advocaten: {
@@ -352,7 +352,7 @@ export const AUDIENCES: Record<AudienceSlug, Audience> = {
     },
     objections: [
       { q: "Spelling klopt vanzelf?", a: "Het V3-model spelt en interpunkt correct. Dat haalt een grote zorg weg." },
-      { q: "Werkt het bij Nederlands met accent?", a: "Het model is getraind op een breed scala aan accenten en sprekers." },
+      { q: "Werkt het bij Nederlands met accent?", a: "Het model is gemaakt voor standaard-Nederlands (ABN). Een licht accent gaat meestal goed. Spreek je een sterk dialect, dan herkent het de woorden minder goed." },
       { q: "Wat als ik niet vloeiend spreek?", a: "Pauzes, herhaling, opnieuw beginnen. Het model haalt het er allemaal uit. Spreek zoals jij spreekt." },
     ],
     related: [
