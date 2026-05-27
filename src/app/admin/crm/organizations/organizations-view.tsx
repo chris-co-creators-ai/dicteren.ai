@@ -126,13 +126,13 @@ export function OrganizationsView({
   }
 
   return (
-    <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-8">
+    <>
       <AdminTopbar />
-
-      <CrmTabs />
+      <main className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-7 lg:px-7">
+        <CrmTabs />
 
       {/* KPI cards */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <KpiCard label="Totaal" value={String(kpis.totalOrgs)} />
         <KpiCard label="Open deals" value={String(kpis.openDeals)} />
         <KpiCard label="Betaal-links uit" value={String(kpis.proposalsOut)} />
@@ -141,7 +141,7 @@ export function OrganizationsView({
       </div>
 
       {/* Toolbar */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[240px]">
           <Search
             className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[color:var(--text-muted)]"
@@ -208,29 +208,53 @@ export function OrganizationsView({
       </div>
 
       {/* View */}
-      {view === "kanban" ? (
+      {filtered.length > 0 && view === "kanban" && (
         <KanbanBoard
           byStatus={byStatus}
           onOpen={(id) => setSelectedOrgId(id)}
           onMove={handleStatusChange}
         />
-      ) : (
+      )}
+      {filtered.length > 0 && view === "list" && (
         <ListView orgs={filtered} onOpen={(id) => setSelectedOrgId(id)} />
       )}
 
       {filtered.length === 0 && (
         <div
-          className="mt-6 rounded-xl border bg-white p-12 text-center"
+          className="rounded-xl border bg-white p-10 text-center"
           style={{ borderColor: "var(--border)" }}
         >
-          <Building2
-            className="mx-auto size-10 text-[color:var(--text-muted)]"
-            strokeWidth={1.5}
-          />
-          <p className="mt-3 text-sm text-[color:var(--text-muted)]">
-            Nog geen organisaties. Klik op &ldquo;Nieuwe organisatie&rdquo; om je
-            eerste deal aan te maken.
+          <div
+            className="mx-auto grid size-14 place-items-center rounded-2xl"
+            style={{ background: "var(--aqua-50)" }}
+          >
+            <Building2
+              className="size-7"
+              style={{ color: "var(--navy)" }}
+              strokeWidth={1.6}
+            />
+          </div>
+          <h3 className="mt-4 text-base font-bold text-[color:var(--navy)]">
+            {initialOrgs.length === 0
+              ? "Nog geen organisaties in je pijplijn"
+              : "Geen resultaten voor je filter"}
+          </h3>
+          <p className="mt-1 text-sm text-[color:var(--text-muted)]">
+            {initialOrgs.length === 0
+              ? "Maak je eerste zakelijke deal aan."
+              : "Pas je zoekterm of filter aan."}
           </p>
+          {initialOrgs.length === 0 && (
+            <button
+              type="button"
+              onClick={() => setNewModalOpen(true)}
+              className="mt-5 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white"
+              style={{ background: "var(--orange-500)" }}
+            >
+              <Plus className="size-4" strokeWidth={2.4} />
+              Nieuwe organisatie
+            </button>
+          )}
         </div>
       )}
 
@@ -255,7 +279,8 @@ export function OrganizationsView({
           onChanged={() => router.refresh()}
         />
       )}
-    </main>
+      </main>
+    </>
   );
 }
 
