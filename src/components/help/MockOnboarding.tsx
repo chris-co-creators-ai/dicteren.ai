@@ -34,7 +34,7 @@ export function MockOnboardingDownload() {
               style={{
                 width: "62%",
                 background:
-                  "linear-gradient(90deg, var(--aqua-400), var(--orange-500))",
+                  "linear-gradient(90deg, var(--aqua-400), var(--orange))",
               }}
             />
           </div>

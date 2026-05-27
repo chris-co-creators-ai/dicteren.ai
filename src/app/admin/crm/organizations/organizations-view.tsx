@@ -200,7 +200,7 @@ export function OrganizationsView({
           type="button"
           onClick={() => setNewModalOpen(true)}
           className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold text-white"
-          style={{ background: "var(--orange-500)" }}
+          style={{ background: "var(--orange)" }}
         >
           <Plus className="size-4" strokeWidth={2.4} />
           Nieuwe organisatie
@@ -249,7 +249,7 @@ export function OrganizationsView({
               type="button"
               onClick={() => setNewModalOpen(true)}
               className="mt-5 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white"
-              style={{ background: "var(--orange-500)" }}
+              style={{ background: "var(--orange)" }}
             >
               <Plus className="size-4" strokeWidth={2.4} />
               Nieuwe organisatie

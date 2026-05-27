@@ -245,7 +245,7 @@ export function NewOrgModal({
             type="submit"
             disabled={submitting}
             className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-            style={{ background: "var(--orange-500)" }}
+            style={{ background: "var(--orange)" }}
           >
             {submitting ? "Bezig..." : "Aanmaken"}
           </button>

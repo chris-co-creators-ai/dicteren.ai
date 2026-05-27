@@ -29,7 +29,7 @@ export function MockCustomWords() {
           <button
             type="button"
             className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white"
-            style={{ background: "var(--orange-500)" }}
+            style={{ background: "var(--orange)" }}
           >
             <Plus className="size-3.5" strokeWidth={2.5} />
             Toevoegen

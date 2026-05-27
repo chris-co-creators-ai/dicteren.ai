@@ -13,7 +13,7 @@ function Key({
         wide ? "min-w-[64px]" : "min-w-[34px]"
       }`}
       style={{
-        background: highlight ? "var(--orange-500)" : "white",
+        background: highlight ? "var(--orange)" : "white",
         color: highlight ? "white" : "var(--text)",
         borderColor: highlight ? "var(--orange-600)" : "var(--border)",
         boxShadow: highlight ? "0 0 0 4px rgba(245, 124, 32, 0.18)" : undefined,

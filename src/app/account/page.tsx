@@ -212,7 +212,7 @@ export default async function AccountHomePage() {
             <Link
               href="/zakelijk/start?plan=org-yearly&from=consumer_upgrade"
               className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-bold text-white"
-              style={{ background: "var(--orange-500)" }}
+              style={{ background: "var(--orange)" }}
             >
               Upgrade naar zakelijk
             </Link>

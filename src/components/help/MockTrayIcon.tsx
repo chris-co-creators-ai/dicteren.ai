@@ -16,7 +16,7 @@ export function MockTrayMac() {
           <Mic className="size-4 text-white" strokeWidth={2} />
           <span
             className="absolute -right-1.5 -top-1.5 size-2 rounded-full"
-            style={{ background: "var(--orange-500)" }}
+            style={{ background: "var(--orange)" }}
           />
         </div>
         <span className="text-xs text-white/70">🔍</span>
@@ -44,7 +44,7 @@ export function MockTrayWindows() {
           <Mic className="size-4 text-white" strokeWidth={2} />
           <span
             className="absolute -right-1.5 -top-1.5 size-2 rounded-full"
-            style={{ background: "var(--orange-500)" }}
+            style={{ background: "var(--orange)" }}
           />
         </div>
         <span className="text-xs text-white/70">📶</span>

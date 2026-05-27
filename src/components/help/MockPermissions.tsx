@@ -47,7 +47,7 @@ function Row({
         <button
           type="button"
           className="rounded-full px-3 py-1.5 text-xs font-bold text-white"
-          style={{ background: "var(--orange-500)" }}
+          style={{ background: "var(--orange)" }}
         >
           Toestaan
         </button>

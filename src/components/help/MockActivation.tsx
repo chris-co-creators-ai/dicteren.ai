@@ -44,7 +44,7 @@ export function MockActivation() {
         <button
           type="button"
           className="mt-5 w-full rounded-full px-4 py-2.5 text-sm font-bold text-white"
-          style={{ background: "var(--orange-500)" }}
+          style={{ background: "var(--orange)" }}
         >
           Activeer mijn licentie
         </button>

@@ -393,7 +393,7 @@ function DetailsTab({
           onClick={handleSave}
           disabled={saving}
           className="w-full rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-          style={{ background: "var(--orange-500)" }}
+          style={{ background: "var(--orange)" }}
         >
           {saving ? "Opslaan..." : "Opslaan"}
         </button>
@@ -467,7 +467,7 @@ function ContactsTab({
                 {c.isPrimary && (
                   <span
                     className="rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white"
-                    style={{ background: "var(--orange-500)" }}
+                    style={{ background: "var(--orange)" }}
                   >
                     Primair
                   </span>
@@ -553,7 +553,7 @@ function ContactsTab({
               onClick={handleAdd}
               disabled={saving || !form.name || !form.email}
               className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
-              style={{ background: "var(--orange-500)" }}
+              style={{ background: "var(--orange)" }}
             >
               {saving ? "..." : "Toevoegen"}
             </button>
@@ -695,7 +695,7 @@ function PaymentTab({
             onClick={sendPaymentLink}
             disabled={sending || !org.proposedSeats || !org.proposedPlanSlug}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-            style={{ background: "var(--orange-500)" }}
+            style={{ background: "var(--orange)" }}
           >
             <Send className="size-4" />
             {sending ? "Verzenden..." : "Stuur betaal-link"}
@@ -903,7 +903,7 @@ function TasksTab({
             onClick={addTask}
             disabled={saving || !title}
             className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
-            style={{ background: "var(--orange-500)" }}
+            style={{ background: "var(--orange)" }}
           >
             Taak toevoegen
           </button>

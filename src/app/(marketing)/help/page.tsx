@@ -794,7 +794,7 @@ export default function HelpPage() {
             <a
               href="mailto:info@dicteren.ai"
               className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white"
-              style={{ background: "var(--orange-500)" }}
+              style={{ background: "var(--orange)" }}
             >
               <MessageCircle className="size-4" strokeWidth={2.2} />
               Mail ons
