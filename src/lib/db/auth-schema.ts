@@ -32,6 +32,10 @@ export const authUser = authNs.table(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     email: text("email").notNull(),
+    /** Normalized variant — strips Gmail dots, plus-aliassen op alle providers,
+     *  lowercase. Unique zodat jan@gmail.com en j.a.n+x@gmail.com niet allebei
+     *  een account kunnen krijgen. Gevuld door normalizeEmail() in service-laag. */
+    emailNormalized: text("email_normalized").notNull(),
     emailVerified: boolean("emailVerified").notNull().default(false),
     image: text("image"),
     createdAt: timestamp("createdAt", { withTimezone: true })
@@ -48,7 +52,10 @@ export const authUser = authNs.table(
     // AM-team plan: koppel AI-naam aan human (Kai/Vegeta/Goku/Popo)
     assistantName: text("assistant_name"),
   },
-  (t) => [uniqueIndex("auth_user_email_unique").on(t.email)],
+  (t) => [
+    uniqueIndex("auth_user_email_unique").on(t.email),
+    uniqueIndex("auth_user_email_normalized_unique").on(t.emailNormalized),
+  ],
 );
 
 // ───── account ──────────────────────────────────────────────

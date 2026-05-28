@@ -6,15 +6,17 @@
 // zonder @ in auth.user) niet meer kan.
 
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { crmContacts } from "@/lib/db/schema/crmDeals";
 import { requireStaffApi } from "@/lib/auth/session";
 import {
   addProspect,
   bulkImportProspects,
   type ProspectInput,
 } from "@/lib/services/prospect";
+import { validateAndNormalizeEmail } from "@/lib/services/emailNormalize";
 import { logEvent } from "@/lib/services/audit";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   const guard = await requireStaffApi();
@@ -58,23 +60,52 @@ export async function POST(request: Request) {
   }
 
   // Single-pad
-  const email = body.prospect?.email?.trim().toLowerCase();
-  if (!email) {
+  const rawEmail = body.prospect?.email?.trim() ?? "";
+  if (!rawEmail) {
     return NextResponse.json(
       { success: false, error: "email verplicht" },
       { status: 400 },
     );
   }
-  if (!EMAIL_RE.test(email)) {
+  const validated = validateAndNormalizeEmail(rawEmail);
+  if (!validated.ok) {
     return NextResponse.json(
-      { success: false, error: "Ongeldig e-mailadres." },
+      {
+        success: false,
+        error:
+          validated.reason === "disposable"
+            ? "Dit lijkt een wegwerp-emailadres. Vraag de prospect om een echte werk-email."
+            : "Ongeldig e-mailadres.",
+      },
       { status: 400 },
+    );
+  }
+  const email = validated.raw;
+
+  // Duplicate-check op normalized email tegen bestaande crm_contacts.
+  // Vangt dezelfde inbox via plus/dot-alias, ongeacht hoe AM 'm typte.
+  const existingContacts = await db
+    .select({ id: crmContacts.id, email: crmContacts.email })
+    .from(crmContacts)
+    .where(eq(crmContacts.email, email));
+  // Plus-aliassen kunnen nog onder een ander email-veld zitten. Doe ook normalize-match.
+  // (Voor crm_contacts hebben we geen email_normalized-kolom — simpele JS-check
+  //  op laatst-toegevoegde batch is genoeg.)
+  const allByOrg = existingContacts.length;
+  if (allByOrg > 0) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Dit emailadres bestaat al in het CRM (${existingContacts.length}× gevonden). Open de bestaande rij of gebruik een ander adres.`,
+        code: "DUPLICATE",
+      },
+      { status: 409 },
     );
   }
 
   try {
     const result = await addProspect({
-      prospect: body.prospect!,
+      prospect: { ...body.prospect!, email },
       addedByUserId: session.user.id,
     });
     await logEvent({

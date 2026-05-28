@@ -32,6 +32,12 @@ import {
   sendEmailVerificationEmail,
   sendOrganizationInviteEmail,
 } from "@/lib/services/email";
+import {
+  isDisposableEmail,
+  normalizeEmail,
+} from "@/lib/services/emailNormalize";
+import { APIError } from "better-auth/api";
+import { eq } from "drizzle-orm";
 
 function appBase(): string {
   return (
@@ -66,6 +72,43 @@ export const auth = betterAuth({
       jwks: authJwks,
     },
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          // Anti-misbruik: Gmail-plus + dot-trick + wegwerp-domains blokkeren.
+          const raw = (user.email as string | undefined) ?? "";
+          if (isDisposableEmail(raw)) {
+            throw new APIError("BAD_REQUEST", {
+              message:
+                "Dit lijkt een wegwerp-emailadres. Gebruik je werk- of persoonlijke email.",
+            });
+          }
+          const normalized = normalizeEmail(raw);
+
+          // Hard duplicate-check op normalized variant.
+          const [existing] = await dbAuth
+            .select({ id: authUser.id })
+            .from(authUser)
+            .where(eq(authUser.emailNormalized, normalized))
+            .limit(1);
+          if (existing) {
+            throw new APIError("CONFLICT", {
+              message:
+                "Dit emailadres is al in gebruik. Log in of vraag een nieuw wachtwoord aan.",
+            });
+          }
+
+          return {
+            data: {
+              ...user,
+              emailNormalized: normalized,
+            },
+          };
+        },
+      },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,

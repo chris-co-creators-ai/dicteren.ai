@@ -12,9 +12,8 @@ import { dbAuth } from "@/lib/db";
 import { authUser } from "@/lib/db/auth-schema";
 import { grantLifetimeLicense } from "@/lib/services/adminGrant";
 import { sendStaffWelcomeEmail } from "@/lib/services/email";
+import { validateAndNormalizeEmail } from "@/lib/services/emailNormalize";
 import { logEvent } from "@/lib/services/audit";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   const guard = await requireStaffApi({ adminOnly: true });
@@ -38,20 +37,28 @@ export async function POST(request: Request) {
   }
 
   const name = body.name?.trim();
-  const email = body.email?.trim().toLowerCase();
+  const rawEmail = body.email?.trim() ?? "";
   const role = body.role ?? "user";
-  if (!name || !email) {
+  if (!name || !rawEmail) {
     return NextResponse.json(
       { success: false, error: "Naam en email verplicht." },
       { status: 400 },
     );
   }
-  if (!EMAIL_RE.test(email)) {
+  const normalized = validateAndNormalizeEmail(rawEmail);
+  if (!normalized.ok) {
     return NextResponse.json(
-      { success: false, error: "Ongeldig emailadres." },
+      {
+        success: false,
+        error:
+          normalized.reason === "disposable"
+            ? "Dit lijkt een wegwerp-emailadres. Gebruik een echte werk-email."
+            : "Ongeldig emailadres.",
+      },
       { status: 400 },
     );
   }
+  const email = normalized.raw;
   if (!["user", "admin", "account_manager"].includes(role)) {
     return NextResponse.json(
       { success: false, error: "Onbekende rol." },
@@ -59,17 +66,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // Check of email al bestaat.
+  // Hard duplicate-check op normalized-variant (vangt Gmail-dots + plus-aliassen).
   const [existing] = await dbAuth
     .select({ id: authUser.id })
     .from(authUser)
-    .where(eq(authUser.email, email))
+    .where(eq(authUser.emailNormalized, normalized.normalized))
     .limit(1);
   if (existing) {
     return NextResponse.json(
       {
         success: false,
-        error: "Deze email bestaat al. Gebruik /admin/users om rol aan te passen.",
+        error: "Deze email is al in gebruik. Gebruik /admin/users om rol aan te passen.",
       },
       { status: 409 },
     );
