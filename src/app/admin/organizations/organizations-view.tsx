@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Building2, Search, AlertTriangle, ChevronRight } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { SourceBadge } from "@/components/admin/SourceBadge";
+import { deriveCustomerSource } from "@/lib/services/customerSource";
 import { cn } from "@/lib/utils";
 
 type Organization = {
@@ -15,6 +17,13 @@ type Organization = {
   vatNumber: string | null;
   memberCount: number;
   licenseCount: number;
+  crmSource:
+    | "am_outreach"
+    | "self_service"
+    | "consumer_upgrade"
+    | "csv_import"
+    | "lead_form"
+    | null;
   createdAt: string;
   totalSeats: number;
   assignedSeats: number;
@@ -144,6 +153,7 @@ export function OrganizationsView({
                 <thead>
                   <tr className="border-b border-[color:var(--border-soft)] bg-[color:var(--bg)] text-left text-[0.6875rem] uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
                     <th className="px-4 py-3">Organisatie</th>
+                    <th className="px-4 py-3">Bron</th>
                     <th className="px-4 py-3 text-center">Seats</th>
                     <th className="px-4 py-3 text-center">Apparaten</th>
                     <th className="px-4 py-3">Tier</th>
@@ -189,6 +199,15 @@ export function OrganizationsView({
                               </div>
                             </div>
                           </Link>
+                        </td>
+                        <td className="px-4 py-3">
+                          {(() => {
+                            const src = deriveCustomerSource({
+                              crmOrgSource: o.crmSource,
+                              licenseType: "team",
+                            });
+                            return <SourceBadge source={src.key} detail={src.detail} />;
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-center font-mono text-xs">
                           {o.assignedSeats} / {o.totalSeats}

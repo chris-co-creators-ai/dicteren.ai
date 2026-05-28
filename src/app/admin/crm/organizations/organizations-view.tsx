@@ -10,6 +10,8 @@ import {
   Search,
 } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { SourceBadge } from "@/components/admin/SourceBadge";
+import { deriveCustomerSource } from "@/lib/services/customerSource";
 import { CrmTabs } from "../crm-tabs";
 import { OrgSidePanel } from "./org-side-panel";
 import { NewOrgPanel } from "./new-org-panel";
@@ -24,19 +26,16 @@ const STATUSES = [
   { key: "lost", label: "Verloren", color: "#ef4444" },
 ] as const;
 
-const SOURCES: Record<string, string> = {
-  am_outreach: "AM",
-  self_service: "Self-service",
-  consumer_upgrade: "Upgrade",
-  csv_import: "Import",
-  lead_form: "Form",
-};
-
 export type OrgRow = {
   id: string;
   name: string;
   status: (typeof STATUSES)[number]["key"];
-  source: keyof typeof SOURCES;
+  source:
+    | "am_outreach"
+    | "self_service"
+    | "consumer_upgrade"
+    | "csv_import"
+    | "lead_form";
   temperature: string | null;
   accountOwnerId: string | null;
   ownerName: string | null;
@@ -358,15 +357,16 @@ function KanbanBoard({
                     <div className="font-bold text-[color:var(--navy)]">
                       {o.name}
                     </div>
-                    <span
-                      className="rounded-full px-1.5 py-0.5 text-[9px] font-bold"
-                      style={{
-                        background: "var(--aqua-50)",
-                        color: "var(--navy)",
-                      }}
-                    >
-                      {SOURCES[o.source] ?? o.source}
-                    </span>
+                    {(() => {
+                      const src = deriveCustomerSource({ crmOrgSource: o.source });
+                      return (
+                        <SourceBadge
+                          source={src.key}
+                          detail={src.detail}
+                          compact
+                        />
+                      );
+                    })()}
                   </div>
                   {o.primaryContactName && (
                     <div className="mt-1 text-[color:var(--text-muted)]">
@@ -453,8 +453,11 @@ function ListView({
               <td className="px-4 py-3">
                 <StatusPill status={o.status} />
               </td>
-              <td className="px-4 py-3 text-xs text-[color:var(--text-muted)]">
-                {SOURCES[o.source] ?? o.source}
+              <td className="px-4 py-3">
+                {(() => {
+                  const src = deriveCustomerSource({ crmOrgSource: o.source });
+                  return <SourceBadge source={src.key} detail={src.detail} />;
+                })()}
               </td>
               <td className="px-4 py-3">{o.proposedSeats ?? "—"}</td>
               <td className="px-4 py-3 font-semibold">

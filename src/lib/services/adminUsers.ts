@@ -1,10 +1,11 @@
 // Dicteren.ai — Admin user-management view.
-// Lijst van alle auth.user-records met extra context (paid-licenses, orgs,
-// last-session, banned-status) zodat /admin/users een operationeel
-// account-paneel is — los van CRM-pipeline.
+// Lijst van auth.user-records met extra context (paid-licenses, orgs,
+// last-session, banned-status, source) zodat /admin/users een operationeel
+// account-paneel voor KLANTEN is — staff zit standaard verborgen en leeft
+// in /admin/settings/staff. Toggle via opts.includeStaff voor admin-need.
 
 import "server-only";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 import { db, dbAuth } from "@/lib/db";
 import {
   authMember,
@@ -12,7 +13,9 @@ import {
   authSession,
   authUser,
 } from "@/lib/db/auth-schema";
-import { licenses } from "@/lib/db/schema";
+import { affiliateReferrals, affiliates, licenses } from "@/lib/db/schema";
+
+const STAFF_ROLES = ["admin", "account_manager"] as const;
 
 export type AdminUserRow = {
   id: string;
@@ -27,10 +30,18 @@ export type AdminUserRow = {
   lastSessionAt: Date | null;
   paidLicenseCount: number;
   organizations: Array<{ id: string; name: string; role: string }>;
+  /** Raw context for client-side deriveCustomerSource() — keeps SSOT in lib/services/customerSource. */
+  latestLicenseSource: string | null;
+  latestLicenseType: "beta" | "consumer" | "team" | "partner" | null;
+  hasAffiliateReferral: boolean;
+  affiliateName: string | null;
 };
 
-export async function listAdminUsers(): Promise<AdminUserRow[]> {
+export async function listAdminUsers(
+  opts: { includeStaff?: boolean } = {},
+): Promise<AdminUserRow[]> {
   // 1. Users + ban-velden uit auth.user.
+  //    Default: verberg staff (admin/account_manager) — die leven in /admin/settings/staff.
   const users = await dbAuth
     .select({
       id: authUser.id,
@@ -44,14 +55,20 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
       createdAt: authUser.createdAt,
     })
     .from(authUser)
+    .where(
+      opts.includeStaff
+        ? undefined
+        : or(
+            isNull(authUser.role),
+            notInArray(authUser.role, STAFF_ROLES as unknown as string[]),
+          ),
+    )
     .orderBy(desc(authUser.createdAt));
 
   if (users.length === 0) return [];
   const ids = users.map((u) => u.id);
 
   // 2. Last session per user — MAX(createdAt) per userId.
-  // sql-aggregaten komen als string terug uit pg; expliciet naar Date casten
-  // anders crasht .toISOString() in de page-mapper.
   const sessions = await dbAuth
     .select({
       userId: authSession.userId,
@@ -104,18 +121,80 @@ export async function listAdminUsers(): Promise<AdminUserRow[]> {
     .groupBy(licenses.userId);
   const licCountMap = new Map(licCounts.map((l) => [l.userId, l.n]));
 
-  return users.map((u) => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    role: u.role,
-    emailVerified: u.emailVerified,
-    banned: u.banned ?? false,
-    banReason: u.banReason,
-    banExpires: u.banExpires,
-    createdAt: u.createdAt,
-    lastSessionAt: lastSessionMap.get(u.id) ?? null,
-    paidLicenseCount: licCountMap.get(u.id) ?? 0,
-    organizations: orgsByUser.get(u.id) ?? [],
-  }));
+  // 5. Latest license per user (voor source-derivation).
+  const allLicenses = await db
+    .select({
+      userId: licenses.userId,
+      source: licenses.source,
+      type: licenses.type,
+      issuedAt: licenses.issuedAt,
+    })
+    .from(licenses)
+    .where(inArray(licenses.userId, ids));
+  const latestLicByUser = new Map<
+    string,
+    { source: string | null; type: "beta" | "consumer" | "team" | "partner" }
+  >();
+  for (const l of allLicenses) {
+    if (!l.userId) continue;
+    const prev = latestLicByUser.get(l.userId);
+    if (!prev || l.issuedAt.getTime() > 0) {
+      // Keep latest by issuedAt — overwrite if newer.
+      const existing = latestLicByUser.get(l.userId);
+      if (!existing) {
+        latestLicByUser.set(l.userId, { source: l.source, type: l.type });
+      }
+    }
+  }
+  // Second pass: pick truly latest (Drizzle returns unordered for inArray batch).
+  const latestByUserCorrect = new Map<
+    string,
+    { source: string | null; type: "beta" | "consumer" | "team" | "partner"; issuedAt: Date }
+  >();
+  for (const l of allLicenses) {
+    if (!l.userId) continue;
+    const prev = latestByUserCorrect.get(l.userId);
+    if (!prev || l.issuedAt > prev.issuedAt) {
+      latestByUserCorrect.set(l.userId, {
+        source: l.source,
+        type: l.type,
+        issuedAt: l.issuedAt,
+      });
+    }
+  }
+
+  // 6. Affiliate-referral per user (lifetime first-touch).
+  const refRows = await db
+    .select({
+      userId: affiliateReferrals.userId,
+      affiliateName: affiliates.name,
+    })
+    .from(affiliateReferrals)
+    .innerJoin(affiliates, eq(affiliates.id, affiliateReferrals.affiliateId))
+    .where(inArray(affiliateReferrals.userId, ids));
+  const refByUser = new Map(
+    refRows.map((r) => [r.userId, r.affiliateName ?? null]),
+  );
+
+  return users.map((u) => {
+    const lic = latestByUserCorrect.get(u.id);
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      emailVerified: u.emailVerified,
+      banned: u.banned ?? false,
+      banReason: u.banReason,
+      banExpires: u.banExpires,
+      createdAt: u.createdAt,
+      lastSessionAt: lastSessionMap.get(u.id) ?? null,
+      paidLicenseCount: licCountMap.get(u.id) ?? 0,
+      organizations: orgsByUser.get(u.id) ?? [],
+      latestLicenseSource: lic?.source ?? null,
+      latestLicenseType: lic?.type ?? null,
+      hasAffiliateReferral: refByUser.has(u.id),
+      affiliateName: refByUser.get(u.id) ?? null,
+    };
+  });
 }

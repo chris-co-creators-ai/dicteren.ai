@@ -39,6 +39,7 @@ export default async function AdminOrganizationsPage() {
           vatNumber: o.vatNumber,
           memberCount: o.memberCount,
           licenseCount: o.licenseCount,
+          crmSource: o.crmSource,
           createdAt: o.createdAt.toISOString(),
           totalSeats: s?.totalSeats ?? 0,
           assignedSeats: s?.assignedSeats ?? 0,

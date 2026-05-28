@@ -4,6 +4,7 @@ import {
   count,
   desc,
   eq,
+  inArray,
   isNull,
   like,
   ne,
@@ -18,6 +19,7 @@ import {
   authMembers,
   authOrganizations,
   authUsers,
+  crmOrganizations,
   discountCodes,
   emailLogs,
   licenses,
@@ -92,9 +94,25 @@ export type OrganizationRow = {
   vatNumber: string | null;
   memberCount: number;
   licenseCount: number;
+  /** crm_organizations.source via authOrganizationId — null = geen CRM-historie */
+  crmSource:
+    | "am_outreach"
+    | "self_service"
+    | "consumer_upgrade"
+    | "csv_import"
+    | "lead_form"
+    | null;
 };
 
-export async function listOrganizations(): Promise<OrganizationRow[]> {
+/**
+ * Lijst van betalende B2B-organisaties.
+ * Default: alleen orgs met minimaal 1 license-rij (= paid of trial — pre-payment
+ * orgs uit Route 4 hebben nog geen auth.organization aangemaakt, zitten in
+ * /admin/crm). Toggle paid-only off voor admin-debug.
+ */
+export async function listOrganizations(
+  opts: { includeWithoutLicense?: boolean } = {},
+): Promise<OrganizationRow[]> {
   const orgs = await db
     .select({
       id: authOrganizations.id,
@@ -114,7 +132,9 @@ export async function listOrganizations(): Promise<OrganizationRow[]> {
 
   if (orgs.length === 0) return [];
 
-  const [members, lic] = await Promise.all([
+  const orgIds = orgs.map((o) => o.id);
+
+  const [members, lic, crmRows] = await Promise.all([
     db
       .select({ orgId: authMembers.organizationId, n: count() })
       .from(authMembers)
@@ -123,16 +143,31 @@ export async function listOrganizations(): Promise<OrganizationRow[]> {
       .select({ orgId: licenses.organizationId, n: count() })
       .from(licenses)
       .groupBy(licenses.organizationId),
+    db
+      .select({
+        authOrgId: crmOrganizations.authOrganizationId,
+        source: crmOrganizations.source,
+      })
+      .from(crmOrganizations)
+      .where(inArray(crmOrganizations.authOrganizationId, orgIds)),
   ]);
 
   const memberMap = new Map(members.map((m) => [m.orgId, m.n]));
   const licMap = new Map(lic.map((l) => [l.orgId, l.n]));
+  const crmSourceMap = new Map<string, OrganizationRow["crmSource"]>();
+  for (const r of crmRows) {
+    if (r.authOrgId) crmSourceMap.set(r.authOrgId, r.source);
+  }
 
-  return orgs.map((o) => ({
+  const mapped = orgs.map((o) => ({
     ...o,
     memberCount: memberMap.get(o.id) ?? 0,
     licenseCount: licMap.get(o.id) ?? 0,
+    crmSource: crmSourceMap.get(o.id) ?? null,
   }));
+
+  if (opts.includeWithoutLicense) return mapped;
+  return mapped.filter((o) => o.licenseCount > 0);
 }
 
 /** Counts for admin overview KPIs. */

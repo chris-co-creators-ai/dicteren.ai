@@ -24,6 +24,8 @@ import {
   Users,
 } from "lucide-react";
 import { CreateUserModal } from "./create-user-modal";
+import { SourceBadge } from "@/components/admin/SourceBadge";
+import { deriveCustomerSource } from "@/lib/services/customerSource";
 
 type User = {
   id: string;
@@ -38,6 +40,10 @@ type User = {
   lastSessionAt: string | null;
   paidLicenseCount: number;
   organizations: Array<{ id: string; name: string; role: string }>;
+  latestLicenseSource: string | null;
+  latestLicenseType: "beta" | "consumer" | "team" | "partner" | null;
+  hasAffiliateReferral: boolean;
+  affiliateName: string | null;
 };
 
 type Props = { users: User[] };
@@ -207,6 +213,7 @@ export function UsersClient({ users }: Props) {
             <tr>
               <th className="px-3 py-3">User</th>
               <th className="px-3 py-3">Status</th>
+              <th className="px-3 py-3">Bron</th>
               <th className="px-3 py-3">Org</th>
               <th className="px-3 py-3">Licenties</th>
               <th className="px-3 py-3">Aangemaakt</th>
@@ -218,7 +225,7 @@ export function UsersClient({ users }: Props) {
             {filtered.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-3 py-12 text-center text-muted-foreground"
                 >
                   Geen users in dit filter.
@@ -278,6 +285,17 @@ export function UsersClient({ users }: Props) {
                       </Badge>
                     )}
                   </div>
+                </td>
+                <td className="px-3 py-3">
+                  {(() => {
+                    const src = deriveCustomerSource({
+                      licenseSource: u.latestLicenseSource,
+                      licenseType: u.latestLicenseType,
+                      hasAffiliateReferral: u.hasAffiliateReferral,
+                      affiliateName: u.affiliateName,
+                    });
+                    return <SourceBadge source={src.key} detail={src.detail} />;
+                  })()}
                 </td>
                 <td className="px-3 py-3">
                   {u.organizations.length === 0 ? (

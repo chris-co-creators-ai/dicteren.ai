@@ -3,9 +3,10 @@
 
 import { marked } from "marked";
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = join(import.meta.dir, "../..");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const MD_PATH = join(ROOT, ".claude/docs/tone-of-voice.md");
 const OUT_PATH = join(ROOT, ".claude/docs/tone-of-voice.html");
 

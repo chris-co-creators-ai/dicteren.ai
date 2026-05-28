@@ -6,9 +6,15 @@ import { UsersClient } from "./users-client";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Users · Admin" };
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show_staff?: string }>;
+}) {
   await assertAdminOnly();
-  const users = await listAdminUsers();
+  const { show_staff } = await searchParams;
+  const includeStaff = show_staff === "1";
+  const users = await listAdminUsers({ includeStaff });
 
   const verified = users.filter((u) => u.emailVerified).length;
   const banned = users.filter((u) => u.banned).length;
@@ -20,15 +26,27 @@ export default async function AdminUsersPage() {
       <AdminTopbar />
       <main className="p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Users</h1>
+          <h1 className="text-2xl font-bold">Klanten</h1>
           <p className="text-sm text-muted-foreground">
-            Account-management van alle auth.user-records. Wachtwoord-reset,
-            ban/unban, role-mutaties, impersonate, force-logout en verwijderen.
-            CRM-pipeline-context staat los in{" "}
+            Consumer-klanten, trial-users, B2B-members en prospects. Staff staat
+            standaard verborgen en leeft in{" "}
+            <a href="/admin/settings/staff" className="underline">
+              /admin/settings/staff
+            </a>
+            . CRM-pipeline-context staat in{" "}
             <a href="/admin/crm" className="underline">
               /admin/crm
             </a>
-            .
+            .{" "}
+            {includeStaff ? (
+              <a href="/admin/users" className="underline font-semibold">
+                ← Verberg staff
+              </a>
+            ) : (
+              <a href="/admin/users?show_staff=1" className="underline">
+                Toon ook staff
+              </a>
+            )}
           </p>
         </div>
 
@@ -65,6 +83,10 @@ export default async function AdminUsersPage() {
             lastSessionAt: u.lastSessionAt?.toISOString() ?? null,
             paidLicenseCount: u.paidLicenseCount,
             organizations: u.organizations,
+            latestLicenseSource: u.latestLicenseSource,
+            latestLicenseType: u.latestLicenseType,
+            hasAffiliateReferral: u.hasAffiliateReferral,
+            affiliateName: u.affiliateName,
           }))}
         />
       </main>
