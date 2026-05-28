@@ -1,15 +1,16 @@
 // Dicteren.ai — Email-normalisatie + disposable-block.
 //
-// Sluit drie misbruik-paden af:
-//   1. Gmail dot-trick: j.a.n@gmail.com = jan@gmail.com
-//   2. Plus-aliassen op alle providers: jan+abc@x.com = jan@x.com
-//   3. Wegwerp-inboxes (mailinator, 10minutemail, etc.)
+// Sluit twee misbruik-paden af:
+//   1. Plus-aliassen op alle providers: jan+abc@x.com = jan@x.com
+//   2. Wegwerp-inboxes (mailinator, 10minutemail, etc.)
+//
+// Bewust NIET: Gmail dot-stripping. Punten in een local-part kunnen typfouten
+// of bewuste varianten zijn — daar oordelen we niet over. Plus-aliassen zijn
+// expliciet bedoeld om wegwerp-varianten te maken vanuit één inbox, dus die wel.
 //
 // Voor DB-vergelijking gebruik je `normalizeEmail()` en sla je het resultaat
-// op in `auth.user.email_normalized` met UNIQUE INDEX. Dan zijn aliassen
+// op in `auth.user.email_normalized` met UNIQUE INDEX. Dan zijn plus-aliassen
 // onmogelijk te misbruiken voor dubbele accounts of trial-spam.
-
-const GMAIL_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
 
 // Top wegwerp-email-domains. Niet exhaustive — Christian kan uitbreiden zonder
 // rebuild via env-var DISPOSABLE_EMAIL_EXTRA (comma-separated) in de toekomst.
@@ -74,8 +75,9 @@ export function isValidEmailFormat(email: string): boolean {
   return EMAIL_RE.test(email.trim().toLowerCase());
 }
 
-/** Normaliseer email zodat plus/dot-aliassen op dezelfde rij landen.
- *  Veilig om altijd toe te passen. Returnt lowercase. */
+/** Normaliseer email zodat plus-aliassen op dezelfde rij landen.
+ *  Veilig om altijd toe te passen. Returnt lowercase. Punten in local-part
+ *  blijven behouden (jan@gmail.com en j.a.n@gmail.com zijn aparte accounts). */
 export function normalizeEmail(raw: string): string {
   const lower = raw.trim().toLowerCase();
   const atIdx = lower.lastIndexOf("@");
@@ -89,12 +91,6 @@ export function normalizeEmail(raw: string): string {
   const plusIdx = local.indexOf("+");
   if (plusIdx >= 0) {
     local = local.slice(0, plusIdx);
-  }
-
-  // Gmail/Googlemail: strip dots in local-part + normaliseer googlemail → gmail.
-  if (GMAIL_DOMAINS.has(domain)) {
-    local = local.replace(/\./g, "");
-    return `${local}@gmail.com`;
   }
 
   return `${local}@${domain}`;
