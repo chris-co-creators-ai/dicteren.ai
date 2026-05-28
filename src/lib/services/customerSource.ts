@@ -16,7 +16,8 @@ export type CustomerSourceKey =
   | "partner_activation"
   | "admin_grant"
   | "csv_import"
-  | "lead_form";
+  | "lead_form"
+  | "signal_triggered";
 
 export type CustomerSourceMeta = {
   label: string;
@@ -33,7 +34,8 @@ export type CustomerSourceMeta = {
     | "Heart"
     | "Gift"
     | "Upload"
-    | "FileText";
+    | "FileText"
+    | "Zap";
 };
 
 export const CUSTOMER_SOURCE_BADGES: Record<CustomerSourceKey, CustomerSourceMeta> = {
@@ -47,6 +49,7 @@ export const CUSTOMER_SOURCE_BADGES: Record<CustomerSourceKey, CustomerSourceMet
   admin_grant:        { label: "Admin-grant",      color: "gray",   icon: "Gift" },
   csv_import:         { label: "CSV-import",       color: "gray",   icon: "Upload" },
   lead_form:          { label: "Lead-formulier",   color: "navy",   icon: "FileText" },
+  signal_triggered:   { label: "Via signaal",      color: "orange", icon: "Zap" },
 };
 
 export type CustomerSourceContext = {
@@ -66,10 +69,17 @@ export type CustomerSourceContext = {
   hasAffiliateReferral?: boolean;
   /** Naam van de reseller voor tooltip-detail */
   affiliateName?: string | null;
+  /** True als deze klant via een gerouteerd crm_signal binnenkwam.
+   *  Zet caller op true wanneer een crm_org_task waar de klant uit
+   *  voortkwam, was aangemaakt vanuit routeNewSignals. */
+  signalTriggered?: boolean;
+  /** Soort signaal voor tooltip (new_vacancy / promotion / etc.) */
+  signalKind?: string | null;
 };
 
 /** Bepaal de canonical source-key voor een klant.
- *  Volgorde van precedence: partner > affiliate > admin-grant > crm-org-source > trial > self-signup. */
+ *  Precedence: partner > affiliate > admin-grant > signal-triggered >
+ *  crm-org-source > trial > self-signup. */
 export function deriveCustomerSource(
   ctx: CustomerSourceContext,
 ): { key: CustomerSourceKey; detail: string | null } {
@@ -81,6 +91,9 @@ export function deriveCustomerSource(
   }
   if (ctx.licenseSource === "admin-grant") {
     return { key: "admin_grant", detail: null };
+  }
+  if (ctx.signalTriggered) {
+    return { key: "signal_triggered", detail: ctx.signalKind ?? null };
   }
   if (ctx.crmOrgSource) {
     return { key: ctx.crmOrgSource, detail: null };

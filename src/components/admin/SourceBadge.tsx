@@ -15,6 +15,7 @@ import {
   Upload,
   User,
   Users,
+  Zap,
 } from "lucide-react";
 import {
   CUSTOMER_SOURCE_BADGES,
@@ -32,6 +33,7 @@ const ICONS = {
   Gift,
   Upload,
   FileText,
+  Zap,
 } as const;
 
 const CHIP_CLASS: Record<string, string> = {

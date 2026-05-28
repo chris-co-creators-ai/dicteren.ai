@@ -17,6 +17,7 @@ import {
   timestamp,
   boolean,
   integer,
+  smallint,
   jsonb,
   pgEnum,
   index,
@@ -214,6 +215,82 @@ export const crmOrgTasks = pgTable(
   ],
 );
 
+// Enrichment-laag (Clay-stijl) — append-only facts per (entity × field × provider).
+// Zie migratie 0020. Resolver-service kiest winnende waarde via
+// ORDER BY confidence DESC, verified_at DESC LIMIT 1.
+export const crmEnrichmentFacts = pgTable(
+  "crm_enrichment_facts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    contactId: uuid("contact_id").references(() => crmContacts.id, {
+      onDelete: "cascade",
+    }),
+    organizationId: uuid("organization_id").references(
+      () => crmOrganizations.id,
+      { onDelete: "cascade" },
+    ),
+    fieldKey: text("field_key").notNull(),
+    value: text("value").notNull(),
+    provider: text("provider").notNull(),
+    confidence: smallint("confidence").notNull(),
+    sourceUrl: text("source_url"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("crm_enrichment_facts_contact_field_idx").on(
+      t.contactId,
+      t.fieldKey,
+    ),
+    index("crm_enrichment_facts_org_field_idx").on(
+      t.organizationId,
+      t.fieldKey,
+    ),
+    index("crm_enrichment_facts_resolver_idx").on(
+      t.fieldKey,
+      t.confidence,
+      t.verifiedAt,
+    ),
+  ],
+);
+
+// Signal-laag — trigger-events die routeNewSignals omzet in een crm_org_task.
+export const crmSignals = pgTable(
+  "crm_signals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    contactId: uuid("contact_id").references(() => crmContacts.id, {
+      onDelete: "cascade",
+    }),
+    organizationId: uuid("organization_id").references(
+      () => crmOrganizations.id,
+      { onDelete: "cascade" },
+    ),
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").notNull(),
+    detectedAt: timestamp("detected_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    score: smallint("score").notNull(),
+    status: text("status").notNull().default("new"),
+    actionedTaskId: uuid("actioned_task_id").references(() => crmOrgTasks.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("crm_signals_routing_idx").on(t.status, t.score),
+    index("crm_signals_org_status_idx").on(t.organizationId, t.status),
+    index("crm_signals_contact_status_idx").on(t.contactId, t.status),
+  ],
+);
+
 export type CrmOrganization = typeof crmOrganizations.$inferSelect;
 export type NewCrmOrganization = typeof crmOrganizations.$inferInsert;
 export type CrmContact = typeof crmContacts.$inferSelect;
@@ -222,3 +299,7 @@ export type CrmEvent = typeof crmEvents.$inferSelect;
 export type NewCrmEvent = typeof crmEvents.$inferInsert;
 export type CrmOrgTask = typeof crmOrgTasks.$inferSelect;
 export type NewCrmOrgTask = typeof crmOrgTasks.$inferInsert;
+export type CrmEnrichmentFact = typeof crmEnrichmentFacts.$inferSelect;
+export type NewCrmEnrichmentFact = typeof crmEnrichmentFacts.$inferInsert;
+export type CrmSignal = typeof crmSignals.$inferSelect;
+export type NewCrmSignal = typeof crmSignals.$inferInsert;
