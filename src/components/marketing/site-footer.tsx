@@ -34,6 +34,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Overzicht", href: "/zakelijk" },
       { label: "Affiliate partners", href: "/zakelijk/affiliate-partners" },
+      { label: "Wispr Flow alternatief", href: "/wispr-flow-alternatief" },
     ],
   },
   {

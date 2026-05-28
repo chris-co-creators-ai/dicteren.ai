@@ -349,59 +349,60 @@ export default function PrijzenPage() {
         </div>
       </section>
 
-      {/* Vergelijking met buitenlandse concurrenten */}
+      {/* Waarom Dicteren.ai en niet Wispr Flow */}
       <section className="px-4 pb-12 sm:px-6 lg:px-14">
         <div className="mx-auto max-w-4xl rounded-2xl border border-[color:var(--border-soft)] bg-white p-7">
           <div className="text-center">
             <span className="chip">Vergelijking</span>
             <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-              Goedkoper én Nederlands.
+              Waarom Dicteren.ai en niet Wispr Flow
             </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-[color:var(--text-muted)]">
-              Vergelijking met Wispr Flow (US-based, cloud-verwerking) — de
-              meest gebruikte AI-dicteer-tool in NL-bedrijven.
-            </p>
           </div>
           <div className="mt-6 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[color:var(--border-soft)] text-left text-[0.6875rem] uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
-                  <th className="py-3 pr-4">Wat krijg je</th>
+                  <th className="py-3 pr-4">Wat</th>
                   <th className="py-3 pr-4">Dicteren.ai</th>
-                  <th className="py-3">Wispr Flow Pro</th>
+                  <th className="py-3">Wispr Flow</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
                 {[
                   {
-                    feature: "Per gebruiker per jaar",
-                    dicteren: "vanaf €96 (consumer) / €120 (zakelijk)",
-                    wispr: "~€132 ($144)",
+                    feature: "Waar je stem heen gaat",
+                    dicteren: "Blijft op je computer",
+                    wispr: "Cloud bij twee externe AI-bedrijven",
                   },
                   {
-                    feature: "Volumekorting zakelijk",
-                    dicteren: "tot −20% vanaf 5 seats",
-                    wispr: "geen — alleen enterprise op aanvraag",
+                    feature: "Werkt offline",
+                    dicteren: "Ja",
+                    wispr: "Nee",
                   },
                   {
-                    feature: "Audio-verwerking",
-                    dicteren: "100% lokaal op je device",
-                    wispr: "cloud (US-server)",
+                    feature: "Welke partijen je audio horen",
+                    dicteren: "Geen",
+                    wispr: "Baseten en Soniox",
                   },
                   {
-                    feature: "Nederlandse interface + support",
-                    dicteren: "ja, eerste taal",
-                    wispr: "Engels, geen NL-support",
+                    feature: "Land waar je gegevens staan",
+                    dicteren: "Nederland",
+                    wispr: "Verenigde Staten",
                   },
                   {
-                    feature: "DPA Nederlands recht",
-                    dicteren: "ja, op aanvraag",
-                    wispr: "US — Schrems II-onzeker",
+                    feature: "Training op jouw stem",
+                    dicteren: "Nooit",
+                    wispr: "Standaard wel. Privacy Mode zet het uit.",
                   },
                   {
-                    feature: "Inkoop-PO + Mollie iDEAL",
-                    dicteren: "ja",
-                    wispr: "credit card / Stripe",
+                    feature: "Leverancier",
+                    dicteren: "Nederlandse onderneming",
+                    wispr: "Amerikaans bedrijf",
+                  },
+                  {
+                    feature: "Factuur",
+                    dicteren: "Met btw en iDEAL",
+                    wispr: "Creditcard via Stripe",
                   },
                 ].map((row) => (
                   <tr
@@ -420,10 +421,36 @@ export default function PrijzenPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-[0.6875rem] text-[color:var(--text-soft)]">
-            Bedragen omgerekend van USD ($144/jaar) naar EUR (~€132).
-            Vergelijking publiekelijk gepubliceerde prijzen, mei 2026.
-          </p>
+          <div className="mt-6 space-y-3 text-sm text-[color:var(--text)]">
+            <p className="font-semibold">Voor wie het verschil maakt:</p>
+            <ul className="space-y-2 pl-4">
+              <li>
+                Werk je met beroepsgeheim? Je stem mag niet naar Amerika. Bij
+                ons gaat hij nergens heen.
+              </li>
+              <li>
+                Doet je inkoop een privacy-check? Wij staan niet in een
+                sub-verwerker-lijst. Wispr noemt er achttien.
+              </li>
+            </ul>
+            <p className="text-[color:var(--text-muted)]">
+              Meer weten? Kijk op{" "}
+              <a
+                href="/privacy"
+                className="underline hover:text-[color:var(--navy)]"
+              >
+                dicteren.ai/privacy
+              </a>{" "}
+              en{" "}
+              <a
+                href="/ai-model"
+                className="underline hover:text-[color:var(--navy)]"
+              >
+                dicteren.ai/ai-model
+              </a>
+              .
+            </p>
+          </div>
         </div>
       </section>
 
