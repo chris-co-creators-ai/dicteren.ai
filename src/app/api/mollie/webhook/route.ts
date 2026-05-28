@@ -45,6 +45,7 @@ import {
 } from "@/lib/services/email";
 import { sendB2BWelcomeWithCodesEmail } from "@/lib/services/orgEmail";
 import {
+  autoTaskForOrgPaymentIssue,
   findCrmOrgByPaymentLinkOrderId,
   logCrmEvent,
   upsertCrmOrgFromAuthOrganization,
@@ -314,6 +315,14 @@ export async function POST(request: Request) {
             graceUntil: past.graceUntil.toISOString(),
             reason: orderStatus,
           },
+        });
+
+        // Auto-task voor account-owner van deze org (alleen B2B met crm-link).
+        await autoTaskForOrgPaymentIssue({
+          licenseId: past.licenseId,
+          reason: "past_due",
+          detail: `Mollie subscription ${payment.data.subscriptionId} faalde. Klant houdt toegang tot ${past.graceUntil.toLocaleDateString("nl-NL")}.`,
+          dueInDays: 1,
         });
 
         const contact = await getContactByLicenseId(past.licenseId);
@@ -736,6 +745,15 @@ export async function POST(request: Request) {
           paymentId: payment.data.paymentId,
           mollieStatus: payment.data.status,
         },
+      });
+    }
+    // Auto-task voor account-owner als deze order aan een B2B crm-org hangt.
+    if (metadata?.organizationId) {
+      await autoTaskForOrgPaymentIssue({
+        authOrganizationId: metadata.organizationId,
+        reason: orderStatus === "failed" ? "order_failed" : "order_canceled",
+        detail: `Mollie payment ${payment.data.paymentId} status=${payment.data.status}`,
+        dueInDays: 1,
       });
     }
     return NextResponse.json({ received: true, status: orderStatus });

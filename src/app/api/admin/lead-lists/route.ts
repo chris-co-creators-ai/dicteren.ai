@@ -4,12 +4,25 @@ import {
   createLeadList,
   type ListColorValue,
 } from "@/lib/services/leadList";
+import { canPerform } from "@/lib/services/staffActionPermissions";
 import { logEvent } from "@/lib/services/audit";
 
 export async function POST(request: Request) {
   const guard = await requireStaffApi();
   if ("response" in guard) return guard.response;
   const session = guard.session;
+
+  const allowed = await canPerform({
+    userId: session.user.id,
+    role: session.user.role ?? null,
+    action: "crm_list.create",
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: "Je hebt geen rechten om CRM-lijsten aan te maken. Vraag Christian om dit recht aan te zetten." },
+      { status: 403 },
+    );
+  }
 
   let body: {
     name?: string;

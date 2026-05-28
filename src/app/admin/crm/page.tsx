@@ -24,6 +24,7 @@ import {
   crmDealsKpis,
   listCrmOrganizations,
 } from "@/lib/services/crmDeals";
+import { canPerform } from "@/lib/services/staffActionPermissions";
 import { CrmContainer } from "./crm-container";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,12 @@ export default async function AdminCrmPage({
 }) {
   const session = await getSession();
   if (!session?.user) redirect("/auth/sign-in?next=/admin/crm");
+
+  const canCreateList = await canPerform({
+    userId: session.user.id,
+    role: session.user.role ?? null,
+    action: "crm_list.create",
+  });
 
   const { tab } = await searchParams;
   const initialTab: "people" | "organizations" =
@@ -124,6 +131,7 @@ export default async function AdminCrmPage({
       }}
       peopleProps={{
         currentUserId: session.user.id,
+        canCreateList,
         customers: rows.map((r) => {
           const attr = attrs.get(r.id);
           return {

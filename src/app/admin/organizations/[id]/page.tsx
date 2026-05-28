@@ -29,6 +29,10 @@ import {
   getOrgAuditFeed,
   getOrganizationBilling,
 } from "@/lib/services";
+import {
+  findCrmOrgByAuthOrganizationId,
+  listTasksForOrg,
+} from "@/lib/services/crmDeals";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { OrgAdminView } from "./view";
 
@@ -85,6 +89,10 @@ export default async function AdminOrgDetailPage({
 
   const licenseIds = seats.map((s) => s.licenseId);
   const auditFeed = await getOrgAuditFeed(orgId, licenseIds, 100);
+
+  // CRM-koppeling: tasks-lijst hangt aan crm_organizations.id, niet auth.org.id.
+  const crmOrg = await findCrmOrgByAuthOrganizationId(orgId);
+  const tasks = crmOrg ? await listTasksForOrg(crmOrg.id) : [];
 
   // Hand off plain JSON aan client view
   return (
@@ -202,6 +210,16 @@ export default async function AdminOrgDetailPage({
             properties: a.properties,
             occurredAt: a.occurredAt.toISOString(),
             userId: a.userId,
+          }))}
+          crmOrganizationId={crmOrg?.id ?? null}
+          initialTasks={tasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            kind: t.kind,
+            dueAt: t.dueAt?.toISOString() ?? null,
+            notes: t.notes,
+            completedAt: t.completedAt?.toISOString() ?? null,
+            createdAt: t.createdAt.toISOString(),
           }))}
         />
       </div>

@@ -23,6 +23,7 @@ import {
   type NewCrmOrgTask,
 } from "@/lib/db/schema/crmDeals";
 import { authUsers } from "@/lib/db/schema/auth-bridge";
+import { licenses } from "@/lib/db/schema/licensing";
 import { logEvent } from "./audit";
 
 // ───── Organizations ─────
@@ -416,6 +417,163 @@ export async function deleteCrmOrgTask(taskId: string): Promise<boolean> {
     .where(eq(crmOrgTasks.id, taskId))
     .returning({ id: crmOrgTasks.id });
   return result.length > 0;
+}
+
+// ───── Open tasks per AM voor dashboard-widget ─────
+
+export type OpenOrgTaskForUser = {
+  taskId: string;
+  title: string;
+  kind: string;
+  dueAt: Date | null;
+  notes: string | null;
+  orgId: string;
+  orgName: string;
+  authOrganizationId: string | null;
+};
+
+export type TaskDueRange = "overdue" | "today" | "tomorrow" | "later";
+
+function rangeBounds(range: TaskDueRange): { from: Date | null; to: Date | null } {
+  const now = new Date();
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setHours(23, 59, 59, 999);
+  const startOfTomorrow = new Date(startOfDay);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+  const endOfTomorrow = new Date(startOfTomorrow);
+  endOfTomorrow.setHours(23, 59, 59, 999);
+
+  switch (range) {
+    case "overdue":
+      return { from: null, to: startOfDay };
+    case "today":
+      return { from: startOfDay, to: endOfDay };
+    case "tomorrow":
+      return { from: startOfTomorrow, to: endOfTomorrow };
+    case "later":
+      return { from: new Date(startOfTomorrow.getTime() + 86_400_000), to: null };
+  }
+}
+
+/** Open taken (niet completed, niet deleted) van crm-orgs waar `userId` accountOwner is,
+ *  optioneel gefilterd op due-range. Bedoeld voor /admin dashboard-widget. */
+export async function listOpenOrgTasksForUser(args: {
+  userId: string;
+  range?: TaskDueRange;
+  limit?: number;
+}): Promise<OpenOrgTaskForUser[]> {
+  const limit = args.limit ?? 50;
+  const bounds = args.range ? rangeBounds(args.range) : null;
+
+  const rows = await db
+    .select({
+      taskId: crmOrgTasks.id,
+      title: crmOrgTasks.title,
+      kind: crmOrgTasks.kind,
+      dueAt: crmOrgTasks.dueAt,
+      notes: crmOrgTasks.notes,
+      orgId: crmOrganizations.id,
+      orgName: crmOrganizations.name,
+      authOrganizationId: crmOrganizations.authOrganizationId,
+    })
+    .from(crmOrgTasks)
+    .innerJoin(
+      crmOrganizations,
+      eq(crmOrganizations.id, crmOrgTasks.crmOrganizationId),
+    )
+    .where(
+      and(
+        eq(crmOrganizations.accountOwnerId, args.userId),
+        isNull(crmOrgTasks.completedAt),
+        isNull(crmOrgTasks.deletedAt),
+      ),
+    )
+    .orderBy(crmOrgTasks.dueAt)
+    .limit(limit);
+
+  if (!bounds) return rows;
+
+  return rows.filter((r) => {
+    if (!r.dueAt) return false;
+    const t = r.dueAt.getTime();
+    if (bounds.from && t < bounds.from.getTime()) return false;
+    if (bounds.to && t > bounds.to.getTime()) return false;
+    return true;
+  });
+}
+
+/** Auto-task aanmaker voor webhook-flow (Mollie-failures, refunds, etc).
+ *  Lookup crm_organizations via authOrganizationId OF via licenseId.
+ *  Skip silent als er geen crm-rij is (route 1 consumer-orders hebben geen crm-link). */
+export async function autoTaskForOrgPaymentIssue(args: {
+  authOrganizationId?: string | null;
+  licenseId?: string | null;
+  reason: "past_due" | "order_failed" | "order_canceled" | "refund";
+  detail?: string | null;
+  dueInDays?: number;
+}): Promise<string | null> {
+  let authOrgId = args.authOrganizationId ?? null;
+
+  if (!authOrgId && args.licenseId) {
+    const [lic] = await db
+      .select({ organizationId: licenses.organizationId })
+      .from(licenses)
+      .where(eq(licenses.id, args.licenseId))
+      .limit(1);
+    authOrgId = lic?.organizationId ?? null;
+  }
+  if (!authOrgId) return null;
+
+  const [org] = await db
+    .select({
+      id: crmOrganizations.id,
+      accountOwnerId: crmOrganizations.accountOwnerId,
+      name: crmOrganizations.name,
+    })
+    .from(crmOrganizations)
+    .where(eq(crmOrganizations.authOrganizationId, authOrgId))
+    .limit(1);
+  if (!org) return null;
+
+  const titleByReason: Record<typeof args.reason, string> = {
+    past_due: `Bel ${org.name}: incasso mislukt`,
+    order_failed: `Bel ${org.name}: betaling mislukt`,
+    order_canceled: `Bel ${org.name}: betaling geannuleerd`,
+    refund: `Bel ${org.name}: refund verwerkt`,
+  };
+
+  const dueAt = new Date();
+  dueAt.setDate(dueAt.getDate() + (args.dueInDays ?? 1));
+  dueAt.setHours(9, 0, 0, 0);
+
+  const [task] = await db
+    .insert(crmOrgTasks)
+    .values({
+      crmOrganizationId: org.id,
+      title: titleByReason[args.reason],
+      kind: "call",
+      dueAt,
+      notes: args.detail ?? null,
+      createdByUserId: org.accountOwnerId,
+    })
+    .returning({ id: crmOrgTasks.id });
+
+  await db.insert(crmEvents).values({
+    crmOrganizationId: org.id,
+    actorUserId: null,
+    kind: "task_added",
+    payload: {
+      title: titleByReason[args.reason],
+      kind: "call",
+      auto: true,
+      reason: args.reason,
+      detail: args.detail,
+    },
+  });
+
+  return task?.id ?? null;
 }
 
 // ───── KPI's voor /admin/crm header en /admin overzicht ─────

@@ -240,6 +240,7 @@ function formatDiscount(
 
 export function CrmView({
   currentUserId,
+  canCreateList,
   customers,
   affiliates,
   discountCodes,
@@ -252,6 +253,7 @@ export function CrmView({
   onTabChange,
 }: {
   currentUserId: string;
+  canCreateList: boolean;
   customers: Customer[];
   affiliates: AffiliateOption[];
   discountCodes: DiscountOption[];
@@ -518,13 +520,15 @@ export function CrmView({
                 }
               />
             ))}
-            <button
-              onClick={() => setShowCreateList(true)}
-              className="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-[color:var(--border-soft)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
-            >
-              <Plus className="size-3.5" strokeWidth={2.2} />
-              Nieuwe lijst
-            </button>
+            {canCreateList && (
+              <button
+                onClick={() => setShowCreateList(true)}
+                className="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-[color:var(--border-soft)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
+              >
+                <Plus className="size-3.5" strokeWidth={2.2} />
+                Nieuwe lijst
+              </button>
+            )}
           </div>
 
           {activeList?.description && (

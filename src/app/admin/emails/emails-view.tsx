@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Filter, Mail, Search } from "lucide-react";
+import { Filter, Mail, Search, Send } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 
 type EmailRow = {
@@ -297,6 +297,35 @@ function EmailDrawer({
     label: email.status,
     chip: "neutral" as const,
   };
+  const [resending, setResending] = useState(false);
+  const [resendStatus, setResendStatus] = useState<{
+    kind: "ok" | "error";
+    message: string;
+  } | null>(null);
+
+  async function resend() {
+    setResending(true);
+    setResendStatus(null);
+    try {
+      const res = await fetch(`/api/admin/emails/${email.id}/resend`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setResendStatus({ kind: "error", message: data.error ?? "Mislukt" });
+      } else {
+        setResendStatus({
+          kind: "ok",
+          message: `Verstuurd. Nieuwe Resend-id: ${data.newResendId.slice(0, 12)}…`,
+        });
+      }
+    } catch {
+      setResendStatus({ kind: "error", message: "Netwerkprobleem" });
+    } finally {
+      setResending(false);
+    }
+  }
+
   return (
     <div
       onClick={onClose}
@@ -320,6 +349,30 @@ function EmailDrawer({
           >
             ✕
           </button>
+        </div>
+
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={resend}
+            disabled={resending}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--orange)] px-3 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-60"
+          >
+            <Send className="size-3.5" strokeWidth={2.4} />
+            {resending ? "Bezig…" : "Mail opnieuw versturen"}
+          </button>
+          {resendStatus && (
+            <div
+              className={
+                "mt-2 rounded-md border p-2 text-xs " +
+                (resendStatus.kind === "ok"
+                  ? "border-green-200 bg-green-50 text-green-700"
+                  : "border-red-200 bg-red-50 text-red-700")
+              }
+            >
+              {resendStatus.message}
+            </div>
+          )}
         </div>
 
         <div className="mt-5 space-y-4 text-sm">

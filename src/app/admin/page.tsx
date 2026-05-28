@@ -20,7 +20,9 @@ import {
 } from "@/lib/services/commerce";
 import { formatMollieAmount } from "@/lib/services/mollie";
 import { listOpenPartnerTasks } from "@/lib/services/partnerTasks";
+import { listOpenOrgTasksForUser } from "@/lib/services/crmDeals";
 import { OpenTasksWidget } from "./open-tasks-widget";
+import { MyOrgTasksWidget } from "./my-org-tasks-widget";
 import { RevenueRoadmap } from "./revenue-roadmap";
 import { ActualRevenueTimeline } from "./actual-revenue-timeline";
 import { getActualB2BMrrTimeline } from "@/lib/services/revenueTimeline";
@@ -113,6 +115,27 @@ export default async function AdminOverviewPage() {
       listOpenPartnerTasks(20),
       getActualB2BMrrTimeline(ROADMAP_DATES),
     ]);
+
+  // Persoonlijke org-tasks voor ingelogde AM (overdue + vandaag + morgen).
+  const myOrgTasks = session?.user.id
+    ? await Promise.all([
+        listOpenOrgTasksForUser({
+          userId: session.user.id,
+          range: "overdue",
+          limit: 20,
+        }),
+        listOpenOrgTasksForUser({
+          userId: session.user.id,
+          range: "today",
+          limit: 20,
+        }),
+        listOpenOrgTasksForUser({
+          userId: session.user.id,
+          range: "tomorrow",
+          limit: 20,
+        }),
+      ])
+    : [[], [], []];
 
   const greetingName = session?.user.name?.split(" ")[0] ?? "Christian";
   const now = new Date();
@@ -267,6 +290,33 @@ export default async function AdminOverviewPage() {
             </div>
           </div>
         </div>
+
+        <MyOrgTasksWidget
+          overdue={myOrgTasks[0].map((t) => ({
+            taskId: t.taskId,
+            title: t.title,
+            kind: t.kind,
+            dueAt: t.dueAt?.toISOString() ?? null,
+            orgId: t.authOrganizationId ?? t.orgId,
+            orgName: t.orgName,
+          }))}
+          today={myOrgTasks[1].map((t) => ({
+            taskId: t.taskId,
+            title: t.title,
+            kind: t.kind,
+            dueAt: t.dueAt?.toISOString() ?? null,
+            orgId: t.authOrganizationId ?? t.orgId,
+            orgName: t.orgName,
+          }))}
+          tomorrow={myOrgTasks[2].map((t) => ({
+            taskId: t.taskId,
+            title: t.title,
+            kind: t.kind,
+            dueAt: t.dueAt?.toISOString() ?? null,
+            orgId: t.authOrganizationId ?? t.orgId,
+            orgName: t.orgName,
+          }))}
+        />
 
         <OpenTasksWidget
           initialTasks={openTasks.map((t) => ({

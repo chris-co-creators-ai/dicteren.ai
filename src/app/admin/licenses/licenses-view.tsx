@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Copy,
   Filter,
   MoreHorizontal,
+  RotateCcw,
   Search,
   Upload,
   X,
@@ -343,6 +345,8 @@ function DetailDrawer({
   license: License;
   onClose: () => void;
 }) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
   const ui = uiStatusFor(license);
   const type = TYPE_META[license.type] ?? { label: license.type, color: "var(--text-muted)" };
   const fields: { label: string; value: string }[] = [
@@ -353,6 +357,58 @@ function DetailDrawer({
     { label: "Vervalt", value: formatDate(license.expiresAt) },
     { label: "Aangemaakt", value: formatDate(license.issuedAt) },
   ];
+
+  const [replacing, setReplacing] = useState(false);
+  const [replaceStatus, setReplaceStatus] = useState<{
+    kind: "ok" | "error";
+    message: string;
+  } | null>(null);
+
+  const canReplace =
+    license.type !== "beta" &&
+    license.status !== "revoked" &&
+    license.status !== "refunded";
+
+  async function doReplace() {
+    const reason = window.prompt(
+      `Vervang licentie ${license.code}\n\nOptionele reden (bv. "klant heeft mail niet ontvangen"):`,
+      "",
+    );
+    if (reason === null) return;
+    if (
+      !window.confirm(
+        `Weet je het zeker? De huidige code ${license.code} wordt INGETROKKEN. Alle apparaten worden uitgelogd. De nieuwe code wordt automatisch naar ${license.userEmail ?? "de gekoppelde gebruiker"} gemaild.`,
+      )
+    ) {
+      return;
+    }
+    setReplacing(true);
+    setReplaceStatus(null);
+    try {
+      const res = await fetch(
+        `/api/admin/licenses/${license.id}/replace`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ reason: reason || undefined }),
+        },
+      );
+      const data = await res.json();
+      if (!data.success) {
+        setReplaceStatus({ kind: "error", message: data.error ?? "Mislukt" });
+      } else {
+        setReplaceStatus({
+          kind: "ok",
+          message: `Nieuwe code: ${data.newCode}. Mail ${data.mailSent ? "verstuurd" : "NIET verstuurd — check /admin/emails"}.`,
+        });
+        startTransition(() => router.refresh());
+      }
+    } catch {
+      setReplaceStatus({ kind: "error", message: "Netwerkprobleem" });
+    } finally {
+      setReplacing(false);
+    }
+  }
 
   return (
     <>
@@ -401,6 +457,34 @@ function DetailDrawer({
               </div>
             ))}
           </div>
+
+          {canReplace && (
+            <div className="mt-6 border-t border-[color:var(--border-soft)] pt-5">
+              <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+                Support-actie
+              </div>
+              <button
+                onClick={doReplace}
+                disabled={replacing}
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[color:var(--border-soft)] bg-white px-3 py-2 text-sm font-semibold hover:border-[color:var(--orange)] disabled:opacity-60"
+              >
+                <RotateCcw className="size-3.5" strokeWidth={2.4} />
+                {replacing ? "Bezig…" : "Vervang code (oude blokkeren + nieuwe mailen)"}
+              </button>
+              {replaceStatus && (
+                <div
+                  className={
+                    "mt-2 rounded-md border p-2 text-xs " +
+                    (replaceStatus.kind === "ok"
+                      ? "border-green-200 bg-green-50 text-green-700"
+                      : "border-red-200 bg-red-50 text-red-700")
+                  }
+                >
+                  {replaceStatus.message}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </aside>
     </>

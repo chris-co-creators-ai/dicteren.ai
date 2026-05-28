@@ -1,6 +1,18 @@
 "use client";
 
-import { Building2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Building2,
+  CalendarDays,
+  Check,
+  Mail,
+  MapPin,
+  MessageSquare,
+  Phone,
+  Plus,
+  Trash2,
+  Video,
+} from "lucide-react";
 
 type Org = { id: string; name: string; slug: string | null };
 type Owner = { userId: string; name: string; email: string };
@@ -92,6 +104,29 @@ type AuditRow = {
   userId: string | null;
 };
 
+type TaskRow = {
+  id: string;
+  title: string;
+  kind: string;
+  dueAt: string | null;
+  notes: string | null;
+  completedAt: string | null;
+  createdAt: string;
+};
+
+const TASK_KINDS: Array<{ value: string; label: string; icon: typeof Mail }> = [
+  { value: "call", label: "Bellen", icon: Phone },
+  { value: "email", label: "Mail", icon: Mail },
+  { value: "meeting", label: "Afspraak", icon: Video },
+  { value: "visit", label: "Op locatie", icon: MapPin },
+  { value: "follow_up", label: "Follow-up", icon: CalendarDays },
+  { value: "other", label: "Anders", icon: MessageSquare },
+];
+
+function taskKindMeta(kind: string) {
+  return TASK_KINDS.find((k) => k.value === kind) ?? TASK_KINDS[TASK_KINDS.length - 1];
+}
+
 function eur(cents: number, opts?: Intl.NumberFormatOptions): string {
   return new Intl.NumberFormat("nl-NL", {
     style: "currency",
@@ -129,8 +164,22 @@ export function OrgAdminView(props: {
   payments: PaymentRow[];
   billing: BillingRow | null;
   auditFeed: AuditRow[];
+  crmOrganizationId: string | null;
+  initialTasks: TaskRow[];
 }) {
-  const { org, owner, snapshot, seats, devices, history, payments, billing, auditFeed } = props;
+  const {
+    org,
+    owner,
+    snapshot,
+    seats,
+    devices,
+    history,
+    payments,
+    billing,
+    auditFeed,
+    crmOrganizationId,
+    initialTasks,
+  } = props;
 
   return (
     <div className="grid gap-5">
@@ -182,6 +231,12 @@ export function OrgAdminView(props: {
           detail={`${snapshot.tierDiscountPct}% staffel-korting`}
         />
       </div>
+
+      {/* Taken — voor account-managers + admin */}
+      <TasksSection
+        crmOrganizationId={crmOrganizationId}
+        initialTasks={initialTasks}
+      />
 
       {/* Subscription history */}
       <Section title="Subscription history">
@@ -431,5 +486,291 @@ function Field({ label, value }: { label: string; value: string | null }) {
 function EmptyText({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-xs text-[color:var(--text-muted)]">{children}</p>
+  );
+}
+
+function TasksSection({
+  crmOrganizationId,
+  initialTasks,
+}: {
+  crmOrganizationId: string | null;
+  initialTasks: TaskRow[];
+}) {
+  const [tasks, setTasks] = useState<TaskRow[]>(initialTasks);
+  const [title, setTitle] = useState("");
+  const [kind, setKind] = useState("call");
+  const [dueDate, setDueDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!crmOrganizationId) {
+    return (
+      <Section title="Taken">
+        <EmptyText>
+          Deze organisatie heeft (nog) geen CRM-record. Taken hangen aan
+          crm_organizations — die wordt automatisch aangemaakt bij paid
+          checkout. Voor handmatige aanmaak: open /admin/crm.
+        </EmptyText>
+      </Section>
+    );
+  }
+
+  async function addTask() {
+    if (!title.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/crm/organizations/${crmOrganizationId}/tasks`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            title,
+            kind,
+            dueAt: dueDate ? `${dueDate}T09:00:00` : null,
+          }),
+        },
+      );
+      const data = await res.json();
+      if (data.success) {
+        const t = data.data;
+        setTasks([
+          {
+            id: t.id,
+            title: t.title,
+            kind: t.kind,
+            dueAt: t.dueAt,
+            notes: t.notes,
+            completedAt: t.completedAt,
+            createdAt: t.createdAt,
+          },
+          ...tasks,
+        ]);
+        setTitle("");
+        setDueDate("");
+      } else {
+        setError(data.error ?? "Toevoegen mislukt");
+      }
+    } catch {
+      setError("Netwerkprobleem");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function complete(taskId: string) {
+    const res = await fetch(`/api/admin/crm/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: "done" }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setTasks(
+        tasks.map((t) =>
+          t.id === taskId
+            ? { ...t, completedAt: new Date().toISOString() }
+            : t,
+        ),
+      );
+    }
+  }
+
+  async function remove(taskId: string) {
+    if (!confirm("Taak verwijderen?")) return;
+    const res = await fetch(`/api/admin/crm/tasks/${taskId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) setTasks(tasks.filter((t) => t.id !== taskId));
+  }
+
+  function quickDue(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setDueDate(d.toISOString().slice(0, 10));
+  }
+
+  const open = tasks.filter((t) => !t.completedAt);
+  const done = tasks.filter((t) => t.completedAt);
+
+  return (
+    <Section title={`Taken (${open.length} open)`}>
+      <div className="grid gap-4">
+        {/* Quick-add */}
+        <div className="rounded-xl border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] p-3">
+          <div className="grid gap-2">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addTask();
+              }}
+              placeholder="Bel klant over openstaande Mollie-betaling…"
+              className="w-full rounded border border-[color:var(--border-soft)] bg-white px-2 py-1.5 text-sm"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value)}
+                className="rounded border border-[color:var(--border-soft)] bg-white px-2 py-1 text-xs"
+              >
+                {TASK_KINDS.map((k) => (
+                  <option key={k.value} value={k.value}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="rounded border border-[color:var(--border-soft)] bg-white px-2 py-1 text-xs"
+              />
+              <div className="flex gap-1">
+                <button
+                  onClick={() => quickDue(0)}
+                  className="rounded border border-[color:var(--border-soft)] bg-white px-2 py-1 text-[0.6875rem] hover:bg-[color:var(--bg-deep)]"
+                >
+                  Vandaag
+                </button>
+                <button
+                  onClick={() => quickDue(1)}
+                  className="rounded border border-[color:var(--border-soft)] bg-white px-2 py-1 text-[0.6875rem] hover:bg-[color:var(--bg-deep)]"
+                >
+                  Morgen
+                </button>
+                <button
+                  onClick={() => quickDue(7)}
+                  className="rounded border border-[color:var(--border-soft)] bg-white px-2 py-1 text-[0.6875rem] hover:bg-[color:var(--bg-deep)]"
+                >
+                  +7 dagen
+                </button>
+              </div>
+              <button
+                onClick={addTask}
+                disabled={saving || !title.trim()}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--orange)] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                <Plus className="size-3.5" strokeWidth={2.4} />
+                Taak toevoegen
+              </button>
+            </div>
+          </div>
+          {error && (
+            <div className="mt-2 text-[0.6875rem] text-red-700">{error}</div>
+          )}
+        </div>
+
+        {/* Open */}
+        {open.length === 0 ? (
+          <EmptyText>Geen openstaande taken.</EmptyText>
+        ) : (
+          <ul className="grid gap-2">
+            {open.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                onComplete={() => complete(t.id)}
+                onDelete={() => remove(t.id)}
+              />
+            ))}
+          </ul>
+        )}
+
+        {/* Done — collapsed */}
+        {done.length > 0 && (
+          <details className="text-xs">
+            <summary className="cursor-pointer font-semibold text-[color:var(--text-muted)]">
+              Afgerond ({done.length})
+            </summary>
+            <ul className="mt-2 grid gap-2">
+              {done.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  onComplete={() => complete(t.id)}
+                  onDelete={() => remove(t.id)}
+                />
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+function TaskRow({
+  task,
+  onComplete,
+  onDelete,
+}: {
+  task: TaskRow;
+  onComplete: () => void;
+  onDelete: () => void;
+}) {
+  const meta = taskKindMeta(task.kind);
+  const Icon = meta.icon;
+  const isDone = Boolean(task.completedAt);
+  const isOverdue =
+    !isDone && task.dueAt !== null && new Date(task.dueAt).getTime() < Date.now();
+
+  return (
+    <li
+      className={
+        "flex items-start gap-3 rounded-lg border p-3 " +
+        (isOverdue
+          ? "border-red-200 bg-red-50/40"
+          : "border-[color:var(--border-soft)] bg-white")
+      }
+    >
+      <button
+        onClick={onComplete}
+        className={
+          "grid size-5 shrink-0 place-items-center rounded border " +
+          (isDone
+            ? "border-green-600 bg-green-600 text-white"
+            : "border-[color:var(--border-soft)] hover:border-[color:var(--orange)]")
+        }
+        title={isDone ? "Al afgerond" : "Markeer als af"}
+      >
+        {isDone && <Check className="size-3" strokeWidth={3} />}
+      </button>
+      <div className="flex-1">
+        <div
+          className={
+            "flex items-center gap-2 text-sm font-semibold " +
+            (isDone ? "text-[color:var(--text-muted)] line-through" : "")
+          }
+        >
+          <Icon className="size-3.5 text-[color:var(--text-muted)]" />
+          {task.title}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[0.6875rem] text-[color:var(--text-muted)]">
+          <span>{meta.label}</span>
+          {task.dueAt && (
+            <span
+              className={isOverdue ? "font-bold text-red-700" : undefined}
+            >
+              · {new Date(task.dueAt).toLocaleDateString("nl-NL", { day: "2-digit", month: "short" })}
+              {isOverdue && " (verlopen)"}
+            </span>
+          )}
+        </div>
+        {task.notes && (
+          <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+            {task.notes}
+          </p>
+        )}
+      </div>
+      <button
+        onClick={onDelete}
+        className="grid size-7 place-items-center rounded-full hover:bg-red-50"
+        title="Verwijder taak"
+      >
+        <Trash2 className="size-3 text-red-600" />
+      </button>
+    </li>
   );
 }
