@@ -196,7 +196,10 @@ export async function POST(request: Request) {
     ipHash,
     userAgent: request.headers.get("user-agent")?.slice(0, 500) ?? null,
     linkedAffiliateId: affiliateId,
-    linkedUserId: prospect.userId,
+    // prospect leeft sinds 2026-05-28 in crm_contacts, niet meer auth.user.
+    // contact_messages.linked_user_id blijft null; cross-link gebeurt via
+    // crm_contacts.id en crm_organizations.id (in prospect-return).
+    linkedUserId: null,
   });
 
   await logEvent({
@@ -208,7 +211,8 @@ export async function POST(request: Request) {
       email,
       company,
       affiliateId,
-      userId: prospect.userId,
+      crmContactId: prospect.contactId,
+      crmOrganizationId: prospect.organizationId,
       isNew: !existingAff,
     },
   });

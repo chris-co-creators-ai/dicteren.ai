@@ -1,5 +1,30 @@
 # Migration Notes
 
+## 0018 — Prospect-flow naar crm_contacts (2026-05-28)
+
+Background: tot deze datum schreef `/api/admin/prospects` rijen direct in
+`auth.user` (zonder login-functie, zonder email-validatie). Resultaat: één
+ghost-rij `marijke visschedijk` met email zonder `@` en `role IS NULL`,
+zichtbaar in `/admin/users` tussen echte gebruikers.
+
+**Wat deze migratie doet:**
+1. Maakt `crm_organizations`-rij "Onbekende organisatie" (`source='lead_form'`).
+2. Verhuist alle ghost-rijen (`email NOT LIKE '%@%'` of `role IS NULL` zonder
+   ooit een sessie) naar `crm_contacts` onder die placeholder-org. Bij missend
+   `@`-teken krijgt het contact een synthetisch email-adres
+   (`naam@onbekend.local`) en de originele waarde in `notes`.
+3. Verwijdert `customer_attributes` + `auth.user` rijen.
+4. Voegt `CHECK (email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$')` toe op `auth.user`
+   zodat dit nooit meer kan.
+
+**Uitgevoerd op:** 2026-05-28. Verhuisd: 1 rij (Marijke).
+
+**Service-laag:** `lib/services/prospect.ts` herschreven om voortaan altijd
+`crm_contacts` + `crm_organizations` te raken, NOOIT `auth.user`. Plus
+EMAIL_RE-validatie aan de gate in `/api/admin/prospects`.
+
+---
+
 ## 0011 — Per-seat zakelijke licenties (2026-05-27)
 
 Schema-changes voor de shift van pool-model naar per-seat:
