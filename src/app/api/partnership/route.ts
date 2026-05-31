@@ -13,7 +13,10 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { affiliates } from "@/lib/db/schema";
-import { generateAffiliateCode } from "@/lib/services/affiliate";
+import {
+  generateAffiliateCode,
+  linkAffiliateToExistingUser,
+} from "@/lib/services/affiliate";
 import { addProspect } from "@/lib/services/prospect";
 import {
   createContactMessage,
@@ -144,6 +147,9 @@ export async function POST(request: Request) {
       })
       .returning({ id: affiliates.id });
     affiliateId = inserted.id;
+    // Heeft de aanmelder al een account? Koppel meteen, zodat hij na inloggen
+    // zijn dashboard ziet. Zo niet, dan koppelt de auth after-hook bij signup.
+    await linkAffiliateToExistingUser({ affiliateId, email });
   }
 
   // 2 + 3. Prospect-user + customer_attributes.
