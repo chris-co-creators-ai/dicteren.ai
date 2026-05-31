@@ -134,34 +134,8 @@ export function CsvImportModal({ adminUsers, onClose, onDone }: Props) {
       }
     }
 
-    // Eerst dedup-check per rij. Sla exact-match rijen over.
-    const skipEmails = new Set<string>();
-    if (skipDuplicates) {
-      const candidates = rows
-        .map((row) => {
-          const idx = emailColIdx;
-          const val = idx >= 0 ? (row[idx] ?? "").trim() : "";
-          return val ? val.toLowerCase() : null;
-        })
-        .filter((v): v is string => !!v);
-
-      const checks = await Promise.all(
-        candidates.map(async (email) => {
-          try {
-            const r = await fetch(
-              `/api/admin/contacts/search?email=${encodeURIComponent(email)}`,
-            );
-            if (!r.ok) return null;
-            const data = await r.json();
-            return data?.data?.hasExactMatch ? email : null;
-          } catch {
-            return null;
-          }
-        }),
-      );
-      for (const e of checks) if (e) skipEmails.add(e);
-    }
-
+    // Dedup gebeurt nu server-side in één query (geen N browser-fetches meer,
+    // schaalt naar duizenden rijen). De vlag gaat mee in de POST.
     const prospects = rows
       .map((row) => {
         const data: Record<string, string> = {};
@@ -171,7 +145,6 @@ export function CsvImportModal({ adminUsers, onClose, onDone }: Props) {
           if (val) data[field] = val;
         });
         if (!data.email) return null;
-        if (skipEmails.has(data.email.toLowerCase())) return null;
         return {
           email: data.email,
           name: data.name ?? null,
@@ -198,6 +171,7 @@ export function CsvImportModal({ adminUsers, onClose, onDone }: Props) {
       body: JSON.stringify({
         prospects,
         listIds: createdListId ? [createdListId] : [],
+        skipExisting: skipDuplicates,
       }),
     });
     const data = await res.json();

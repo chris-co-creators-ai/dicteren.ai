@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     prospect?: ProspectInput;
     prospects?: ProspectInput[];
     listIds?: string[]; // leadlijsten waar het nieuwe contact in moet
+    skipExisting?: boolean; // cross-table dedup bij bulk-import
   };
   try {
     body = await request.json();
@@ -43,7 +44,24 @@ export async function POST(request: Request) {
     const result = await bulkImportProspects({
       prospects: body.prospects,
       addedByUserId: session.user.id,
+      skipExisting: body.skipExisting ?? false,
     });
+
+    // Koppel de nieuw aangemaakte contacten aan de gekozen leadlijst(en).
+    const listIds = Array.isArray(body.listIds) ? body.listIds : [];
+    const newContactIds = result.rows
+      .filter((r) => r.status === "created" && r.contactId)
+      .map((r) => r.contactId as string);
+    if (listIds.length > 0 && newContactIds.length > 0) {
+      for (const listId of listIds) {
+        await addMembersToList({
+          listId,
+          crmContactIds: newContactIds,
+          addedByUserId: session.user.id,
+        });
+      }
+    }
+
     await logEvent({
       action: "admin.action",
       entityType: "crm_contact",

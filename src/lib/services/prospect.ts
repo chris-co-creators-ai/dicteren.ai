@@ -8,7 +8,7 @@
 // Pipedrive-pattern: Person (contact) ≠ User (loginable). Strikt gescheiden.
 
 import "server-only";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   crmContacts,
@@ -267,10 +267,14 @@ export async function listProspectsForCrm(): Promise<CrmProspectRow[]> {
   }));
 }
 
-/** Bulk-import van prospects (CSV). Per rij idempotent + email-validatie. */
+/** Bulk-import van prospects (CSV) — set-based zodat duizenden rijen in één
+ *  request passen. In plaats van ~5 round-trips per rij (de oude loop): één
+ *  dedup-query, orgs vooraf resolven, en gechunkte multi-value inserts.
+ *  `skipExisting` doet cross-table dedup tegen unified_contacts_v. */
 export async function bulkImportProspects(args: {
   prospects: ProspectInput[];
-  addedByUserId: string;
+  addedByUserId: string | null;
+  skipExisting?: boolean;
 }): Promise<ProspectImportResult> {
   const result: ProspectImportResult = {
     created: 0,
@@ -279,43 +283,128 @@ export async function bulkImportProspects(args: {
     total: args.prospects.length,
     rows: [],
   };
+
+  // 1. Valideren, normaliseren, in-memory dedup (eerste rij per email wint).
+  const seen = new Set<string>();
+  const clean: { email: string; input: ProspectInput }[] = [];
   for (const p of args.prospects) {
-    if (!p.email?.trim()) {
-      result.skipped += 1;
-      result.rows.push({
-        email: p.email ?? "(leeg)",
-        status: "skipped",
-        reason: "email ontbreekt",
-      });
+    const email = p.email?.trim().toLowerCase() ?? "";
+    if (!email) {
+      result.skipped++;
+      result.rows.push({ email: p.email ?? "(leeg)", status: "skipped", reason: "email ontbreekt" });
       continue;
     }
-    if (!EMAIL_RE.test(p.email.trim().toLowerCase())) {
-      result.skipped += 1;
-      result.rows.push({
-        email: p.email,
-        status: "skipped",
-        reason: "ongeldig e-mailadres",
-      });
+    if (!EMAIL_RE.test(email)) {
+      result.skipped++;
+      result.rows.push({ email: p.email, status: "skipped", reason: "ongeldig e-mailadres" });
       continue;
     }
-    try {
-      const { contactId, organizationId, status } = await addProspect({
-        prospect: p,
-        addedByUserId: args.addedByUserId,
-      });
-      if (status === "created") result.created += 1;
-      else result.updated += 1;
-      result.rows.push({
-        email: p.email,
-        status,
-        contactId,
-        organizationId,
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "fout";
-      result.skipped += 1;
-      result.rows.push({ email: p.email, status: "skipped", reason: msg });
+    if (seen.has(email)) {
+      result.skipped++;
+      result.rows.push({ email: p.email, status: "skipped", reason: "dubbel in bestand" });
+      continue;
     }
+    seen.add(email);
+    clean.push({ email, input: p });
   }
+  if (clean.length === 0) return result;
+
+  const emails = clean.map((c) => c.email);
+
+  // 2. Dedup tegen bestaande data in één query.
+  const existing = new Set<string>();
+  if (args.skipExisting) {
+    const res = await db.execute<{ email_norm: string }>(
+      sql`SELECT DISTINCT email_norm FROM public.unified_contacts_v
+          WHERE email_norm IN (${sql.join(emails.map((e) => sql`${e}`), sql`, `)})`,
+    );
+    for (const r of res.rows ?? []) if (r.email_norm) existing.add(r.email_norm);
+  } else {
+    const rows = await db
+      .select({ email: crmContacts.email })
+      .from(crmContacts)
+      .where(inArray(crmContacts.email, emails));
+    for (const r of rows) existing.add(r.email);
+  }
+
+  const toInsert = clean.filter((c) => {
+    if (existing.has(c.email)) {
+      result.skipped++;
+      result.rows.push({ email: c.input.email, status: "skipped", reason: "bestaat al" });
+      return false;
+    }
+    return true;
+  });
+  if (toInsert.length === 0) return result;
+
+  // 3. Organisaties vooraf resolven (find-or-create per bedrijfsnaam).
+  const orgNameFor = (input: ProspectInput) =>
+    (input.company?.trim() || PLACEHOLDER_ORG_NAME).slice(0, 200);
+  const companyNames = Array.from(new Set(toInsert.map((c) => orgNameFor(c.input))));
+  const existingOrgs = await db
+    .select({ id: crmOrganizations.id, name: crmOrganizations.name })
+    .from(crmOrganizations)
+    .where(inArray(crmOrganizations.name, companyNames));
+  const orgIdByName = new Map(existingOrgs.map((o) => [o.name, o.id]));
+  const missing = companyNames.filter((n) => !orgIdByName.has(n));
+  if (missing.length > 0) {
+    const inserted = await db
+      .insert(crmOrganizations)
+      .values(
+        missing.map((name) => ({
+          name,
+          source: "am_outreach" as const,
+          status: "lead" as const,
+          temperature: null,
+          accountOwnerId: args.addedByUserId ?? null,
+        })),
+      )
+      .returning({ id: crmOrganizations.id, name: crmOrganizations.name });
+    for (const o of inserted) orgIdByName.set(o.name, o.id);
+  }
+
+  // 4. Contacten in chunks van 500 (multi-value insert).
+  const CHUNK = 500;
+  const made: { id: string; email: string; orgId: string }[] = [];
+  for (let i = 0; i < toInsert.length; i += CHUNK) {
+    const chunk = toInsert.slice(i, i + CHUNK);
+    const ins = await db
+      .insert(crmContacts)
+      .values(
+        chunk.map((c) => ({
+          crmOrganizationId: orgIdByName.get(orgNameFor(c.input)) ?? null,
+          name: c.input.name ?? c.email,
+          email: c.email,
+          phone: c.input.phone ?? null,
+          notes: c.input.notes ?? null,
+        })),
+      )
+      .returning({
+        id: crmContacts.id,
+        email: crmContacts.email,
+        crmOrganizationId: crmContacts.crmOrganizationId,
+      });
+    for (const r of ins)
+      made.push({ id: r.id, email: r.email, orgId: r.crmOrganizationId ?? "" });
+  }
+
+  // 5. Events in chunks.
+  for (let i = 0; i < made.length; i += CHUNK) {
+    const chunk = made.slice(i, i + CHUNK).filter((c) => c.orgId);
+    if (chunk.length === 0) continue;
+    await db.insert(crmEvents).values(
+      chunk.map((c) => ({
+        crmOrganizationId: c.orgId,
+        crmContactId: c.id,
+        actorUserId: args.addedByUserId ?? null,
+        kind: "contact_added" as const,
+        payload: { via: "csv-import" },
+      })),
+    );
+  }
+
+  result.created = made.length;
+  for (const c of made)
+    result.rows.push({ email: c.email, status: "created", contactId: c.id, organizationId: c.orgId });
   return result;
 }
