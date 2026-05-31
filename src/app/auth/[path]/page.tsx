@@ -121,22 +121,15 @@ const DEFAULT_COPY: Copy = {
   },
 };
 
-const SAFE_REDIRECT_TARGETS = new Set([
-  "/account",
-  "/account/licenses",
-  "/account/billing",
-  "/trial/start",
-  "/prijzen",
-  "/download",
-  "/auth/reset-password",
-]);
-
 function safeNext(raw: string | string[] | undefined): string {
   const candidate = Array.isArray(raw) ? raw[0] : raw;
   if (!candidate) return "/account";
+  // Alleen interne, relatieve paden toestaan. Elk intern pad mag (zo landt een
+  // reseller op /affiliate/dashboard, een AM op /admin/crm), maar open-redirects
+  // (//host, /\host) en niet-pad-waarden worden geweigerd.
   if (!candidate.startsWith("/")) return "/account";
-  const path = candidate.split("?")[0];
-  return SAFE_REDIRECT_TARGETS.has(path) ? candidate : "/account";
+  if (candidate.startsWith("//") || candidate.startsWith("/\\")) return "/account";
+  return candidate;
 }
 
 export default async function AuthPage({

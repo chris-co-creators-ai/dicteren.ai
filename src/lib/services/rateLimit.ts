@@ -64,6 +64,12 @@ export const RATE_LIMITS = {
   "org:seat_reassign": { limit: 10, windowSeconds: 60 },
   "org:invite": { limit: 30, windowSeconds: 600 },
   "org:invite_resend": { limit: 10, windowSeconds: 600 },
+
+  // Auth: DB-based limiet voor /api/auth omdat Better Auth's eigen limiter
+  // in-memory is en op Vercel multi-instance onbetrouwbaar. Brute-force op
+  // login + reset-spam afremmen, per IP.
+  "auth:sign-in": { limit: 10, windowSeconds: 600 },
+  "auth:reset": { limit: 5, windowSeconds: 600 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

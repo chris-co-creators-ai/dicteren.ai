@@ -47,8 +47,10 @@ export function pickCommissionRule(args: {
   const baseType =
     args.affiliate[`${prefix}CommissionType` as const] as AffiliateCommissionType | null;
   if (!baseType) {
-    // Customer-type-attribution staat uit voor deze affiliate.
-    return null;
+    // Geen per-type-regel ingesteld → val terug op de legacy-commissievelden.
+    // De admin-create-modal vult alleen die, dus zonder fallback verdient een
+    // zo aangemaakte reseller €0. Legacy geldt als lifetime (first + renewal).
+    return legacyRule(args.affiliate, args.isRenewal);
   }
   const durationMonths =
     (args.affiliate[
@@ -105,6 +107,28 @@ export function pickCommissionRule(args: {
     commissionFixedCents: fixed,
     durationMonths,
     isRenewal: false,
+  };
+}
+
+/** Legacy-fallback: gebruik de affiliate-brede commissievelden wanneer er
+ *  geen per-customer-type regel is ingesteld. */
+function legacyRule(
+  affiliate: Affiliate,
+  isRenewal: boolean,
+): CommissionRule | null {
+  const type =
+    (affiliate.commissionType as AffiliateCommissionType | null) ?? null;
+  if (!type) return null;
+  const pct = affiliate.commissionPct ?? 0;
+  const fixed = affiliate.commissionFixedCents ?? 0;
+  if (pct === 0 && fixed === 0) return null;
+  return {
+    enabled: true,
+    type,
+    commissionPct: pct,
+    commissionFixedCents: fixed,
+    durationMonths: 0,
+    isRenewal,
   };
 }
 

@@ -5,7 +5,7 @@
 // First-touch wins (uniek op userId).
 
 import "server-only";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import {
@@ -27,6 +27,7 @@ import {
   pickCommissionRule,
   type CustomerTypeKey,
 } from "./affiliateRules";
+import { normalizeEmail } from "./emailNormalize";
 
 export type CommissionType = "percentage" | "fixed_per_seat";
 export type AffiliateStatusValue = "active" | "paused" | "disabled";
@@ -70,6 +71,83 @@ export async function getAffiliateByUserId(
   return row ?? null;
 }
 
+/** Koppel een pas-aangemaakte user aan een bestaande affiliate op e-mail.
+ *  Dit is de ENIGE brug login↔affiliate: zonder user_id ziet een reseller
+ *  zijn dashboard nooit. Match op exact-lowercase + plus-genormaliseerd, en
+ *  alleen op nog niet-gekoppelde affiliates. Race-veilig via de WHERE-guard;
+ *  bij unique-violation (user hangt al aan andere affiliate) → no-op. */
+export async function linkAffiliateToUserByEmail(args: {
+  userId: string;
+  email: string;
+}): Promise<string | null> {
+  const lower = args.email.trim().toLowerCase();
+  if (!lower) return null;
+  const norm = normalizeEmail(lower);
+  const [aff] = await db
+    .select({ id: affiliates.id })
+    .from(affiliates)
+    .where(
+      and(
+        or(
+          sql`lower(${affiliates.contactEmail}) = ${lower}`,
+          sql`lower(${affiliates.contactEmail}) = ${norm}`,
+        ),
+        sql`${affiliates.userId} IS NULL`,
+      ),
+    )
+    .limit(1);
+  if (!aff) return null;
+  try {
+    const [updated] = await db
+      .update(affiliates)
+      .set({ userId: args.userId })
+      .where(
+        and(eq(affiliates.id, aff.id), sql`${affiliates.userId} IS NULL`),
+      )
+      .returning({ id: affiliates.id });
+    return updated?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Omgekeerde richting: koppel een affiliate aan een AL bestaande user op
+ *  e-mail (reseller had al een account vóór de affiliate werd aangemaakt). */
+export async function linkAffiliateToExistingUser(args: {
+  affiliateId: string;
+  email: string;
+}): Promise<boolean> {
+  const lower = args.email.trim().toLowerCase();
+  if (!lower) return false;
+  const norm = normalizeEmail(lower);
+  const [u] = await db
+    .select({ id: authUsers.id })
+    .from(authUsers)
+    .where(
+      or(
+        sql`lower(${authUsers.email}) = ${lower}`,
+        eq(authUsers.emailNormalized, norm),
+      ),
+    )
+    .limit(1);
+  if (!u) return false;
+  try {
+    const [updated] = await db
+      .update(affiliates)
+      .set({ userId: u.id })
+      .where(
+        and(
+          eq(affiliates.id, args.affiliateId),
+          sql`${affiliates.userId} IS NULL`,
+        ),
+      )
+      .returning({ id: affiliates.id });
+    return !!updated;
+  } catch {
+    return false;
+  }
+}
+
 /** Lookup referral voor user (lifetime attribution). */
 export async function getReferralForUser(
   userId: string,
@@ -93,6 +171,17 @@ export async function attributeUserToAffiliate(args: {
   organizationId?: string | null;
   attributionSource?: string;
 }): Promise<{ created: boolean; referralId: string }> {
+  // Self-referral block: een reseller mag geen commissie op zijn eigen
+  // aankoop boeken. Skip de attributie als de affiliate aan deze user hangt.
+  const [self] = await db
+    .select({ userId: affiliates.userId })
+    .from(affiliates)
+    .where(eq(affiliates.id, args.affiliateId))
+    .limit(1);
+  if (self?.userId && self.userId === args.userId) {
+    return { created: false, referralId: "" };
+  }
+
   // Onconflict op userId — lifetime first-touch op affiliateId.
   const [row] = await db
     .insert(affiliateReferrals)
@@ -237,9 +326,13 @@ export async function recordCommissionV2(args: {
   });
   if (!rule) return null;
 
+  // Commissie over het NETTO bedrag (excl. 21% btw). De geïnde bedragen zijn
+  // btw-inclusief; de btw is geen omzet (gaat naar de Belastingdienst), dus
+  // de reseller verdient over de netto verkoopwaarde.
+  const nettoBasisCents = Math.round(args.basisAmountCents / 1.21);
   const amountCents = calculateRuleCommissionCents({
     rule,
-    basisAmountCents: args.basisAmountCents,
+    basisAmountCents: nettoBasisCents,
     seats: args.seats,
   });
   if (amountCents <= 0) return null;
@@ -416,6 +509,17 @@ export async function createAffiliate(args: {
       internalNotes: args.internalNotes ?? null,
     })
     .returning();
+
+  // Koppel meteen aan een bestaande user als de reseller al een account heeft.
+  // Zo niet, dan koppelt de auth after-hook zodra de reseller zich aanmeldt.
+  if (!args.userId) {
+    await linkAffiliateToExistingUser({
+      affiliateId: row.id,
+      email: args.contactEmail,
+    });
+    const refreshed = await getAffiliateById(row.id);
+    if (refreshed) return refreshed;
+  }
   return row;
 }
 

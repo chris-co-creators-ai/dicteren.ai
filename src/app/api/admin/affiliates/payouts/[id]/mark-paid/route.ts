@@ -20,7 +20,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireStaffApi();
+  // Geldmutatie: alleen admin, net als de payouts-pagina zelf (was staff-breed).
+  const guard = await requireStaffApi({ adminOnly: true });
   if ("response" in guard) return guard.response;
   const session = guard.session;
   const { id: payoutId } = await params;

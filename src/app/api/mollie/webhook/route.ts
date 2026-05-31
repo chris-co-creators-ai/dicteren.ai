@@ -244,7 +244,7 @@ export async function POST(request: Request) {
                   referral: ref,
                   orderId: lic.orderId,
                   licenseId: renewed.licenseId,
-                  paymentId: null,
+                  paymentId: renewed.paymentId,
                   basisAmountCents: payment.data.amount,
                   seats: lic.seats,
                   customerType,

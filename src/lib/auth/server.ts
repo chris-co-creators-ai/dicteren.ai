@@ -36,6 +36,7 @@ import {
   isDisposableEmail,
   normalizeEmail,
 } from "@/lib/services/emailNormalize";
+import { linkAffiliateToUserByEmail } from "@/lib/services/affiliate";
 import { APIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 
@@ -105,6 +106,19 @@ export const auth = betterAuth({
               emailNormalized: normalized,
             },
           };
+        },
+        after: async (user) => {
+          // Reseller-onboarding: koppel een nieuwe user aan een bestaande
+          // affiliate op e-mail. Dit is de enige brug login↔affiliate; zonder
+          // deze koppeling ziet een reseller zijn /affiliate/dashboard nooit.
+          try {
+            await linkAffiliateToUserByEmail({
+              userId: user.id,
+              email: user.email as string,
+            });
+          } catch (e) {
+            console.error("affiliate auto-link failed", e);
+          }
         },
       },
     },

@@ -426,12 +426,19 @@ export function CrmView({
     temperature?: Temperature | null;
     assignedToUserId?: string | null;
   }) {
-    if (selectedArray.length === 0) return;
-    await fetch("/api/admin/customers/bulk", {
+    // Alleen klant-rijen: het customer-bulk-endpoint verwacht auth.user-ids.
+    // Een prospect-id (crm_contact) zou een FK-violation 500 geven. Prospect-
+    // stage/temp leeft op de org en wordt per rij bewerkt, niet via deze bulk.
+    const userIds = selectedArray.filter(
+      (id) => rowsById.get(id)?.kind !== "prospect",
+    );
+    if (userIds.length === 0) return;
+    const res = await fetch("/api/admin/customers/bulk", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userIds: selectedArray, ...patch }),
+      body: JSON.stringify({ userIds, ...patch }),
     });
+    if (!res.ok) return;
     startTransition(() => router.refresh());
   }
 

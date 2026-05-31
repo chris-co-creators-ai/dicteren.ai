@@ -99,6 +99,7 @@ export async function POST(request: Request) {
   });
   if (blocked) return blocked;
 
+  try {
   // 1. Affiliate-rij met status pending. Idempotent op contact_email.
   const [existingAff] = await db
     .select({ id: affiliates.id })
@@ -165,7 +166,10 @@ export async function POST(request: Request) {
         .filter(Boolean)
         .join("\n"),
     },
-    addedByUserId: existingAff?.id ?? affiliateId,
+    // Publieke aanmelding heeft geen ingelogde actor. NOOIT de affiliate-id
+    // hier doorgeven — dat is geen auth.user en geeft een FK-violation op
+    // crm_organizations.account_owner_id / crm_events.actor_user_id.
+    addedByUserId: null,
   });
 
   // 4. Contact-message koppelt prospect + affiliate.
@@ -222,4 +226,15 @@ export async function POST(request: Request) {
     affiliateId,
     isExisting: !!existingAff,
   });
+  } catch (err) {
+    console.error("partnership submission failed", err);
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Er ging iets mis bij het verwerken van je aanmelding. Probeer het later opnieuw of mail info@dicteren.ai.",
+      },
+      { status: 500 },
+    );
+  }
 }

@@ -120,7 +120,10 @@ async function findOrCreateOrganization(args: {
  */
 export async function addProspect(args: {
   prospect: ProspectInput;
-  addedByUserId: string;
+  // null = publieke flow zonder ingelogde actor (bv. partnership-aanmelding).
+  // Beide FK-kolommen (account_owner_id, actor_user_id) wijzen naar auth.user,
+  // dus een niet-user-id mag hier NOOIT in — anders FK-violation.
+  addedByUserId: string | null;
 }): Promise<{
   contactId: string;
   organizationId: string;
@@ -136,7 +139,7 @@ export async function addProspect(args: {
     companyName: args.prospect.company ?? null,
     source: deriveOrgSource(args.prospect.source),
     temperature: args.prospect.temperature ?? null,
-    accountOwnerId: args.prospect.assignedToUserId ?? args.addedByUserId,
+    accountOwnerId: args.prospect.assignedToUserId ?? args.addedByUserId ?? null,
     status: deriveOrgStatus(args.prospect.stage),
   });
 
@@ -182,7 +185,7 @@ export async function addProspect(args: {
   await db.insert(crmEvents).values({
     crmOrganizationId: organizationId,
     crmContactId: inserted.id,
-    actorUserId: args.addedByUserId,
+    actorUserId: args.addedByUserId ?? null,
     kind: "contact_added",
     payload: {
       source: deriveOrgSource(args.prospect.source),

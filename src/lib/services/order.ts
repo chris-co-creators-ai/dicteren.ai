@@ -313,7 +313,12 @@ export async function renewSubscriptionLicense(args: {
   molliePaymentId: string;
   paidAmountCents: number;
   rawWebhookPayload: unknown;
-}): Promise<{ licenseId: string; newExpiresAt: Date; extendedCount: number } | null> {
+}): Promise<{
+  licenseId: string;
+  newExpiresAt: Date;
+  extendedCount: number;
+  paymentId: string | null;
+} | null> {
   const [sub] = await db
     .select()
     .from(subscriptions)
@@ -404,23 +409,40 @@ export async function renewSubscriptionLicense(args: {
     })
     .where(eq(subscriptions.id, sub.id));
 
-  // Idempotente payment-insert
+  // Idempotente payment-insert. Geef de payment-uuid terug zodat de
+  // renewal-commissie idempotent kan worden (guard op paymentId in
+  // recordCommissionV2 voorkomt dubbele boeking bij webhook-retry).
   const existing = await db
     .select({ id: payments.id })
     .from(payments)
     .where(eq(payments.molliePaymentId, args.molliePaymentId))
     .limit(1);
+  let paymentId: string | null = existing[0]?.id ?? null;
   if (!existing[0]) {
     const anyOrderId = targetLicenses.find((l) => l.orderId)?.orderId ?? null;
     if (anyOrderId) {
-      await db.insert(payments).values({
-        orderId: anyOrderId,
-        molliePaymentId: args.molliePaymentId,
-        status: "paid",
-        amountCents: args.paidAmountCents,
-        currency: sub.currency,
-        rawWebhookPayload: args.rawWebhookPayload as object,
-      });
+      const [ins] = await db
+        .insert(payments)
+        .values({
+          orderId: anyOrderId,
+          molliePaymentId: args.molliePaymentId,
+          status: "paid",
+          amountCents: args.paidAmountCents,
+          currency: sub.currency,
+          rawWebhookPayload: args.rawWebhookPayload as object,
+        })
+        .onConflictDoNothing({ target: payments.molliePaymentId })
+        .returning({ id: payments.id });
+      paymentId = ins?.id ?? null;
+      // Race: een parallelle webhook insertte 'm net. Haal de uuid op.
+      if (!paymentId) {
+        const [again] = await db
+          .select({ id: payments.id })
+          .from(payments)
+          .where(eq(payments.molliePaymentId, args.molliePaymentId))
+          .limit(1);
+        paymentId = again?.id ?? null;
+      }
     }
   }
 
@@ -428,6 +450,7 @@ export async function renewSubscriptionLicense(args: {
     licenseId: first.id,
     newExpiresAt,
     extendedCount: targetLicenses.length,
+    paymentId,
   };
 }
 

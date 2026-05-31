@@ -41,7 +41,8 @@ export type DiscountValidationFail = {
     | "MAX_REDEEMED"
     | "MIN_SEATS"
     | "WRONG_PLAN"
-    | "WRONG_AUDIENCE";
+    | "WRONG_AUDIENCE"
+    | "ZERO_TOTAL";
 };
 
 export type DiscountValidation = DiscountValidationOk | DiscountValidationFail;
@@ -148,6 +149,18 @@ export async function validateDiscountCode(args: {
     0,
     args.basisAmountCents - discountAmountCents,
   );
+
+  // Een te betalen bedrag van €0 (100%-korting of fixed ≥ bedrag) laat Mollie
+  // met 422 klappen — er is geen €0-fulfillment-pad. Weiger zo'n code i.p.v.
+  // de checkout te laten crashen. free_months heeft geen direct kortingsbedrag.
+  if (row.type !== "free_months" && payableAmountCents <= 0) {
+    return {
+      success: false,
+      error:
+        "Deze code maakt de bestelling volledig gratis; dat wordt niet ondersteund. Neem contact op voor een gratis licentie.",
+      code: "ZERO_TOTAL",
+    };
+  }
 
   return {
     success: true,
