@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import {
   classifyStage,
-  funnelStageCounts,
   identityKpis,
   listCustomerFunnel,
 } from "@/lib/services/identity";
@@ -54,7 +53,6 @@ export default async function AdminCrmPage({
   // Beide datasets parallel laden — client-side tab switcht zonder reload.
   const [
     rows,
-    stages,
     kpis,
     affiliates,
     discounts,
@@ -67,7 +65,6 @@ export default async function AdminCrmPage({
     prospects,
   ] = await Promise.all([
     listCustomerFunnel(),
-    funnelStageCounts(),
     identityKpis(),
     listAffiliates(),
     listDiscounts(),
@@ -79,6 +76,14 @@ export default async function AdminCrmPage({
     crmDealsKpis(),
     listProspectsForCrm(),
   ]);
+
+  // Funnel-counts uit de al-geladen rows i.p.v. een tweede listCustomerFunnel()
+  // via funnelStageCounts() — die draaide de duurste pipeline een tweede keer.
+  const stages: Record<
+    "lead" | "trial_active" | "trial_expired" | "converted",
+    number
+  > = { lead: 0, trial_active: 0, trial_expired: 0, converted: 0 };
+  for (const r of rows) stages[classifyStage(r)]++;
 
   const userIds = rows.map((r) => r.id);
   const [attrs, memberships, contactMemberships] = await Promise.all([
