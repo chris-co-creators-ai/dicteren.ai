@@ -23,7 +23,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { authUsers, authOrganizations } from "./auth-bridge";
-import { customerTemperature } from "./crm";
+import { customerTemperature } from "./crm-enums";
 
 export const crmOrgStatus = pgEnum("crm_org_status", [
   "lead",           // net aangemaakt, nog geen contact

@@ -1,7 +1,7 @@
 // Dicteren.ai — Lead-list CRUD + member management.
 
 import "server-only";
-import { and, eq, inArray, or, desc, sql } from "drizzle-orm";
+import { and, eq, inArray, or, isNotNull, desc, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   leadLists,
@@ -98,39 +98,51 @@ export async function getLeadList(id: string): Promise<LeadList | null> {
   return row ?? null;
 }
 
-/** Bulk add: idempotent op (listId, userId). */
+/** Bulk add: idempotent per type. Een member is óf een auth.user (klant)
+ *  óf een crm_contact (prospect). Beide kunnen in één call mee. */
 export async function addMembersToList(args: {
   listId: string;
-  userIds: string[];
+  userIds?: string[];
+  crmContactIds?: string[];
   addedByUserId: string;
 }): Promise<number> {
-  if (args.userIds.length === 0) return 0;
-  const values = args.userIds.map((userId) => ({
+  const userValues = (args.userIds ?? []).map((userId) => ({
     listId: args.listId,
     userId,
     addedByUserId: args.addedByUserId,
   }));
+  const contactValues = (args.crmContactIds ?? []).map((crmContactId) => ({
+    listId: args.listId,
+    crmContactId,
+    addedByUserId: args.addedByUserId,
+  }));
+  const values = [...userValues, ...contactValues];
+  if (values.length === 0) return 0;
   const inserted = await db
     .insert(leadListMembers)
     .values(values)
     .onConflictDoNothing()
-    .returning({ userId: leadListMembers.userId });
+    .returning({ listId: leadListMembers.listId });
   return inserted.length;
 }
 
 export async function removeMembersFromList(args: {
   listId: string;
-  userIds: string[];
+  userIds?: string[];
+  crmContactIds?: string[];
 }): Promise<void> {
-  if (args.userIds.length === 0) return;
+  const userIds = args.userIds ?? [];
+  const contactIds = args.crmContactIds ?? [];
+  if (userIds.length === 0 && contactIds.length === 0) return;
+  const memberMatch = or(
+    userIds.length > 0 ? inArray(leadListMembers.userId, userIds) : undefined,
+    contactIds.length > 0
+      ? inArray(leadListMembers.crmContactId, contactIds)
+      : undefined,
+  );
   await db
     .delete(leadListMembers)
-    .where(
-      and(
-        eq(leadListMembers.listId, args.listId),
-        inArray(leadListMembers.userId, args.userIds),
-      ),
-    );
+    .where(and(eq(leadListMembers.listId, args.listId), memberMatch));
 }
 
 /** Map { userId → listIds[] } voor alle members van de zichtbare lijsten. */
@@ -144,12 +156,46 @@ export async function membershipsByUser(args: {
       listId: leadListMembers.listId,
     })
     .from(leadListMembers)
-    .where(inArray(leadListMembers.listId, args.visibleListIds));
+    .where(
+      and(
+        inArray(leadListMembers.listId, args.visibleListIds),
+        isNotNull(leadListMembers.userId),
+      ),
+    );
   const map = new Map<string, string[]>();
   for (const r of rows) {
+    if (!r.userId) continue;
     const prev = map.get(r.userId);
     if (prev) prev.push(r.listId);
     else map.set(r.userId, [r.listId]);
+  }
+  return map;
+}
+
+/** Map { crmContactId → listIds[] } voor alle prospect-members van de
+ *  zichtbare lijsten. Spiegelt membershipsByUser voor de contact-tak. */
+export async function membershipsByContact(args: {
+  visibleListIds: string[];
+}): Promise<Map<string, string[]>> {
+  if (args.visibleListIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      crmContactId: leadListMembers.crmContactId,
+      listId: leadListMembers.listId,
+    })
+    .from(leadListMembers)
+    .where(
+      and(
+        inArray(leadListMembers.listId, args.visibleListIds),
+        isNotNull(leadListMembers.crmContactId),
+      ),
+    );
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    if (!r.crmContactId) continue;
+    const prev = map.get(r.crmContactId);
+    if (prev) prev.push(r.listId);
+    else map.set(r.crmContactId, [r.listId]);
   }
   return map;
 }
@@ -159,8 +205,13 @@ export async function userIdsInList(listId: string): Promise<Set<string>> {
   const rows = await db
     .select({ userId: leadListMembers.userId })
     .from(leadListMembers)
-    .where(eq(leadListMembers.listId, listId));
-  return new Set(rows.map((r) => r.userId));
+    .where(
+      and(
+        eq(leadListMembers.listId, listId),
+        isNotNull(leadListMembers.userId),
+      ),
+    );
+  return new Set(rows.flatMap((r) => (r.userId ? [r.userId] : [])));
 }
 
 /** Staff-team voor "assigned to" dropdown — admin + account_manager. */

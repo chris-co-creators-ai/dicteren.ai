@@ -6,39 +6,22 @@ import {
   boolean,
   integer,
   jsonb,
-  pgEnum,
   uniqueIndex,
   index,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { authUsers } from "./auth-bridge";
+import { crmContacts } from "./crmDeals";
+import {
+  customerStage,
+  customerTemperature,
+  listColor,
+} from "./crm-enums";
 
-export const customerStage = pgEnum("customer_stage", [
-  "lead",
-  "prospect",
-  "mql",
-  "sql",
-  "customer",
-  "lost",
-  "churned",
-]);
-
-export const customerTemperature = pgEnum("customer_temperature", [
-  "cold",
-  "lukewarm",
-  "warm",
-  "hot",
-]);
-
-export const listColor = pgEnum("list_color", [
-  "blue",
-  "green",
-  "orange",
-  "red",
-  "purple",
-  "gray",
-  "navy",
-  "aqua",
-]);
+// Re-export zodat bestaande consumers (incl. @/lib/db/schema via export *)
+// deze enums blijven vinden onder de crm-module.
+export { customerStage, customerTemperature, listColor };
 
 /** Per-user CRM-attributen naast auth.user. Lazy: rij wordt pas
  *  aangemaakt bij eerste edit. */
@@ -87,15 +70,21 @@ export const leadLists = pgTable(
   ],
 );
 
+// Polymorf: een member is óf een auth.user (klant) óf een crm_contact
+// (GTM-prospect zonder login). Precies één van de twee is gevuld. Eén lijst
+// kan dus klanten én prospects bevatten.
 export const leadListMembers = pgTable(
   "lead_list_members",
   {
     listId: uuid("list_id")
       .notNull()
       .references(() => leadLists.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => authUsers.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => authUsers.id, {
+      onDelete: "cascade",
+    }),
+    crmContactId: uuid("crm_contact_id").references(() => crmContacts.id, {
+      onDelete: "cascade",
+    }),
     addedByUserId: uuid("added_by_user_id").references(() => authUsers.id, {
       onDelete: "set null",
     }),
@@ -104,8 +93,20 @@ export const leadListMembers = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("lead_list_members_pk_unique").on(t.listId, t.userId),
+    // Eén member per type per lijst — partial unique zodat de nullable
+    // kolom de andere niet blokkeert.
+    uniqueIndex("lead_list_members_user_unique")
+      .on(t.listId, t.userId)
+      .where(sql`${t.userId} IS NOT NULL`),
+    uniqueIndex("lead_list_members_contact_unique")
+      .on(t.listId, t.crmContactId)
+      .where(sql`${t.crmContactId} IS NOT NULL`),
     index("lead_list_members_user_idx").on(t.userId),
+    index("lead_list_members_contact_idx").on(t.crmContactId),
+    check(
+      "lead_list_members_exactly_one",
+      sql`(${t.userId} IS NOT NULL) <> (${t.crmContactId} IS NOT NULL)`,
+    ),
   ],
 );
 

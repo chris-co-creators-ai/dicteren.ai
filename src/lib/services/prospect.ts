@@ -8,7 +8,7 @@
 // Pipedrive-pattern: Person (contact) ≠ User (loginable). Strikt gescheiden.
 
 import "server-only";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   crmContacts,
@@ -193,6 +193,77 @@ export async function addProspect(args: {
   return { contactId: inserted.id, organizationId, status: "created" };
 }
 
+// Org-status (sales-pipeline) terug naar de people-view stage-vocab
+// (customerStage). Spiegelt STAGE_MAP zodat de Personen-tab één taal spreekt.
+const ORG_STATUS_TO_STAGE: Record<
+  string,
+  "lead" | "prospect" | "mql" | "sql" | "customer" | "lost"
+> = {
+  lead: "lead",
+  contacted: "prospect",
+  qualified: "sql",
+  proposal_sent: "sql",
+  negotiating: "sql",
+  won: "customer",
+  lost: "lost",
+};
+
+export type CrmProspectRow = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  organizationId: string | null;
+  crmStage: "lead" | "prospect" | "mql" | "sql" | "customer" | "lost";
+  crmTemperature: "cold" | "lukewarm" | "warm" | "hot" | null;
+  assignedToUserId: string | null;
+  notes: string | null;
+  createdAt: Date;
+};
+
+/** Prospects voor de CRM-personen-tab: crm_contacts ZONDER auth.user
+ *  (die mét login komen al via listCustomerFunnel — geen dubbeling).
+ *  Stage/temperatuur/owner komen van de gekoppelde organisatie. */
+export async function listProspectsForCrm(): Promise<CrmProspectRow[]> {
+  const rows = await db
+    .select({
+      id: crmContacts.id,
+      name: crmContacts.name,
+      email: crmContacts.email,
+      phone: crmContacts.phone,
+      notes: crmContacts.notes,
+      createdAt: crmContacts.createdAt,
+      organizationId: crmContacts.crmOrganizationId,
+      orgName: crmOrganizations.name,
+      orgStatus: crmOrganizations.status,
+      orgTemperature: crmOrganizations.temperature,
+      orgAccountOwnerId: crmOrganizations.accountOwnerId,
+    })
+    .from(crmContacts)
+    .leftJoin(
+      crmOrganizations,
+      eq(crmContacts.crmOrganizationId, crmOrganizations.id),
+    )
+    .where(isNull(crmContacts.authUserId))
+    .orderBy(desc(crmContacts.createdAt));
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    phone: r.phone,
+    company:
+      r.orgName && r.orgName !== PLACEHOLDER_ORG_NAME ? r.orgName : null,
+    organizationId: r.organizationId,
+    crmStage: r.orgStatus ? ORG_STATUS_TO_STAGE[r.orgStatus] ?? "lead" : "lead",
+    crmTemperature: r.orgTemperature ?? null,
+    assignedToUserId: r.orgAccountOwnerId ?? null,
+    notes: r.notes,
+    createdAt: r.createdAt,
+  }));
+}
+
 /** Bulk-import van prospects (CSV). Per rij idempotent + email-validatie. */
 export async function bulkImportProspects(args: {
   prospects: ProspectInput[];
@@ -245,8 +316,3 @@ export async function bulkImportProspects(args: {
   }
   return result;
 }
-
-// `isNull` import is intentionally used elsewhere in this module after future
-// extensions (eg. soft-delete filtering); keep the import so linter passes if
-// added then. Currently unused — silence.
-void isNull;

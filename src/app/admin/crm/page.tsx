@@ -9,6 +9,7 @@ import { listAffiliates } from "@/lib/services/affiliate";
 import { listDiscounts } from "@/lib/services/commerce";
 import {
   listLeadLists,
+  membershipsByContact,
   listAdminUsers,
   membershipsByUser,
 } from "@/lib/services/leadList";
@@ -24,6 +25,7 @@ import {
   crmDealsKpis,
   listCrmOrganizations,
 } from "@/lib/services/crmDeals";
+import { listProspectsForCrm } from "@/lib/services/prospect";
 import { canPerform } from "@/lib/services/staffActionPermissions";
 import { CrmContainer } from "./crm-container";
 
@@ -62,6 +64,7 @@ export default async function AdminCrmPage({
     customColumns,
     orgs,
     orgKpis,
+    prospects,
   ] = await Promise.all([
     listCustomerFunnel(),
     funnelStageCounts(),
@@ -74,12 +77,14 @@ export default async function AdminCrmPage({
     listCustomColumns(),
     listCrmOrganizations(),
     crmDealsKpis(),
+    listProspectsForCrm(),
   ]);
 
   const userIds = rows.map((r) => r.id);
-  const [attrs, memberships] = await Promise.all([
+  const [attrs, memberships, contactMemberships] = await Promise.all([
     attributesByUser(userIds),
     membershipsByUser({ visibleListIds: lists.map((l) => l.id) }),
+    membershipsByContact({ visibleListIds: lists.map((l) => l.id) }),
   ]);
 
   const conversionPct =
@@ -132,7 +137,8 @@ export default async function AdminCrmPage({
       peopleProps={{
         currentUserId: session.user.id,
         canCreateList,
-        customers: rows.map((r) => {
+        customers: [
+          ...rows.map((r) => {
           const attr = attrs.get(r.id);
           return {
             id: r.id,
@@ -187,8 +193,49 @@ export default async function AdminCrmPage({
                 string | number | null
               >) ?? null,
             listIds: memberships.get(r.id) ?? [],
+            kind: "customer" as const,
+            company: null,
+            organizationId: null,
           };
         }),
+          // Prospects (crm_contacts zonder login) als rijen van type
+          // "prospect". Stage/temp/owner komen van de gekoppelde org.
+          ...prospects.map((p) => ({
+            id: p.id,
+            name: p.name,
+            email: p.email,
+            emailVerified: true,
+            role: null,
+            createdAt: p.createdAt.toISOString(),
+            trialStartedAt: null,
+            trialExpiresAt: null,
+            trialStatus: null,
+            paidLicenseCount: 0,
+            emailsSent: 0,
+            emailsOpened: 0,
+            emailsClicked: 0,
+            emailsBounced: 0,
+            stage: "lead" as const,
+            segment: "lead" as const,
+            licenseSource: null,
+            discountType: null,
+            discountValue: null,
+            mollieCustomerId: null,
+            subscriptionStatus: null,
+            nextBillingAt: null,
+            accountOwner: null,
+            discountCodeUsed: null,
+            crmStage: p.crmStage,
+            crmTemperature: p.crmTemperature ?? "cold",
+            assignedToUserId: p.assignedToUserId,
+            notes: p.notes,
+            customFields: null,
+            listIds: contactMemberships.get(p.id) ?? [],
+            kind: "prospect" as const,
+            company: p.company,
+            organizationId: p.organizationId,
+          })),
+        ],
         customColumns,
         affiliates: affiliates.map((a) => ({
           id: a.id,

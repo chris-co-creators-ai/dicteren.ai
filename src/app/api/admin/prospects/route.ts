@@ -15,6 +15,7 @@ import {
   bulkImportProspects,
   type ProspectInput,
 } from "@/lib/services/prospect";
+import { addMembersToList } from "@/lib/services/leadList";
 import { validateAndNormalizeEmail } from "@/lib/services/emailNormalize";
 import { logEvent } from "@/lib/services/audit";
 
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   let body: {
     prospect?: ProspectInput;
     prospects?: ProspectInput[];
-    listIds?: string[]; // legacy, ignored — lead_lists hangt aan auth.user
+    listIds?: string[]; // leadlijsten waar het nieuwe contact in moet
   };
   try {
     body = await request.json();
@@ -108,6 +109,18 @@ export async function POST(request: Request) {
       prospect: { ...body.prospect!, email },
       addedByUserId: session.user.id,
     });
+
+    // Koppel het contact aan de gekozen leadlijst(en). crm_contacts is
+    // polymorf member, dus dit werkt nu — voorheen werd listIds genegeerd.
+    const listIds = Array.isArray(body.listIds) ? body.listIds : [];
+    for (const listId of listIds) {
+      await addMembersToList({
+        listId,
+        crmContactIds: [result.contactId],
+        addedByUserId: session.user.id,
+      });
+    }
+
     await logEvent({
       action: "admin.action",
       entityType: "crm_contact",

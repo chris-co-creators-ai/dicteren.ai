@@ -14,7 +14,7 @@ export async function POST(
   const session = guard.session;
   const { id } = await params;
 
-  let body: { userIds?: string[] };
+  let body: { userIds?: string[]; crmContactIds?: string[] };
   try {
     body = await request.json();
   } catch {
@@ -24,16 +24,21 @@ export async function POST(
     );
   }
 
-  if (!Array.isArray(body.userIds) || body.userIds.length === 0) {
+  const userIds = Array.isArray(body.userIds) ? body.userIds : [];
+  const crmContactIds = Array.isArray(body.crmContactIds)
+    ? body.crmContactIds
+    : [];
+  if (userIds.length === 0 && crmContactIds.length === 0) {
     return NextResponse.json(
-      { success: false, error: "userIds[] verplicht" },
+      { success: false, error: "userIds[] of crmContactIds[] verplicht" },
       { status: 400 },
     );
   }
 
   const added = await addMembersToList({
     listId: id,
-    userIds: body.userIds,
+    userIds,
+    crmContactIds,
     addedByUserId: session.user.id,
   });
 
@@ -49,7 +54,7 @@ export async function DELETE(
   const session = guard.session;
   const { id } = await params;
 
-  let body: { userIds?: string[] };
+  let body: { userIds?: string[]; crmContactIds?: string[] };
   try {
     body = await request.json();
   } catch {
@@ -59,16 +64,21 @@ export async function DELETE(
     );
   }
 
-  if (!Array.isArray(body.userIds) || body.userIds.length === 0) {
+  const userIds = Array.isArray(body.userIds) ? body.userIds : [];
+  const crmContactIds = Array.isArray(body.crmContactIds)
+    ? body.crmContactIds
+    : [];
+  if (userIds.length === 0 && crmContactIds.length === 0) {
     return NextResponse.json(
-      { success: false, error: "userIds[] verplicht" },
+      { success: false, error: "userIds[] of crmContactIds[] verplicht" },
       { status: 400 },
     );
   }
 
   await removeMembersFromList({
     listId: id,
-    userIds: body.userIds,
+    userIds,
+    crmContactIds,
   });
 
   return NextResponse.json({ success: true });

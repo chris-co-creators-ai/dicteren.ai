@@ -47,6 +47,7 @@ export function InlineProspectRow({
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    if (submitting) return; // guard tegen dubbele Enter / klik
     if (!email.trim()) {
       setError("Email verplicht");
       return;

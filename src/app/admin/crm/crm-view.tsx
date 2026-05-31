@@ -101,6 +101,25 @@ type Customer = {
   notes: string | null;
   customFields: Record<string, string | number | null> | null;
   listIds: string[];
+  // Polymorf: "customer" = auth.user (login), "prospect" = crm_contact (GTM,
+  // geen login). organizationId is gevuld voor prospects (stage/temp leven
+  // op de organisatie). Default "customer" als niet meegegeven.
+  kind?: "customer" | "prospect";
+  company?: string | null;
+  organizationId?: string | null;
+};
+
+// People-stage (customerStage) → org-pipeline-status. Spiegelt
+// ORG_STATUS_TO_STAGE in services/prospect.ts zodat een prospect-edit in
+// de Personen-tab de juiste org-status zet.
+const STAGE_TO_ORG_STATUS: Record<CrmStage, string> = {
+  lead: "lead",
+  prospect: "contacted",
+  mql: "qualified",
+  sql: "qualified",
+  customer: "won",
+  lost: "lost",
+  churned: "lost",
 };
 
 type AffiliateOption = {
@@ -274,6 +293,9 @@ export function CrmView({
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [tempFilter, setTempFilter] = useState<string>("all");
+  const [kindFilter, setKindFilter] = useState<"all" | "customer" | "prospect">(
+    "all",
+  );
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [discountFilter, setDiscountFilter] = useState<string>("all");
@@ -330,6 +352,8 @@ export function CrmView({
           );
     return customers.filter((r) => {
       if (inList && !inList.has(r.id)) return false;
+      if (kindFilter !== "all" && (r.kind ?? "customer") !== kindFilter)
+        return false;
       if (stageFilter !== "all" && r.crmStage !== stageFilter) return false;
       if (tempFilter !== "all" && r.crmTemperature !== tempFilter)
         return false;
@@ -364,6 +388,7 @@ export function CrmView({
   }, [
     customers,
     activeListId,
+    kindFilter,
     stageFilter,
     tempFilter,
     assigneeFilter,
@@ -374,6 +399,10 @@ export function CrmView({
 
   const selectedCount = selected.size;
   const selectedArray = useMemo(() => Array.from(selected), [selected]);
+  const rowsById = useMemo(
+    () => new Map(customers.map((c) => [c.id, c])),
+    [customers],
+  );
 
   function toggleRow(id: string) {
     setSelected((prev) => {
@@ -407,7 +436,7 @@ export function CrmView({
   }
 
   async function rowUpdate(
-    userId: string,
+    id: string,
     patch: {
       stage?: CrmStage | null;
       temperature?: Temperature | null;
@@ -415,7 +444,34 @@ export function CrmView({
       notes?: string | null;
     },
   ) {
-    await fetch(`/api/admin/customers/${userId}`, {
+    const row = rowsById.get(id);
+    if (row?.kind === "prospect") {
+      // Prospect: notes leven op het contact, stage/temp/owner op de org.
+      if (patch.notes !== undefined) {
+        await fetch(`/api/admin/crm/contacts/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ notes: patch.notes }),
+        });
+      }
+      const orgPatch: Record<string, unknown> = {};
+      if (patch.stage !== undefined && patch.stage !== null)
+        orgPatch.status = STAGE_TO_ORG_STATUS[patch.stage];
+      if (patch.temperature !== undefined)
+        orgPatch.temperature = patch.temperature;
+      if (patch.assignedToUserId !== undefined)
+        orgPatch.accountOwnerId = patch.assignedToUserId;
+      if (row.organizationId && Object.keys(orgPatch).length > 0) {
+        await fetch(`/api/admin/crm/organizations/${row.organizationId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(orgPatch),
+        });
+      }
+      startTransition(() => router.refresh());
+      return;
+    }
+    await fetch(`/api/admin/customers/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
@@ -423,12 +479,24 @@ export function CrmView({
     startTransition(() => router.refresh());
   }
 
+  // Splits selectie in klanten (auth.user) en prospects (crm_contact) zodat
+  // de polymorfe members-route beide takken juist wegschrijft.
+  function splitSelection() {
+    const userIds: string[] = [];
+    const crmContactIds: string[] = [];
+    for (const id of selectedArray) {
+      if (rowsById.get(id)?.kind === "prospect") crmContactIds.push(id);
+      else userIds.push(id);
+    }
+    return { userIds, crmContactIds };
+  }
+
   async function bulkAddToList(listId: string) {
     if (selectedArray.length === 0) return;
     await fetch(`/api/admin/lead-lists/${listId}/members`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userIds: selectedArray }),
+      body: JSON.stringify(splitSelection()),
     });
     setShowAddToList(false);
     clearSelection();
@@ -440,7 +508,7 @@ export function CrmView({
     await fetch(`/api/admin/lead-lists/${listId}/members`, {
       method: "DELETE",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userIds: selectedArray }),
+      body: JSON.stringify(splitSelection()),
     });
     clearSelection();
     startTransition(() => router.refresh());
@@ -554,6 +622,17 @@ export function CrmView({
                 style={{ background: "var(--bg)" }}
               />
             </div>
+            <FilterSelect
+              value={kindFilter}
+              onChange={(v) =>
+                setKindFilter(v as "all" | "customer" | "prospect")
+              }
+              label="Klanten + prospects"
+              options={[
+                { value: "customer", label: "Alleen klanten" },
+                { value: "prospect", label: "Alleen prospects" },
+              ]}
+            />
             <FilterSelect
               value={stageFilter}
               onChange={setStageFilter}
@@ -809,7 +888,7 @@ export function CrmView({
                       colSpan={orderedColumns.length + 2}
                       className="px-3 py-10 text-center text-sm text-[color:var(--text-muted)]"
                     >
-                      Geen klanten in dit filter.
+                      Geen contacten in dit filter.
                     </td>
                   </tr>
                 ) : (
@@ -830,6 +909,13 @@ export function CrmView({
                       {orderedColumns.map((col) => (
                         <td key={col} className="px-3 py-3 align-top">
                           {col.startsWith("custom:") ? (
+                            r.kind === "prospect" ? (
+                              // Custom-velden zijn klant-attributen; prospects
+                              // hebben die niet.
+                              <span className="text-xs text-[color:var(--text-muted)]">
+                                —
+                              </span>
+                            ) : (
                             <CustomCell
                               colKey={col}
                               def={customColumns.find((c) => c.key === col)}
@@ -851,6 +937,7 @@ export function CrmView({
                                 startTransition(() => router.refresh());
                               }}
                             />
+                            )
                           ) : (
                             <CellRenderer
                               col={col as ColumnKey}
@@ -864,12 +951,21 @@ export function CrmView({
                         </td>
                       ))}
                       <td className="px-3 py-3 align-top">
-                        <Link
-                          href={`/admin/crm/${r.id}`}
-                          className="text-xs font-semibold text-blue-600 hover:underline"
-                        >
-                          →
-                        </Link>
+                        {r.kind === "prospect" ? (
+                          <span
+                            className="text-xs text-[color:var(--text-muted)]"
+                            title="Prospect — beheer details via de Organisaties-tab"
+                          >
+                            ·
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/admin/crm/${r.id}`}
+                            className="text-xs font-semibold text-blue-600 hover:underline"
+                          >
+                            →
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -1225,17 +1321,15 @@ function CellRenderer({
   onOpenNotes: () => void;
 }) {
   switch (col) {
-    case "customer":
-      return (
-        <Link
-          href={`/admin/crm/${row.id}`}
-          className="flex items-center gap-3"
-        >
+    case "customer": {
+      const isProspect = row.kind === "prospect";
+      const inner = (
+        <>
           <span
             className="grid size-9 shrink-0 place-items-center rounded-full"
             style={{ background: "var(--bg-deep)" }}
           >
-            {row.role === "admin" ? (
+            {isProspect || row.role === "admin" ? (
               <Building2
                 className="size-4"
                 strokeWidth={1.8}
@@ -1250,14 +1344,33 @@ function CellRenderer({
             )}
           </span>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">{row.name}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-sm font-semibold">
+                {row.name}
+              </span>
+              {isProspect && (
+                <span className="shrink-0 rounded-full bg-orange-100 px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase tracking-[0.04em] text-orange-800">
+                  Prospect
+                </span>
+              )}
+            </div>
             <div className="truncate text-[0.6875rem] text-[color:var(--text-muted)]">
               {row.email}
-              {!row.emailVerified && " · niet geverifieerd"}
+              {isProspect && row.company ? ` · ${row.company}` : ""}
+              {!isProspect && !row.emailVerified && " · niet geverifieerd"}
             </div>
           </div>
+        </>
+      );
+      // Prospect heeft geen user-detailpagina; klant wel.
+      return isProspect ? (
+        <div className="flex items-center gap-3">{inner}</div>
+      ) : (
+        <Link href={`/admin/crm/${row.id}`} className="flex items-center gap-3">
+          {inner}
         </Link>
       );
+    }
     case "stage":
       return (
         <StageChip
