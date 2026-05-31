@@ -63,6 +63,7 @@ export const crmEventKind = pgEnum("crm_event_kind", [
   "note_added",
   "task_added",
   "task_completed",
+  "interaction_logged",
 ]);
 
 export const crmOrganizations = pgTable(

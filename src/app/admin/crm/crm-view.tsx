@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
-import { CrmTabs } from "./crm-tabs";
+import { CrmTabs, type CrmTabKey } from "./crm-tabs";
 import { cn } from "@/lib/utils";
 import {
   COLUMN_LABELS,
@@ -32,6 +32,7 @@ import { KanbanView } from "./kanban-view";
 import { AddProspectModal } from "./add-prospect-modal";
 import { CsvImportModal } from "./csv-import-modal";
 import { InlineProspectRow } from "./inline-prospect-row";
+import { LeadListCampaignSheet } from "./lead-list-campaign-sheet";
 
 type CustomColumnDef = {
   id: string;
@@ -260,6 +261,7 @@ type PeopleCursor = { createdAt: string; id: string };
 
 export function CrmView({
   currentUserId,
+  isAdmin,
   canCreateList,
   customers,
   initialNextCursor,
@@ -275,6 +277,7 @@ export function CrmView({
   onTabChange,
 }: {
   currentUserId: string;
+  isAdmin: boolean;
   canCreateList: boolean;
   customers: Customer[];
   initialNextCursor: PeopleCursor | null;
@@ -287,8 +290,8 @@ export function CrmView({
   customColumns: CustomColumnDef[];
   stageCounts: Record<Stage, number>;
   kpis: Kpi[];
-  activeTab: "people" | "organizations";
-  onTabChange: (k: "people" | "organizations") => void;
+  activeTab: CrmTabKey;
+  onTabChange: (k: CrmTabKey) => void;
 }) {
   const [activeListId, setActiveListId] = useState<string | "all">("all");
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
@@ -644,7 +647,7 @@ export function CrmView({
                 count={l.memberCount}
                 color={LIST_COLOR_BG[l.color]}
                 onDelete={
-                  l.ownerUserId === currentUserId
+                  isAdmin || l.ownerUserId === currentUserId
                     ? () => deleteList(l.id)
                     : undefined
                 }
@@ -661,9 +664,22 @@ export function CrmView({
             )}
           </div>
 
-          {activeList?.description && (
-            <div className="border-b border-[color:var(--border-soft)] px-4 py-2 text-xs text-[color:var(--text-muted)]">
-              {activeList.description}
+          {activeListId !== "all" && activeList && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[color:var(--border-soft)] px-4 py-2">
+              <span className="text-xs text-[color:var(--text-muted)]">
+                {activeList.description}
+              </span>
+              <LeadListCampaignSheet
+                listId={activeList.id}
+                listName={activeList.name}
+                canEdit={isAdmin || activeList.ownerUserId === currentUserId}
+                onApplied={refresh}
+                trigger={
+                  <button className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)]">
+                    Campagne-stappen
+                  </button>
+                }
+              />
             </div>
           )}
 

@@ -130,6 +130,7 @@ export default async function AdminCrmPage({
       }}
       peopleProps={{
         currentUserId: session.user.id,
+        isAdmin: session.user.role === "admin",
         canCreateList,
         customers: peoplePage.rows,
         initialNextCursor: peoplePage.nextCursor,

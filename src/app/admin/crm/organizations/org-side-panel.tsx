@@ -14,6 +14,14 @@ import {
   User,
   X,
 } from "lucide-react";
+import { LogInteractionSheet } from "../log-activity-sheet";
+import {
+  activityTypeLabel,
+  outcomeLabel,
+  directionLabel,
+  type ActivityType,
+  type ActivityDirection,
+} from "@/lib/config/crmActivity";
 
 type Admin = { id: string; name: string; email: string };
 
@@ -257,7 +265,12 @@ export function OrgSidePanel({
           ) : tab === "payment" ? (
             <PaymentTab org={org} onChanged={loadAll} />
           ) : tab === "timeline" ? (
-            <TimelineTab events={events} />
+            <TimelineTab
+              events={events}
+              orgId={orgId}
+              orgName={org.name}
+              onLogged={loadAll}
+            />
           ) : (
             <TasksTab orgId={orgId} tasks={tasks} onChanged={loadAll} />
           )}
@@ -752,42 +765,107 @@ function PaymentTab({
 
 // ───── Timeline tab ─────
 
-function TimelineTab({ events }: { events: TimelineEvent[] }) {
-  if (events.length === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-[color:var(--text-muted)]">
-        Nog geen activiteit.
-      </p>
-    );
-  }
+function TimelineTab({
+  events,
+  orgId,
+  orgName,
+  onLogged,
+}: {
+  events: TimelineEvent[];
+  orgId: string;
+  orgName: string;
+  onLogged: () => void;
+}) {
   return (
-    <div className="space-y-2 text-sm">
-      {events.map((e) => (
-        <div
-          key={e.id}
-          className="rounded-lg border bg-white p-3"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-[color:var(--navy)]">
-              {labelForKind(e.kind)}
-            </span>
-            <span className="text-[color:var(--text-muted)]">
-              {fmtDate(e.createdAt, true)}
-            </span>
-          </div>
-          {e.actorName && (
-            <div className="mt-0.5 text-[10px] text-[color:var(--text-muted)]">
-              door {e.actorName}
-            </div>
-          )}
-          {e.payload && Object.keys(e.payload).length > 0 && (
-            <pre className="mt-2 overflow-x-auto rounded bg-[color:var(--bg)] p-2 text-[10px]">
-              {JSON.stringify(e.payload, null, 2)}
-            </pre>
+    <div className="space-y-3 text-sm">
+      <div className="flex justify-end">
+        <LogInteractionSheet
+          orgId={orgId}
+          orgName={orgName}
+          onLogged={onLogged}
+        />
+      </div>
+
+      {events.length === 0 ? (
+        <p className="py-8 text-center text-sm text-[color:var(--text-muted)]">
+          Nog geen activiteit. Log de eerste interactie.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {events.map((e) =>
+            e.kind === "interaction_logged" ? (
+              <InteractionRow key={e.id} event={e} />
+            ) : (
+              <div
+                key={e.id}
+                className="rounded-lg border bg-white p-3"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-[color:var(--navy)]">
+                    {labelForKind(e.kind)}
+                  </span>
+                  <span className="text-[color:var(--text-muted)]">
+                    {fmtDate(e.createdAt, true)}
+                  </span>
+                </div>
+                {e.actorName && (
+                  <div className="mt-0.5 text-[10px] text-[color:var(--text-muted)]">
+                    door {e.actorName}
+                  </div>
+                )}
+              </div>
+            ),
           )}
         </div>
-      ))}
+      )}
+    </div>
+  );
+}
+
+// Een handmatig gelogde interactie (kind="interaction_logged"): type + richting
+// + resultaat uit de payload, leesbaar weergegeven met het label uit de SSOT.
+function InteractionRow({ event }: { event: TimelineEvent }) {
+  const p = (event.payload ?? {}) as {
+    type?: string;
+    direction?: string;
+    outcome?: string | null;
+    note?: string | null;
+  };
+  const type = p.type as ActivityType | undefined;
+  return (
+    <div
+      className="rounded-lg border bg-white p-3"
+      style={{ borderColor: "var(--border)" }}
+    >
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-bold text-[color:var(--navy)]">
+          {type ? activityTypeLabel(type) : "Interactie"}
+          {p.direction
+            ? ` · ${directionLabel(p.direction as ActivityDirection)}`
+            : ""}
+        </span>
+        <span className="text-[color:var(--text-muted)]">
+          {fmtDate(event.createdAt, true)}
+        </span>
+      </div>
+      {type && p.outcome && (
+        <span
+          className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold"
+          style={{
+            background: "color-mix(in srgb, var(--aqua) 18%, white)",
+            color: "var(--navy)",
+          }}
+        >
+          {outcomeLabel(type, p.outcome)}
+        </span>
+      )}
+      {p.note && <div className="mt-1.5 text-sm">{p.note}</div>}
+      {event.actorName && (
+        <div className="mt-1 text-[10px] text-[color:var(--text-muted)]">
+          door {event.actorName}
+        </div>
+      )}
     </div>
   );
 }
