@@ -1,9 +1,10 @@
-// Dicteren.ai — CRM activity-engine SSOT
+// Dicteren.ai — CRM interactie-SSOT
 //
-// Single source of truth voor de AM-activity-laag: types, richtingen,
-// statussen en de outcome-dropdowns per interactie-type. Het drizzle-schema
-// (crmActivities.ts) en de SQL-migratie (0024) leiden hun pgEnum-waarden hier
-// vandaan via ALL_OUTCOME_KEYS. De UI leest de labels/iconen hier.
+// Single source of truth voor de interactie-laag: types, richtingen, statussen
+// en de outcome-dropdowns per interactie-type. Gebruikt door het interactie-log
+// (crm_events kind interaction_logged), de campagne-builder (crm_campaign_steps)
+// en de UI (labels/iconen). Interacties + taken draaien op crm_events +
+// crm_org_tasks, niet op een aparte activity-tabel.
 
 export type ActivityType = "call" | "email" | "linkedin" | "meeting" | "note";
 export type ActivityDirection = "outbound" | "inbound" | "internal";
@@ -102,13 +103,6 @@ export const ACTIVITY_STATUS_LABELS: Record<ActivityStatus, string> = {
   done: "Gedaan",
   canceled: "Geannuleerd",
 };
-
-// Alle outcome-keys van alle types samengevoegd en uniek. Dit is de bron voor
-// de crm_activity_outcome pgEnum — die moet elke key kennen die enige type kan
-// produceren.
-export const ALL_OUTCOME_KEYS: string[] = Array.from(
-  new Set(ACTIVITY_TYPES.flatMap((t) => t.outcomes.map((o) => o.key))),
-);
 
 // ---- Helpers ----
 

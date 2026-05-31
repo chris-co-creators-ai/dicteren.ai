@@ -11,13 +11,13 @@
 // zijn (onDelete set null); in dat geval mag alleen een admin muteren.
 
 import "server-only";
-import { and, asc, eq, inArray, max } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, max } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   crmCampaignSteps,
   type CrmCampaignStep,
 } from "@/lib/db/schema/crmCampaignSteps";
-import { crmOrgTasks, crmContacts } from "@/lib/db/schema/crmDeals";
+import { crmOrgTasks, crmContacts, crmEvents } from "@/lib/db/schema/crmDeals";
 import { leadListMembers } from "@/lib/db/schema/crm";
 import { getLeadList } from "./leadList";
 import { activityTypeLabel, type ActivityType } from "@/lib/config/crmActivity";
@@ -235,6 +235,14 @@ export async function applyCadenceToList(args: {
     for (const r of rows) orgByContact.set(r.id, r.orgId);
   }
 
+  // dueAt = 09:00 op (vandaag + cumulatieve dagen). Voorkomt dat een dag-0 stap
+  // exact op "nu" valt en meteen overdue toont.
+  const dueAtAfter = (days: number): Date => {
+    const d = new Date(Date.now() + days * MS_PER_DAY);
+    d.setHours(9, 0, 0, 0);
+    return d;
+  };
+
   // Cumulatieve dag-offset per stap.
   const cumulativeDays: number[] = [];
   let running = 0;
@@ -243,13 +251,14 @@ export async function applyCadenceToList(args: {
     cumulativeDays.push(running);
   }
 
-  const now = Date.now();
-  const values: (typeof crmOrgTasks.$inferInsert)[] = [];
+  // Kandidaat-taken bouwen per lid-met-org.
+  const candidates: (typeof crmOrgTasks.$inferInsert)[] = [];
+  const orgIds = new Set<string>();
   let membersAffected = 0;
   let skippedNoOrg = 0;
 
   for (const member of members) {
-    // Bepaal de organisatie van dit lid. Klant-users zonder org → overslaan.
+    // Klant-users zonder org → overslaan (taken hangen aan een org).
     const orgId = member.crmContactId
       ? (orgByContact.get(member.crmContactId) ?? null)
       : null;
@@ -258,27 +267,68 @@ export async function applyCadenceToList(args: {
       continue;
     }
     membersAffected++;
+    orgIds.add(orgId);
     steps.forEach((step, i) => {
       const type = step.type as ActivityType;
-      values.push({
+      candidates.push({
         crmOrganizationId: orgId,
         title: step.note?.trim() || activityTypeLabel(type),
         kind: STEP_TASK_KIND[type] ?? "other",
-        dueAt: new Date(now + cumulativeDays[i] * MS_PER_DAY),
+        dueAt: dueAtAfter(cumulativeDays[i]),
         notes: step.note ?? null,
         createdByUserId: args.actorUserId,
       });
     });
   }
 
-  if (values.length === 0) {
+  if (candidates.length === 0) {
     return { membersAffected: 0, tasksCreated: 0, skippedNoOrg };
+  }
+
+  // Idempotentie: bestaande open taken (niet voltooid, niet verwijderd) voor deze
+  // orgs ophalen en (org|titel|kind)-duplicaten overslaan, zodat 2x "Toepassen"
+  // geen dubbele taken aanmaakt.
+  const existing = await db
+    .select({
+      orgId: crmOrgTasks.crmOrganizationId,
+      title: crmOrgTasks.title,
+      kind: crmOrgTasks.kind,
+    })
+    .from(crmOrgTasks)
+    .where(
+      and(
+        inArray(crmOrgTasks.crmOrganizationId, Array.from(orgIds)),
+        isNull(crmOrgTasks.completedAt),
+        isNull(crmOrgTasks.deletedAt),
+      ),
+    );
+  const seen = new Set(existing.map((t) => `${t.orgId}|${t.title}|${t.kind}`));
+  const values = candidates.filter((v) => {
+    const key = `${v.crmOrganizationId}|${v.title}|${v.kind}`;
+    if (seen.has(key)) return false;
+    seen.add(key); // ook binnen deze batch dedupen
+    return true;
+  });
+
+  if (values.length === 0) {
+    return { membersAffected, tasksCreated: 0, skippedNoOrg };
   }
 
   const inserted = await db
     .insert(crmOrgTasks)
     .values(values)
     .returning({ id: crmOrgTasks.id });
+
+  // task_added-events zodat cadence-taken net als handmatige taken in de Timeline
+  // van de org verschijnen (consistent met addCrmOrgTask).
+  await db.insert(crmEvents).values(
+    values.map((v) => ({
+      crmOrganizationId: v.crmOrganizationId as string,
+      actorUserId: args.actorUserId,
+      kind: "task_added" as const,
+      payload: { title: v.title, kind: v.kind, dueAt: v.dueAt, source: "cadence" },
+    })),
+  );
 
   return { membersAffected, tasksCreated: inserted.length, skippedNoOrg };
 }

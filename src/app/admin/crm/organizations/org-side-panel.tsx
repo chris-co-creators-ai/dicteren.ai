@@ -831,6 +831,7 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
     direction?: string;
     outcome?: string | null;
     note?: string | null;
+    occurredAt?: string | null;
   };
   const type = p.type as ActivityType | undefined;
   return (
@@ -846,7 +847,7 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
             : ""}
         </span>
         <span className="text-[color:var(--text-muted)]">
-          {fmtDate(event.createdAt, true)}
+          {fmtDate(p.occurredAt ?? event.createdAt, true)}
         </span>
       </div>
       {type && p.outcome && (

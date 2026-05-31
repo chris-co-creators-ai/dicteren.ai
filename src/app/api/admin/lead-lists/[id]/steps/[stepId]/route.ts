@@ -52,9 +52,17 @@ export async function PATCH(
     patch.type = body.type;
   }
   if (body.delayDays !== undefined) {
-    if (typeof body.delayDays !== "number" || !Number.isFinite(body.delayDays)) {
+    if (
+      typeof body.delayDays !== "number" ||
+      !Number.isInteger(body.delayDays) ||
+      body.delayDays < 0 ||
+      body.delayDays > 3650
+    ) {
       return NextResponse.json(
-        { success: false, error: "delayDays moet een getal zijn" },
+        {
+          success: false,
+          error: "delayDays moet een geheel getal tussen 0 en 3650 zijn",
+        },
         { status: 400 },
       );
     }

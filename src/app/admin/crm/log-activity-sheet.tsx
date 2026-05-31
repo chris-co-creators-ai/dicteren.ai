@@ -125,10 +125,11 @@ export function LogInteractionSheet({
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
+    if (!occurredAt) return false;
     if (nextActionRequired && !nextDueAt()) return false;
     return true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submitting, nextActionRequired, nextPreset, nextCustomDate, type]);
+  }, [submitting, nextActionRequired, nextPreset, nextCustomDate, type, occurredAt]);
 
   async function submit() {
     setError(null);
