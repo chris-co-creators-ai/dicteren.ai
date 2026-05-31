@@ -6,17 +6,7 @@ import {
 } from "@/lib/services/identity";
 import { listAffiliates } from "@/lib/services/affiliate";
 import { listDiscounts } from "@/lib/services/commerce";
-import {
-  listLeadLists,
-  membershipsByContact,
-  listAdminUsers,
-  membershipsByUser,
-} from "@/lib/services/leadList";
-import {
-  attributesByUser,
-  defaultStageFor,
-  defaultTemperatureFor,
-} from "@/lib/services/customerCrm";
+import { listLeadLists, listAdminUsers } from "@/lib/services/leadList";
 import { getColumnPrefs } from "@/lib/services/columnPrefs";
 import { listCustomColumns } from "@/lib/services/customColumns";
 import { getSession } from "@/lib/auth/session";
@@ -24,7 +14,7 @@ import {
   crmDealsKpis,
   listCrmOrganizations,
 } from "@/lib/services/crmDeals";
-import { listProspectsForCrm } from "@/lib/services/prospect";
+import { loadCrmPeoplePage } from "@/lib/services/crmPeople";
 import { canPerform } from "@/lib/services/staffActionPermissions";
 import { CrmContainer } from "./crm-container";
 
@@ -62,7 +52,6 @@ export default async function AdminCrmPage({
     customColumns,
     orgs,
     orgKpis,
-    prospects,
   ] = await Promise.all([
     listCustomerFunnel(),
     identityKpis(),
@@ -74,23 +63,23 @@ export default async function AdminCrmPage({
     listCustomColumns(),
     listCrmOrganizations(),
     crmDealsKpis(),
-    listProspectsForCrm(),
   ]);
 
-  // Funnel-counts uit de al-geladen rows i.p.v. een tweede listCustomerFunnel()
-  // via funnelStageCounts() — die draaide de duurste pipeline een tweede keer.
+  // KPI-counts (header) over ALLE klanten, server-side. De zware rij-data gaat
+  // NIET meer client-side: de personen-tabel komt gepagineerd uit
+  // loadCrmPeoplePage. (TODO: deze KPI's later naar een pure SQL-aggregaat.)
   const stages: Record<
     "lead" | "trial_active" | "trial_expired" | "converted",
     number
   > = { lead: 0, trial_active: 0, trial_expired: 0, converted: 0 };
   for (const r of rows) stages[classifyStage(r)]++;
 
-  const userIds = rows.map((r) => r.id);
-  const [attrs, memberships, contactMemberships] = await Promise.all([
-    attributesByUser(userIds),
-    membershipsByUser({ visibleListIds: lists.map((l) => l.id) }),
-    membershipsByContact({ visibleListIds: lists.map((l) => l.id) }),
-  ]);
+  // Eerste pagina personen (server-side gefilterd + gepagineerd). Client laadt
+  // verdere pagina's + filter-wissels via /api/admin/crm/people.
+  const peoplePage = await loadCrmPeoplePage({
+    sessionUserId: session.user.id,
+    limit: 50,
+  });
 
   const conversionPct =
     stages.trial_active + stages.trial_expired + stages.converted > 0
@@ -142,105 +131,9 @@ export default async function AdminCrmPage({
       peopleProps={{
         currentUserId: session.user.id,
         canCreateList,
-        customers: [
-          ...rows.map((r) => {
-          const attr = attrs.get(r.id);
-          return {
-            id: r.id,
-            name: r.name,
-            email: r.email,
-            emailVerified: r.emailVerified,
-            role: r.role,
-            createdAt: r.createdAt.toISOString(),
-            trialStartedAt: r.trialStartedAt?.toISOString() ?? null,
-            trialExpiresAt: r.trialExpiresAt?.toISOString() ?? null,
-            trialStatus: r.trialStatus,
-            paidLicenseCount: r.paidLicenseCount,
-            emailsSent: r.emailsSent,
-            emailsOpened: r.emailsOpened,
-            emailsClicked: r.emailsClicked,
-            emailsBounced: r.emailsBounced,
-            stage: classifyStage(r),
-            segment: r.segment,
-            licenseSource: r.licenseSource,
-            discountType: r.discountType,
-            discountValue: r.discountValue,
-            mollieCustomerId: r.mollieCustomerId,
-            subscriptionStatus: r.subscriptionStatus,
-            nextBillingAt: r.nextBillingAt?.toISOString() ?? null,
-            accountOwner: r.accountOwner
-              ? {
-                  affiliateId: r.accountOwner.affiliateId,
-                  code: r.accountOwner.code,
-                  name: r.accountOwner.name,
-                  convertedAt:
-                    r.accountOwner.convertedAt?.toISOString() ?? null,
-                }
-              : null,
-            discountCodeUsed: r.discountCodeUsed
-              ? {
-                  id: r.discountCodeUsed.id,
-                  code: r.discountCodeUsed.code,
-                  affiliateId: r.discountCodeUsed.affiliateId,
-                }
-              : null,
-            crmStage:
-              attr?.stage ??
-              defaultStageFor(r.paidLicenseCount, r.trialStatus),
-            crmTemperature:
-              attr?.temperature ??
-              defaultTemperatureFor(r.trialStatus, r.paidLicenseCount),
-            assignedToUserId: attr?.assignedToUserId ?? null,
-            notes: attr?.notes ?? null,
-            customFields:
-              (attr?.customFields as Record<
-                string,
-                string | number | null
-              >) ?? null,
-            listIds: memberships.get(r.id) ?? [],
-            kind: "customer" as const,
-            company: null,
-            organizationId: null,
-          };
-        }),
-          // Prospects (crm_contacts zonder login) als rijen van type
-          // "prospect". Stage/temp/owner komen van de gekoppelde org.
-          ...prospects.map((p) => ({
-            id: p.id,
-            name: p.name,
-            email: p.email,
-            emailVerified: true,
-            role: null,
-            createdAt: p.createdAt.toISOString(),
-            trialStartedAt: null,
-            trialExpiresAt: null,
-            trialStatus: null,
-            paidLicenseCount: 0,
-            emailsSent: 0,
-            emailsOpened: 0,
-            emailsClicked: 0,
-            emailsBounced: 0,
-            stage: "lead" as const,
-            segment: "lead" as const,
-            licenseSource: null,
-            discountType: null,
-            discountValue: null,
-            mollieCustomerId: null,
-            subscriptionStatus: null,
-            nextBillingAt: null,
-            accountOwner: null,
-            discountCodeUsed: null,
-            crmStage: p.crmStage,
-            crmTemperature: p.crmTemperature ?? "cold",
-            assignedToUserId: p.assignedToUserId,
-            notes: p.notes,
-            customFields: null,
-            listIds: contactMemberships.get(p.id) ?? [],
-            kind: "prospect" as const,
-            company: p.company,
-            organizationId: p.organizationId,
-          })),
-        ],
+        customers: peoplePage.rows,
+        initialNextCursor: peoplePage.nextCursor,
+        totalPeople: peoplePage.total,
         customColumns,
         affiliates: affiliates.map((a) => ({
           id: a.id,

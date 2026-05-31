@@ -37,6 +37,8 @@ export type CrmPeopleListRow = {
   crmStage: string | null;
   temperature: string | null;
   assigneeId: string | null;
+  notes: string | null;
+  organizationId: string | null;
   createdAt: string;
 };
 
@@ -52,6 +54,8 @@ const PEOPLE_CTE = sql`
       ca.stage::text                   AS crm_stage,
       ca.temperature::text             AS temperature,
       ca.assigned_to_user_id::text     AS assignee_id,
+      ca.notes                         AS notes,
+      NULL::text                       AS organization_id,
       u."createdAt"                    AS created_at
     FROM auth."user" u
     LEFT JOIN public.customer_attributes ca ON ca.user_id = u.id
@@ -74,6 +78,8 @@ const PEOPLE_CTE = sql`
       END,
       o.temperature::text,
       o.account_owner_id::text,
+      c.notes,
+      c.crm_organization_id::text,
       c.created_at
     FROM public.crm_contacts c
     LEFT JOIN public.crm_organizations o ON o.id = c.crm_organization_id
@@ -136,10 +142,12 @@ export async function listCrmPeoplePage(args: {
     crm_stage: string | null;
     temperature: string | null;
     assignee_id: string | null;
+    notes: string | null;
+    organization_id: string | null;
     created_at: string | Date;
   }>(
     sql`${PEOPLE_CTE}
-        SELECT id, kind, name, email, company, crm_stage, temperature, assignee_id, created_at
+        SELECT id, kind, name, email, company, crm_stage, temperature, assignee_id, notes, organization_id, created_at
         FROM people${whereClause(conds)}
         ORDER BY created_at DESC, id DESC
         LIMIT ${limit + 1}`,
@@ -156,6 +164,8 @@ export async function listCrmPeoplePage(args: {
     crmStage: r.crm_stage,
     temperature: r.temperature,
     assigneeId: r.assignee_id,
+    notes: r.notes,
+    organizationId: r.organization_id,
     createdAt:
       r.created_at instanceof Date
         ? (r.created_at as Date).toISOString()

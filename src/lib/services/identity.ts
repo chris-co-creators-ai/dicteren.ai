@@ -257,7 +257,16 @@ export function classifyStage(row: CustomerFunnelRow, now = Date.now()): FunnelS
   return "trial_expired";
 }
 
-export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
+export async function listCustomerFunnel(opts?: {
+  userIds?: string[];
+}): Promise<CustomerFunnelRow[]> {
+  // Optioneel scopen op een id-set (hydratie van één gepagineerde pagina).
+  // Zonder ids: alle users (dashboard-gebruik). Lege id-set: niets te hydrateren.
+  const ids = opts?.userIds ?? null;
+  if (ids && ids.length === 0) return [];
+  const hasIds = ids !== null && ids.length > 0;
+  const idFilter = hasIds ? inArray(authUsers.id, ids) : undefined;
+
   const users = await db
     .select({
       id: authUsers.id,
@@ -268,6 +277,7 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       createdAt: authUsers.createdAt,
     })
     .from(authUsers)
+    .where(idFilter)
     .orderBy(desc(authUsers.createdAt));
 
   if (users.length === 0) return [];
@@ -283,7 +293,13 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       status: licenses.status,
     })
     .from(licenses)
-    .where(and(like(licenses.code, "DIC-TRIAL-%"), NOT_RACE_DUPLICATE));
+    .where(
+      and(
+        like(licenses.code, "DIC-TRIAL-%"),
+        NOT_RACE_DUPLICATE,
+        hasIds ? inArray(licenses.userId, ids) : undefined,
+      ),
+    );
 
   const trialByUser = new Map<
     string,
@@ -315,6 +331,7 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
         notLike(licenses.code, "DIC-TRIAL-%"),
         ne(licenses.type, "partner"),
         NOT_RACE_DUPLICATE,
+        hasIds ? inArray(licenses.userId, ids) : undefined,
       ),
     )
     .groupBy(licenses.userId);
@@ -331,7 +348,13 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       issuedAt: licenses.issuedAt,
     })
     .from(licenses)
-    .where(and(notLike(licenses.code, "DIC-TRIAL-%"), NOT_RACE_DUPLICATE));
+    .where(
+      and(
+        notLike(licenses.code, "DIC-TRIAL-%"),
+        NOT_RACE_DUPLICATE,
+        hasIds ? inArray(licenses.userId, ids) : undefined,
+      ),
+    );
   const paidLicenseByUser = new Map<
     string,
     {
@@ -366,7 +389,8 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       userId: userBilling.userId,
       mollieCustomerId: userBilling.mollieCustomerId,
     })
-    .from(userBilling);
+    .from(userBilling)
+    .where(hasIds ? inArray(userBilling.userId, ids) : undefined);
   const mollieByUser = new Map(
     billingRows.map((b) => [b.userId, b.mollieCustomerId ?? null]),
   );
@@ -378,7 +402,8 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       status: subscriptions.status,
       nextBillingAt: subscriptions.nextBillingAt,
     })
-    .from(subscriptions);
+    .from(subscriptions)
+    .where(hasIds ? inArray(subscriptions.userId, ids) : undefined);
   const subByUser = new Map<
     string,
     { status: string; nextBillingAt: Date | null }
@@ -408,7 +433,8 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       convertedAt: affiliateReferrals.convertedAt,
     })
     .from(affiliateReferrals)
-    .innerJoin(affiliates, eq(affiliates.id, affiliateReferrals.affiliateId));
+    .innerJoin(affiliates, eq(affiliates.id, affiliateReferrals.affiliateId))
+    .where(hasIds ? inArray(affiliateReferrals.userId, ids) : undefined);
   const ownerByUser = new Map<
     string,
     {
@@ -440,6 +466,7 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
     })
     .from(orders)
     .innerJoin(discountCodes, eq(discountCodes.id, orders.discountCodeId))
+    .where(hasIds ? inArray(orders.userId, ids) : undefined)
     .orderBy(desc(orders.createdAt));
   const discountByUser = new Map<
     string,
@@ -466,6 +493,7 @@ export async function listCustomerFunnel(): Promise<CustomerFunnelRow[]> {
       bounced: sql<number>`count(*) filter (where ${emailLogs.status} in ('bounced','complained'))`,
     })
     .from(emailLogs)
+    .where(hasIds ? inArray(emailLogs.userId, ids) : undefined)
     .groupBy(emailLogs.userId);
   const emailByUser = new Map(
     emailAgg.map((e) => [

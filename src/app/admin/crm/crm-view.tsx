@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Building2,
   Columns3,
@@ -257,10 +256,14 @@ function formatDiscount(
   return `${type}: ${value}`;
 }
 
+type PeopleCursor = { createdAt: string; id: string };
+
 export function CrmView({
   currentUserId,
   canCreateList,
   customers,
+  initialNextCursor,
+  totalPeople,
   affiliates,
   discountCodes,
   lists,
@@ -274,6 +277,8 @@ export function CrmView({
   currentUserId: string;
   canCreateList: boolean;
   customers: Customer[];
+  initialNextCursor: PeopleCursor | null;
+  totalPeople: number;
   affiliates: AffiliateOption[];
   discountCodes: DiscountOption[];
   lists: LeadListOption[];
@@ -285,9 +290,6 @@ export function CrmView({
   activeTab: "people" | "organizations";
   onTabChange: (k: "people" | "organizations") => void;
 }) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   const [activeListId, setActiveListId] = useState<string | "all">("all");
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [search, setSearch] = useState("");
@@ -307,6 +309,59 @@ export function CrmView({
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [addingInline, setAddingInline] = useState(false);
   const [notesFor, setNotesFor] = useState<Customer | null>(null);
+
+  // Server-side gepagineerde rijen. `customers` is alleen de eerste pagina;
+  // filter-wissels + "meer laden" halen volgende pagina's via de API, zodat
+  // er nooit meer dan één pagina (≤ limit) in de browser zit.
+  const [rows, setRows] = useState<Customer[]>(customers);
+  const [cursor, setCursor] = useState<PeopleCursor | null>(initialNextCursor);
+  const [total, setTotal] = useState(totalPeople);
+  const [loadingPage, setLoadingPage] = useState(false);
+  const firstRender = useRef(true);
+
+  async function fetchPeople(reset: boolean) {
+    setLoadingPage(true);
+    const p = new URLSearchParams();
+    if (kindFilter !== "all") p.set("kind", kindFilter);
+    if (stageFilter !== "all") p.set("stage", stageFilter);
+    if (tempFilter !== "all") p.set("temperature", tempFilter);
+    if (assigneeFilter !== "all") p.set("assignee", assigneeFilter);
+    if (activeListId !== "all") p.set("listId", activeListId);
+    if (search.trim()) p.set("search", search.trim());
+    if (!reset && cursor) {
+      p.set("cursorCreatedAt", cursor.createdAt);
+      p.set("cursorId", cursor.id);
+    }
+    try {
+      const res = await fetch(`/api/admin/crm/people?${p.toString()}`);
+      const data = await res.json();
+      if (data.success) {
+        setRows((prev) => (reset ? data.rows : [...prev, ...data.rows]));
+        setCursor(data.nextCursor);
+        setTotal(data.total);
+      }
+    } finally {
+      setLoadingPage(false);
+    }
+  }
+
+  // Re-fetch eerste pagina bij elke server-filter-wissel (search gedebounced).
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    const t = setTimeout(() => {
+      void fetchPeople(true);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kindFilter, stageFilter, tempFilter, assigneeFilter, activeListId, search]);
+
+  // Na een mutatie: herlaad de huidige gefilterde eerste pagina.
+  function refresh() {
+    void fetchPeople(true);
+  }
 
   // Visible/order werken nu met (built-in + custom) ColumnKey-strings.
   // Custom-column keys hebben prefix "custom:" (zie services/customColumns.ts).
@@ -346,11 +401,11 @@ export function CrmView({
       activeListId === "all"
         ? null
         : new Set(
-            customers
+            rows
               .filter((c) => c.listIds.includes(activeListId))
               .map((c) => c.id),
           );
-    return customers.filter((r) => {
+    return rows.filter((r) => {
       if (inList && !inList.has(r.id)) return false;
       if (kindFilter !== "all" && (r.kind ?? "customer") !== kindFilter)
         return false;
@@ -386,7 +441,7 @@ export function CrmView({
       return true;
     });
   }, [
-    customers,
+    rows,
     activeListId,
     kindFilter,
     stageFilter,
@@ -400,8 +455,8 @@ export function CrmView({
   const selectedCount = selected.size;
   const selectedArray = useMemo(() => Array.from(selected), [selected]);
   const rowsById = useMemo(
-    () => new Map(customers.map((c) => [c.id, c])),
-    [customers],
+    () => new Map(rows.map((c) => [c.id, c])),
+    [rows],
   );
 
   function toggleRow(id: string) {
@@ -439,7 +494,7 @@ export function CrmView({
       body: JSON.stringify({ userIds, ...patch }),
     });
     if (!res.ok) return;
-    startTransition(() => router.refresh());
+    refresh();
   }
 
   async function rowUpdate(
@@ -475,7 +530,7 @@ export function CrmView({
           body: JSON.stringify(orgPatch),
         });
       }
-      startTransition(() => router.refresh());
+      refresh();
       return;
     }
     await fetch(`/api/admin/customers/${id}`, {
@@ -483,7 +538,7 @@ export function CrmView({
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
     });
-    startTransition(() => router.refresh());
+    refresh();
   }
 
   // Splits selectie in klanten (auth.user) en prospects (crm_contact) zodat
@@ -507,7 +562,7 @@ export function CrmView({
     });
     setShowAddToList(false);
     clearSelection();
-    startTransition(() => router.refresh());
+    refresh();
   }
 
   async function bulkRemoveFromList(listId: string) {
@@ -518,14 +573,14 @@ export function CrmView({
       body: JSON.stringify(splitSelection()),
     });
     clearSelection();
-    startTransition(() => router.refresh());
+    refresh();
   }
 
   async function deleteList(listId: string) {
     if (!confirm("Weet je zeker dat je deze lijst wilt verwijderen?")) return;
     await fetch(`/api/admin/lead-lists/${listId}`, { method: "DELETE" });
     setActiveListId("all");
-    startTransition(() => router.refresh());
+    refresh();
   }
 
   // Visible kolommen in juiste volgorde. Combineer built-in + custom keys.
@@ -884,7 +939,7 @@ export function CrmView({
                     onCancel={() => setAddingInline(false)}
                     onSaved={() => {
                       setAddingInline(false);
-                      startTransition(() => router.refresh());
+                      refresh();
                     }}
                     colSpan={orderedColumns.length + 1}
                   />
@@ -941,7 +996,7 @@ export function CrmView({
                                     }),
                                   },
                                 );
-                                startTransition(() => router.refresh());
+                                refresh();
                               }}
                             />
                             )
@@ -983,9 +1038,20 @@ export function CrmView({
 
           )}
 
-          <div className="border-t border-[color:var(--border-soft)] px-4 py-3 text-xs text-[color:var(--text-muted)]">
-            1–{filtered.length} van {filtered.length}
-            {activeList && ` in lijst "${activeList.name}"`}
+          <div className="flex items-center justify-between gap-3 border-t border-[color:var(--border-soft)] px-4 py-3 text-xs text-[color:var(--text-muted)]">
+            <span>
+              {filtered.length} geladen van {total}
+              {activeList && ` in lijst "${activeList.name}"`}
+            </span>
+            {cursor && (
+              <button
+                onClick={() => void fetchPeople(false)}
+                disabled={loadingPage}
+                className="rounded-md border border-[color:var(--border-soft)] bg-white px-3 py-1.5 text-xs font-semibold text-[color:var(--navy)] hover:bg-[color:var(--bg)] disabled:opacity-50"
+              >
+                {loadingPage ? "Laden…" : "Meer laden"}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -996,7 +1062,7 @@ export function CrmView({
           onCreated={(newId) => {
             setShowCreateList(false);
             setActiveListId(newId);
-            startTransition(() => router.refresh());
+            refresh();
           }}
         />
       )}
@@ -1012,7 +1078,7 @@ export function CrmView({
             setOrder(o);
           }}
           onClose={() => setShowColumnManager(false)}
-          onCustomChange={() => startTransition(() => router.refresh())}
+          onCustomChange={() => refresh()}
         />
       )}
 
@@ -1023,7 +1089,7 @@ export function CrmView({
           onClose={() => setShowAddProspect(false)}
           onDone={() => {
             setShowAddProspect(false);
-            startTransition(() => router.refresh());
+            refresh();
           }}
         />
       )}
@@ -1035,7 +1101,7 @@ export function CrmView({
           onDone={(newListId) => {
             setShowCsvImport(false);
             if (newListId) setActiveListId(newListId);
-            startTransition(() => router.refresh());
+            refresh();
           }}
         />
       )}
