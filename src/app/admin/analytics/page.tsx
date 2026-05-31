@@ -17,6 +17,7 @@ import {
   getPastDueWatchlist,
   getEmailEngagement30d,
   getActiveSubBreakdown,
+  getFunnelAnalytics,
 } from "@/lib/services/analytics";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,14 @@ const FUNNEL_ORDER: { key: string; label: string }[] = [
   { key: "audit.license.created", label: "Licentie aangemaakt" },
   { key: "audit.license.activated", label: "Licentie geactiveerd" },
 ];
+
+const SOURCE_LABEL: Record<string, string> = {
+  am_outreach: "AM-outreach",
+  self_service: "Self-service",
+  consumer_upgrade: "Consumer-upgrade",
+  csv_import: "CSV-import",
+  lead_form: "Lead-formulier",
+};
 
 function eur(cents: number): string {
   return `€${(cents / 100).toLocaleString("nl-NL", {
@@ -67,6 +76,7 @@ export default async function AdminAnalyticsPage() {
     pastDue,
     emailStats,
     subBreakdown,
+    gtmFunnel,
   ] = await Promise.all([
     funnelEventCounts(),
     activationsLastNDays(30),
@@ -82,6 +92,7 @@ export default async function AdminAnalyticsPage() {
     getPastDueWatchlist(5),
     getEmailEngagement30d(),
     getActiveSubBreakdown(),
+    getFunnelAnalytics(),
   ]);
 
   const funnelSteps = FUNNEL_ORDER.map((s) => ({
@@ -327,6 +338,108 @@ export default async function AdminAnalyticsPage() {
             )}
           </div>
         </div>
+
+        {/* GTM-funnel · B2B-pijplijn */}
+        <section>
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+            GTM-funnel · B2B-pijplijn
+          </h2>
+          <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="brand-card p-4">
+              <div className="text-xs text-[color:var(--text-muted)]">Win-rate</div>
+              <div className="mt-1 text-xl font-bold">{gtmFunnel.winRatePct}%</div>
+              <div className="text-[0.6875rem] text-[color:var(--text-muted)]">
+                {gtmFunnel.wonCount} gewonnen · {gtmFunnel.lostCount} verloren
+              </div>
+            </div>
+            <div className="brand-card p-4">
+              <div className="text-xs text-[color:var(--text-muted)]">
+                Conversie (lead→won)
+              </div>
+              <div className="mt-1 text-xl font-bold">
+                {gtmFunnel.overallConversionPct}%
+              </div>
+              <div className="text-[0.6875rem] text-[color:var(--text-muted)]">
+                {gtmFunnel.totalOrgs} organisaties totaal
+              </div>
+            </div>
+            <div className="brand-card p-4">
+              <div className="text-xs text-[color:var(--text-muted)]">
+                Gem. sales-cyclus
+              </div>
+              <div className="mt-1 text-xl font-bold">
+                {gtmFunnel.avgSalesCycleDays === null
+                  ? "—"
+                  : `${gtmFunnel.avgSalesCycleDays} dgn`}
+              </div>
+              <div className="text-[0.6875rem] text-[color:var(--text-muted)]">
+                aanmaak → gewonnen
+              </div>
+            </div>
+            <div className="brand-card p-4">
+              <div className="text-xs text-[color:var(--text-muted)]">
+                Gewogen forecast
+              </div>
+              <div className="mt-1 text-xl font-bold">
+                {eur(gtmFunnel.weightedForecastCents)}
+              </div>
+              <div className="text-[0.6875rem] text-[color:var(--text-muted)]">
+                open deals × kans-per-stage
+              </div>
+            </div>
+          </div>
+
+          {/* Bron-attributie: waar komt groei vandaan */}
+          <div className="brand-card p-5">
+            <h3 className="mb-3 text-sm font-bold">
+              Bron-attributie · waar komt groei vandaan
+            </h3>
+            {gtmFunnel.sources.length === 0 ? (
+              <div className="py-6 text-center text-sm text-[color:var(--text-muted)]">
+                Nog geen organisaties in de pijplijn.{" "}
+                <Link href="/admin/crm" className="underline">
+                  Voeg prospects toe
+                </Link>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-[0.6875rem] uppercase text-[color:var(--text-muted)]">
+                    <tr>
+                      <th className="py-2 pr-4">Bron</th>
+                      <th className="py-2 pr-4">Leads</th>
+                      <th className="py-2 pr-4">Gewonnen</th>
+                      <th className="py-2 pr-4">Win-rate</th>
+                      <th className="py-2 pr-4">Open waarde</th>
+                      <th className="py-2">Gewonnen waarde</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gtmFunnel.sources.map((s) => (
+                      <tr
+                        key={s.source}
+                        className="border-t border-[color:var(--border-soft)]"
+                      >
+                        <td className="py-2 pr-4 font-medium">
+                          {SOURCE_LABEL[s.source] ?? s.source}
+                        </td>
+                        <td className="py-2 pr-4 font-mono">{s.total}</td>
+                        <td className="py-2 pr-4 font-mono">{s.won}</td>
+                        <td className="py-2 pr-4 font-mono">{s.winRatePct}%</td>
+                        <td className="py-2 pr-4 font-mono">
+                          {eur(s.openValueCents)}
+                        </td>
+                        <td className="py-2 font-mono">
+                          {eur(s.wonValueCents)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Revenue-mix per plan */}
         <section className="brand-card p-5">

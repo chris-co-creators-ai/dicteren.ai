@@ -14,6 +14,7 @@ import {
   plans,
   subscriptions,
   authUsers,
+  crmOrganizations,
 } from "@/lib/db/schema";
 
 /** MRR per actieve subscription = amountCents / period-months. */
@@ -374,4 +375,115 @@ export async function getActiveSubBreakdown(): Promise<
     count: v.count,
     mrrCents: v.mrr,
   }));
+}
+
+/** GTM-funnel-analytics over de B2B-pijplijn (crm_organizations + events):
+ *  stage-distributie, win-rate, sales-cyclus, gewogen forecast en
+ *  bron-attributie (waar komt groei vandaan). Alles als SQL-aggregaat. */
+export type FunnelStageStat = { status: string; count: number };
+export type FunnelSourceStat = {
+  source: string;
+  total: number;
+  won: number;
+  lost: number;
+  winRatePct: number;
+  openValueCents: number;
+  wonValueCents: number;
+};
+export type FunnelAnalytics = {
+  stages: FunnelStageStat[];
+  totalOrgs: number;
+  wonCount: number;
+  lostCount: number;
+  winRatePct: number;
+  /** lead→won over alle orgs ooit. */
+  overallConversionPct: number;
+  avgSalesCycleDays: number | null;
+  weightedForecastCents: number;
+  sources: FunnelSourceStat[];
+};
+
+export async function getFunnelAnalytics(): Promise<FunnelAnalytics> {
+  const stageRows = await db
+    .select({
+      status: crmOrganizations.status,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(crmOrganizations)
+    .groupBy(crmOrganizations.status);
+  const stages = stageRows.map((r) => ({ status: r.status, count: Number(r.n) }));
+  const totalOrgs = stages.reduce((s, r) => s + r.count, 0);
+  const wonCount = stages.find((s) => s.status === "won")?.count ?? 0;
+  const lostCount = stages.find((s) => s.status === "lost")?.count ?? 0;
+  const winRatePct =
+    wonCount + lostCount > 0
+      ? Math.round((wonCount / (wonCount + lostCount)) * 100)
+      : 0;
+  const overallConversionPct =
+    totalOrgs > 0 ? Math.round((wonCount / totalOrgs) * 100) : 0;
+
+  const forecastRes = await db.execute<{ weighted: number }>(
+    sql`SELECT coalesce(sum(${crmOrganizations.proposedAmountCents} * CASE ${crmOrganizations.status}
+          WHEN 'lead' THEN 0.05 WHEN 'contacted' THEN 0.15 WHEN 'qualified' THEN 0.35
+          WHEN 'proposal_sent' THEN 0.55 WHEN 'negotiating' THEN 0.70 ELSE 0 END), 0)::int AS weighted
+        FROM ${crmOrganizations}
+        WHERE ${crmOrganizations.status} NOT IN ('won','lost')
+          AND ${crmOrganizations.proposedAmountCents} IS NOT NULL`,
+  );
+  const weightedForecastCents = forecastRes.rows?.[0]?.weighted ?? 0;
+
+  const cycleRes = await db.execute<{ avg_days: number | null }>(
+    sql`SELECT avg(extract(epoch FROM (e.created_at - o.created_at)) / 86400)::numeric(10,1) AS avg_days
+        FROM public.crm_organizations o
+        JOIN public.crm_events e
+          ON e.crm_organization_id = o.id
+         AND e.kind = 'status_changed'
+         AND e.payload->>'to' = 'won'
+        WHERE o.status = 'won'`,
+  );
+  const rawAvg = cycleRes.rows?.[0]?.avg_days ?? null;
+  const avgSalesCycleDays = rawAvg === null ? null : Number(rawAvg);
+
+  const sourceRes = await db.execute<{
+    source: string;
+    total: number;
+    won: number;
+    lost: number;
+    open_value: number;
+    won_value: number;
+  }>(
+    sql`SELECT source::text AS source,
+          count(*)::int AS total,
+          count(*) FILTER (WHERE status = 'won')::int AS won,
+          count(*) FILTER (WHERE status = 'lost')::int AS lost,
+          coalesce(sum(proposed_amount_cents) FILTER (WHERE status NOT IN ('won','lost')), 0)::int AS open_value,
+          coalesce(sum(proposed_amount_cents) FILTER (WHERE status = 'won'), 0)::int AS won_value
+        FROM public.crm_organizations
+        GROUP BY source
+        ORDER BY total DESC`,
+  );
+  const sources: FunnelSourceStat[] = (sourceRes.rows ?? []).map((r) => ({
+    source: r.source,
+    total: Number(r.total),
+    won: Number(r.won),
+    lost: Number(r.lost),
+    winRatePct:
+      Number(r.won) + Number(r.lost) > 0
+        ? Math.round((Number(r.won) / (Number(r.won) + Number(r.lost))) * 100)
+        : 0,
+    openValueCents: Number(r.open_value),
+    wonValueCents: Number(r.won_value),
+  }));
+
+  return {
+    stages,
+    totalOrgs,
+    wonCount,
+    lostCount,
+    winRatePct,
+    overallConversionPct,
+    avgSalesCycleDays,
+    weightedForecastCents,
+    sources,
+  };
 }
