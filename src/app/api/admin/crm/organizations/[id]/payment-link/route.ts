@@ -27,7 +27,7 @@ import { getPlanBySlug } from "@/lib/services/order";
 import { orders } from "@/lib/db/schema";
 import { createPayment } from "@/lib/services/mollie";
 import { getPricing } from "@/lib/services/pricing";
-import { businessAmountCents } from "@/lib/services/pricingTiers";
+import { businessAmountCents, withVatCents } from "@/lib/services/pricingTiers";
 import { validateDiscountCode } from "@/lib/services/discount";
 import { sendB2BPaymentLinkEmail } from "@/lib/services/orgEmail";
 import { logEvent } from "@/lib/services/audit";
@@ -159,6 +159,10 @@ export async function POST(
     );
   }
 
+  // chargeAmountCents is netto (excl. btw). Zakelijk rekent 21% btw erbovenop —
+  // dit bruto-bedrag schrijft Mollie af; de factuur splitst het terug.
+  const grossChargeCents = withVatCents(chargeAmountCents);
+
   // Account-manager userId (voor orders.userId NOT NULL constraint)
   const ownerId = org.accountOwnerId ?? session.user.id;
 
@@ -170,7 +174,7 @@ export async function POST(
       organizationId: null,
       planId: plan.id,
       quantity: org.proposedSeats,
-      amountCents: chargeAmountCents,
+      amountCents: grossChargeCents,
       currency: plan.currency,
       status: "pending",
       discountCodeId: resolvedDiscountId,
@@ -183,7 +187,7 @@ export async function POST(
   const redirectUrl = `${base}/checkout/success?order=${order.id}`;
   const description = `Dicteren.ai · ${plan.label} (${org.proposedSeats} seats) — ${org.name}`;
   const mollie = await createPayment({
-    amountCents: chargeAmountCents,
+    amountCents: grossChargeCents,
     description,
     redirectUrl,
     webhookUrl,
@@ -246,7 +250,7 @@ export async function POST(
     payload: {
       orderId: order.id,
       checkoutUrl: mollie.data.checkoutUrl,
-      amountCents: chargeAmountCents,
+      amountCents: grossChargeCents,
       seats: org.proposedSeats,
     },
   });
@@ -259,7 +263,7 @@ export async function POST(
     metadata: {
       orderId: order.id,
       contactEmail: primary.email,
-      amountCents: chargeAmountCents,
+      amountCents: grossChargeCents,
     },
   });
 
@@ -275,7 +279,7 @@ export async function POST(
     contactName: primary.name,
     organizationName: org.name,
     seats: org.proposedSeats,
-    amountCents: chargeAmountCents,
+    amountCents: grossChargeCents,
     planLabel: plan.label,
     checkoutUrl: mollie.data.checkoutUrl,
     accountManagerName: ownerRow?.name,

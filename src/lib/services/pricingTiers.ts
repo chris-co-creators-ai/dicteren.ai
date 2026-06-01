@@ -187,6 +187,16 @@ export function tierLabel(tier: SeatTier): string {
 
 export type BillingPeriod = "monthly" | "quarterly" | "yearly" | "lifetime";
 
+/** NL hoog btw-tarief. Zakelijke staffel is NETTO (excl. btw); op het
+ *  afreken-moment rekenen we dit erbovenop. Consumer-prijzen (plans-tabel) zijn
+ *  al incl. btw en gaan hier NIET doorheen. */
+export const VAT_RATE_HIGH = 0.21;
+
+/** Netto cents → bruto cents (incl. 21% btw). */
+export function withVatCents(netCents: number): number {
+  return Math.round(netCents * (1 + VAT_RATE_HIGH));
+}
+
 /** Volledige prijs-config: staffel + premies + maatwerk-drempel. */
 export type PricingSnapshot = {
   /** Gesorteerde staffel, exclusief de custom-tier. */

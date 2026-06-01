@@ -10,6 +10,7 @@ import {
   businessAmountCents,
   nextTierFromSnapshot,
   periodLabelNl,
+  withVatCents,
   type BillingPeriod,
   type PricingSnapshot,
 } from "@/lib/services/pricingTiers";
@@ -276,8 +277,9 @@ export function PrijzenClient({ pricing }: { pricing: PricingSnapshot }) {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[#9db1d6]">
-                  €{(total ?? 0).toLocaleString("nl-NL")} totaal voor {seats}{" "}
-                  {seats === 1 ? "gebruiker" : "gebruikers"} · excl. btw
+                  €{(total ?? 0).toLocaleString("nl-NL")} excl. btw voor {seats}{" "}
+                  {seats === 1 ? "gebruiker" : "gebruikers"} ·{" "}
+                  €{(withVatCents((total ?? 0) * 100) / 100).toLocaleString("nl-NL")} incl. btw
                 </p>
                 {typeof discount === "number" && discount > 0 && (
                   <p

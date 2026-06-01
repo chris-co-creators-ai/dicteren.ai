@@ -6,6 +6,7 @@ import {
   businessAmountCents,
   tierForSeats,
   periodLabelNl,
+  withVatCents,
   type BillingPeriod,
   type PricingSnapshot,
 } from "@/lib/services/pricingTiers";
@@ -350,9 +351,17 @@ export function CheckoutForm({
               </span>
               <span>{eur(total)}</span>
             </div>
-            <div className="flex items-center justify-between text-base font-bold">
-              <span>Totaal excl. btw · per {periodNl}</span>
+            <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
+              <span>Subtotaal excl. btw · per {periodNl}</span>
               <span>{eur(total)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
+              <span>+ 21% btw</span>
+              <span>{eur(withVatCents(total) - total)}</span>
+            </div>
+            <div className="flex items-center justify-between text-base font-bold">
+              <span>Te betalen incl. btw · per {periodNl}</span>
+              <span>{eur(withVatCents(total))}</span>
             </div>
             {discountCode && (
               <div className="mt-1 text-[0.6875rem] text-[color:var(--green)]">
@@ -388,9 +397,9 @@ export function CheckoutForm({
 
       {!isCustom && (
         <p className="text-[0.6875rem] text-[color:var(--text-soft)]">
-          Je betaalt {eur(total)} excl. btw per {periodNl}. Na succesvolle betaling
-          word je de eigenaar van de nieuwe organisatie en kun je teamleden
-          uitnodigen.
+          Je betaalt {eur(withVatCents(total))} incl. btw per {periodNl} ({eur(total)} excl.
+          btw). Na succesvolle betaling word je de eigenaar van de nieuwe organisatie
+          en kun je teamleden uitnodigen.
         </p>
       )}
     </form>

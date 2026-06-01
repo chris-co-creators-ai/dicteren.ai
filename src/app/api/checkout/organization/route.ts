@@ -41,7 +41,7 @@ import { getAffiliateBySlug } from "@/lib/services/affiliateSlug";
 import { getRefCookie } from "@/lib/affiliateCookie";
 import { validateDiscountCode } from "@/lib/services/discount";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
-import { businessAmountCents } from "@/lib/services/pricingTiers";
+import { businessAmountCents, withVatCents } from "@/lib/services/pricingTiers";
 import { getPricing } from "@/lib/services/pricing";
 import { appBase, webhookUrlFor } from "@/lib/url";
 
@@ -313,6 +313,11 @@ export async function POST(request: Request) {
     resolvedDiscountId = validation.discount.id;
   }
 
+  // De staffel is netto (excl. btw). Bij zakelijk rekenen we 21% btw erbovenop;
+  // dat is wat Mollie afschrijft. De factuur (commerce.ts) splitst dit bruto-
+  // bedrag weer terug naar netto + btw.
+  const grossAmountCents = withVatCents(payableAmountCents);
+
   await trackEvent("checkout_started", {
     planSlug,
     customerType: "organization",
@@ -343,7 +348,7 @@ export async function POST(request: Request) {
     organizationId: resolvedOrgId,
     quantity: seatCount,
     discountCodeId: resolvedDiscountId,
-    amountCentsOverride: payableAmountCents,
+    amountCentsOverride: grossAmountCents,
   });
 
   const base = appBase();

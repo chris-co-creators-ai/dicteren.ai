@@ -34,7 +34,11 @@ import {
   renewSubscriptionLicense,
 } from "@/lib/services/order";
 import { activatePendingExpansionSeats } from "@/lib/services/orderUpgrade";
-import { businessAmountCents, tierForSeats } from "@/lib/services/pricingTiers";
+import {
+  businessAmountCents,
+  tierForSeats,
+  withVatCents,
+} from "@/lib/services/pricingTiers";
 import { getPricing } from "@/lib/services/pricing";
 import type { DiscountSnapshot, LicenseSource } from "@/lib/services/mollie-metadata";
 import { logEvent, trackEvent } from "@/lib/services/audit";
@@ -713,11 +717,15 @@ export async function POST(request: Request) {
           }
           // Periode-bewust bedrag voor team: staffel × premie × seats uit de
           // SSOT. Consumer blijft plan.priceCents (komt al uit plans-tabel).
+          // Team: netto staffel × 1,21 btw (zelfde als checkout). Consumer:
+          // plan.priceCents is al incl. btw.
           const isTeam = fulfilled.plan.customerType === "organization";
           const pricing = isTeam ? await getPricing() : null;
           const subAmountCents =
             isTeam && pricing
-              ? businessAmountCents(pricing, fulfilled.seats, fulfilled.plan.period)
+              ? withVatCents(
+                  businessAmountCents(pricing, fulfilled.seats, fulfilled.plan.period),
+                )
               : fulfilled.plan.priceCents;
 
           if (isTeam && pricing) {

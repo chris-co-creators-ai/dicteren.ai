@@ -861,7 +861,7 @@ function b2bPaymentLinkHtml(params: {
           <div style="font-size:13px;color:${BRAND.textMuted};margin-bottom:6px;">Wat je krijgt</div>
           <div style="font-size:18px;font-weight:700;color:${BRAND.navy};margin-bottom:4px;">${params.planLabel}</div>
           <div style="font-size:15px;color:${BRAND.text};">${params.seats} ${params.seats === 1 ? "licentie" : "licenties"} voor je team</div>
-          <div style="margin-top:14px;padding-top:14px;border-top:1px solid ${BRAND.aquaSoft};font-size:13px;color:${BRAND.textMuted};">Totaal te betalen</div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid ${BRAND.aquaSoft};font-size:13px;color:${BRAND.textMuted};">Totaal te betalen (incl. btw)</div>
           <div style="font-size:22px;font-weight:700;color:${BRAND.navy};">${amount}</div>
         </td>
       </tr>
@@ -895,7 +895,7 @@ function b2bPaymentLinkText(params: {
     "",
     `${params.planLabel}`,
     `${params.seats} ${params.seats === 1 ? "licentie" : "licenties"} voor je team`,
-    `Totaal: ${amount}`,
+    `Totaal te betalen (incl. btw): ${amount}`,
     "",
     "Betalen via Mollie:",
     params.checkoutUrl,
