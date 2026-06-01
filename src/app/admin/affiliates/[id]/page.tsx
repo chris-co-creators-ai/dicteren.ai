@@ -12,13 +12,6 @@ import { AffiliateDetailClient } from "./affiliate-detail-client";
 
 export const dynamic = "force-dynamic";
 
-function eur(cents: number): string {
-  return `€${(cents / 100).toLocaleString("nl-NL", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
 type Params = Promise<{ id: string }>;
 
 export default async function AffiliateDetailPage({
@@ -125,7 +118,6 @@ export default async function AffiliateDetailPage({
             validUntil: d.validUntil?.toISOString() ?? null,
             createdAt: d.createdAt.toISOString(),
           }))}
-          formatEur={eur}
         />
       </main>
     </>

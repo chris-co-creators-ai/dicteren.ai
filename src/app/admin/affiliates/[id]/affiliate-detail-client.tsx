@@ -89,8 +89,16 @@ type Props = {
   referrals: Referral[];
   commissions: Commission[];
   discountCodes: DiscountCode[];
-  formatEur: (cents: number) => string;
 };
+
+/** Lokale euro-formatter — kan NIET als prop van de server komen (functies zijn
+ *  niet serialiseerbaar naar een client-component). */
+function formatEur(cents: number): string {
+  return `€${(cents / 100).toLocaleString("nl-NL", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 export function AffiliateDetailClient({
   affiliate,
@@ -98,7 +106,6 @@ export function AffiliateDetailClient({
   referrals,
   commissions,
   discountCodes,
-  formatEur,
 }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
