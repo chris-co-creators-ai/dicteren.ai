@@ -9,8 +9,15 @@ import {
   getTierForSeats,
   nextTier as nextTierForSeats,
 } from "@/lib/services/pricingTiers";
+import { BuyButton } from "@/components/checkout/buy-button";
 
 type Billing = "month" | "quarter" | "year";
+
+const CONSUMER_SLUG: Record<Billing, string> = {
+  month: "consumer-monthly",
+  quarter: "consumer-quarterly",
+  year: "consumer-yearly",
+};
 
 const PLANS: Record<
   Billing,
@@ -174,6 +181,13 @@ export default function PrijzenPage() {
             >
               Start gratis trial
             </Link>
+            <BuyButton
+              planSlug={CONSUMER_SLUG[billing]}
+              kind="consumer"
+              label={`Of reken direct af (€${currentPlan.price} ${currentPlan.sub})`}
+              className="mt-2 w-full text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)] hover:underline"
+              redirectAfterAuth="/account/billing"
+            />
             <ul className="mt-5 flex flex-col gap-2.5">
               {[
                 "Alles uit de gratis proefperiode",

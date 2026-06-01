@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreditCard } from "lucide-react";
+import { PlanPicker } from "./plan-picker";
+import type { ConsumerPlanOption } from "@/lib/services/order";
 
 type Subscription = {
   id: string;
@@ -47,28 +49,23 @@ function formatAmount(cents: number, currency: string): string {
 export function BillingView({
   hasCustomer,
   subscriptions,
+  consumerPlans = [],
 }: {
   hasCustomer: boolean;
   subscriptions: Subscription[];
+  consumerPlans?: ConsumerPlanOption[];
 }) {
+  void hasCustomer;
+  const hasActive = subscriptions.some(
+    (s) => s.status === "active" || s.status === "past_due",
+  );
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-3xl font-bold tracking-tight">Facturering</h1>
       <p className="mt-2 text-sm text-[color:var(--text-muted)]">
         Beheer hier je abonnementen en betaalmethode.
       </p>
-
-      {!hasCustomer && subscriptions.length === 0 && (
-        <div className="mt-8 rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
-          <div className="text-sm font-semibold">Nog geen abonnement</div>
-          <p className="mt-1 text-xs text-[color:var(--text-muted)]">
-            Zodra je een abonnement afsluit, verschijnt het hier.
-          </p>
-          <Link href="/prijzen" className="btn btn-primary mt-4 inline-flex">
-            Bekijk de prijzen
-          </Link>
-        </div>
-      )}
 
       {subscriptions.length > 0 && (
         <div className="mt-8 space-y-4">
@@ -77,6 +74,9 @@ export function BillingView({
           ))}
         </div>
       )}
+
+      {/* Geen actief abonnement → laat de gebruiker er direct één afsluiten. */}
+      {!hasActive && <PlanPicker plans={consumerPlans} />}
     </main>
   );
 }

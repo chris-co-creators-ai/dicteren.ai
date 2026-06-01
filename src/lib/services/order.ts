@@ -71,6 +71,32 @@ export async function getPlanBySlug(slug: string): Promise<Plan | null> {
   return rows[0] ?? null;
 }
 
+export type ConsumerPlanOption = {
+  slug: string;
+  label: string;
+  period: Plan["period"];
+  priceCents: number;
+  currency: string;
+};
+
+/** Actieve betaalde consumer-plannen (maand/kwartaal/jaar), goedkoopste eerst.
+ *  Sluit gratis/beta-plannen (priceCents 0) en lifetime uit. */
+export async function listConsumerPlans(): Promise<ConsumerPlanOption[]> {
+  const rows = await db
+    .select({
+      slug: plans.slug,
+      label: plans.label,
+      period: plans.period,
+      priceCents: plans.priceCents,
+      currency: plans.currency,
+    })
+    .from(plans)
+    .where(and(eq(plans.customerType, "consumer"), eq(plans.isActive, true)));
+  return rows
+    .filter((p) => p.period !== "lifetime" && p.priceCents > 0)
+    .sort((a, b) => a.priceCents - b.priceCents);
+}
+
 export async function createOrder(
   input: CreateOrderInput,
 ): Promise<CreatedOrder> {
