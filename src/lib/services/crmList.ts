@@ -24,6 +24,9 @@ export type CrmPeopleFilters = {
   search?: string | null;
   /** lead_lists.id — toont alleen members van die lijst. */
   listId?: string | null;
+  /** Harde scope-guard (los van de user-filter): een AM ziet alleen z'n
+   *  toegewezen leads + de niet-toegewezen pool. null/undefined = admin (alles). */
+  scopeAssignedTo?: string | null;
 };
 
 export type CrmPeopleCursor = { createdAt: string; id: string };
@@ -98,6 +101,12 @@ function buildConditions(filters: CrmPeopleFilters): SQL[] {
     conds.push(sql`people.assignee_id IS NULL`);
   } else if (filters.assigneeUserId) {
     conds.push(sql`people.assignee_id = ${filters.assigneeUserId}`);
+  }
+  // Harde scope-guard: AM ziet alleen eigen toegewezen + niet-toegewezen pool.
+  if (filters.scopeAssignedTo) {
+    conds.push(
+      sql`(people.assignee_id = ${filters.scopeAssignedTo} OR people.assignee_id IS NULL)`,
+    );
   }
   if (filters.search) {
     const q = `%${filters.search.trim()}%`;

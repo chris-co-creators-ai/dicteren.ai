@@ -85,6 +85,7 @@ export default async function AdminCrmPage({
   // verdere pagina's + filter-wissels via /api/admin/crm/people.
   const peoplePage = await loadCrmPeoplePage({
     sessionUserId: session.user.id,
+    filters: { scopeAssignedTo: scopeOwnerId ?? null },
     limit: 50,
   });
 
