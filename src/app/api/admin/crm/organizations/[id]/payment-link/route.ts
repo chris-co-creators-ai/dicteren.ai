@@ -26,6 +26,9 @@ import { authUsers } from "@/lib/db/schema/auth-bridge";
 import { getPlanBySlug } from "@/lib/services/order";
 import { orders } from "@/lib/db/schema";
 import { createPayment } from "@/lib/services/mollie";
+import { getPricing } from "@/lib/services/pricing";
+import { businessAmountCents } from "@/lib/services/pricingTiers";
+import { validateDiscountCode } from "@/lib/services/discount";
 import { sendB2BPaymentLinkEmail } from "@/lib/services/orgEmail";
 import { logEvent } from "@/lib/services/audit";
 import { appBase, webhookUrlFor } from "@/lib/url";
@@ -85,6 +88,70 @@ export async function POST(
     );
   }
 
+  // ───── Prijs-validatie tegen de SSOT (±2%) + reseller-coupon ─────
+  // SSOT-lijstprijs voor deze seats × periode. De AM mag binnen ±2% afwijken
+  // (afronding/kleine maatwerk); grotere korting hoort via een coupon zodat
+  // het getrackt + geattribueerd wordt. 50+ seats = maatwerk, vrij bedrag.
+  const pricing = await getPricing();
+  const seats = org.proposedSeats;
+  const isCustomQuote = seats >= pricing.customQuoteFrom;
+  const ssotAmountCents = businessAmountCents(pricing, seats, plan.period);
+
+  let resolvedDiscountId: string | null = null;
+  let discountSnapshot: { type: string; value: number } | null = null;
+  let expectedAmountCents = ssotAmountCents;
+
+  if (org.discountCode) {
+    const validation = await validateDiscountCode({
+      code: org.discountCode,
+      basisAmountCents: ssotAmountCents,
+      planId: plan.id,
+      seats,
+      audience: "organization",
+    });
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Kortingscode '${org.discountCode}': ${validation.error}`,
+          code: `DISCOUNT_${validation.code}`,
+        },
+        { status: 400 },
+      );
+    }
+    expectedAmountCents = validation.payableAmountCents;
+    resolvedDiscountId = validation.discount.id;
+    discountSnapshot = {
+      type: validation.discount.type,
+      value:
+        validation.discount.type === "percentage"
+          ? validation.discount.value
+          : validation.discountAmountCents,
+    };
+  }
+
+  // ±2% guard op het door de AM ingevulde bedrag (alleen onder de maatwerk-drempel).
+  const fmtEur = (c: number) =>
+    new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(
+      c / 100,
+    );
+  if (!isCustomQuote && expectedAmountCents > 0) {
+    const drift =
+      Math.abs(org.proposedAmountCents - expectedAmountCents) / expectedAmountCents;
+    if (drift > 0.02) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Bedrag ${fmtEur(org.proposedAmountCents)} wijkt te veel af van de staffelprijs ${fmtEur(expectedAmountCents)}${
+            org.discountCode ? " (na coupon)" : ""
+          }. Pas het bedrag aan of gebruik een kortingscode voor een grotere korting.`,
+          code: "AMOUNT_OUT_OF_RANGE",
+        },
+        { status: 400 },
+      );
+    }
+  }
+
   // Account-manager userId (voor orders.userId NOT NULL constraint)
   const ownerId = org.accountOwnerId ?? session.user.id;
 
@@ -99,6 +166,7 @@ export async function POST(
       amountCents: org.proposedAmountCents,
       currency: plan.currency,
       status: "pending",
+      discountCodeId: resolvedDiscountId,
     })
     .returning();
 
@@ -122,6 +190,13 @@ export async function POST(
       planSlug: org.proposedPlanSlug,
       seats: org.proposedSeats,
       source: "am_outreach",
+      ...(org.discountCode ? { discountCode: org.discountCode } : {}),
+      ...(discountSnapshot
+        ? {
+            discountType: discountSnapshot.type,
+            discountValue: discountSnapshot.value,
+          }
+        : {}),
     },
   });
 

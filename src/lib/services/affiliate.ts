@@ -406,6 +406,90 @@ export async function recordCommissionV2(args: {
   return row ?? null;
 }
 
+/**
+ * Commissie voor een AM-gesloten deal (Route C). Er is geen klant-referral
+ * (de organisatie wordt pas na betaling aangemaakt) — de reseller-coupon op de
+ * order koppelt de affiliate. referralId blijft daarom null. Eerste betaling,
+ * dus 0 maanden sinds first-seen en isRenewal=false. Idempotent op
+ * (orderId, sequenceNumber).
+ */
+export async function recordAmDealCommission(args: {
+  affiliate: Affiliate;
+  orderId: string;
+  licenseId: string | null;
+  paymentId: string | null;
+  basisAmountCents: number;
+  seats: number;
+  customerType: CustomerTypeKey;
+  paidAt: Date;
+}): Promise<AffiliateCommission | null> {
+  if (args.affiliate.status !== "active") return null;
+
+  const rule = pickCommissionRule({
+    affiliate: args.affiliate,
+    customerType: args.customerType,
+    isRenewal: false,
+    monthsSinceFirstSeen: 0,
+  });
+  if (!rule) return null;
+
+  // Commissie over netto (excl. 21% btw), zelfde regel als recordCommissionV2.
+  const nettoBasisCents = Math.round(args.basisAmountCents / 1.21);
+  const amountCents = calculateRuleCommissionCents({
+    rule,
+    basisAmountCents: nettoBasisCents,
+    seats: args.seats,
+  });
+  if (amountCents <= 0) return null;
+
+  const unlocksAt = calculateUnlocksAt(args.paidAt);
+
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(affiliateCommissions)
+    .where(eq(affiliateCommissions.orderId, args.orderId));
+  const sequenceNumber = (count ?? 0) + 1;
+
+  const [row] = await db
+    .insert(affiliateCommissions)
+    .values({
+      affiliateId: args.affiliate.id,
+      referralId: null,
+      orderId: args.orderId,
+      licenseId: args.licenseId,
+      paymentId: args.paymentId,
+      basisAmountCents: args.basisAmountCents,
+      seats: args.seats,
+      commissionType: rule.type,
+      commissionPct: rule.commissionPct,
+      commissionFixedCents: rule.commissionFixedCents,
+      amountCents,
+      status: "pending",
+      customerType: args.customerType === "business" ? "organization" : "consumer",
+      unlocksAt,
+      isRenewal: false,
+      sequenceNumber,
+    })
+    .onConflictDoNothing({
+      target: [
+        affiliateCommissions.orderId,
+        affiliateCommissions.sequenceNumber,
+      ],
+    })
+    .returning();
+
+  if (row) {
+    await db
+      .update(affiliates)
+      .set({
+        totalEarnedCents: sql`${affiliates.totalEarnedCents} + ${amountCents}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(affiliates.id, args.affiliate.id));
+  }
+  return row ?? null;
+}
+
 /** Void een commissie. Reduceert totalEarnedCents tenzij hij al paid was. */
 export async function voidCommission(args: {
   commissionId: string;

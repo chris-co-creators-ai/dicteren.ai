@@ -59,6 +59,7 @@ import {
   markReferralConverted,
   recordCommission,
   recordCommissionV2,
+  recordAmDealCommission,
   voidCommissionsForOrder,
   customerTypeFromOrderPlan,
 } from "@/lib/services/affiliate";
@@ -496,6 +497,54 @@ export async function POST(request: Request) {
               "Betaling ontvangen. Maak handmatig auth.organization aan en koppel licenties.",
           },
         });
+
+        // ───── Reseller-commissie (Route C) ─────
+        // Geen klant-referral; de reseller-coupon op de order koppelt de
+        // affiliate. recordAmDealCommission boekt zonder referral (idempotent
+        // op orderId+sequence).
+        if (fulfilled.discountCodeId) {
+          const [dc] = await db
+            .select({
+              affiliateId: discountCodes.affiliateId,
+              code: discountCodes.code,
+            })
+            .from(discountCodes)
+            .where(eq(discountCodes.id, fulfilled.discountCodeId))
+            .limit(1);
+          if (dc?.affiliateId) {
+            const aff = await getAffiliateById(dc.affiliateId);
+            if (aff && aff.status === "active") {
+              const commission = await recordAmDealCommission({
+                affiliate: aff,
+                orderId: fulfilled.orderId,
+                licenseId: fulfilled.licenseId,
+                paymentId: fulfilled.paymentId,
+                basisAmountCents: payment.data.amount,
+                seats: fulfilled.seats,
+                customerType: customerTypeFromOrderPlan(
+                  fulfilled.plan.customerType as "consumer" | "organization",
+                ),
+                paidAt: new Date(),
+              });
+              if (commission) {
+                await logEvent({
+                  action: "affiliate.commission_recorded",
+                  entityType: "affiliate",
+                  entityId: aff.id,
+                  metadata: {
+                    orderId: fulfilled.orderId,
+                    amountCents: commission.amountCents,
+                    basisAmountCents: payment.data.amount,
+                    seats: fulfilled.seats,
+                    isRenewal: false,
+                    source: "am_deal",
+                    discountCode: dc.code,
+                  },
+                });
+              }
+            }
+          }
+        }
         // Ook welkomstmail naar de contact-email uit de metadata.
         const contactEmail = (metadata as { crmContactEmail?: string } | null)
           ?.crmContactEmail;
@@ -585,7 +634,11 @@ export async function POST(request: Request) {
       // commission op deze paid order. Idempotent op orderId (unique index).
       // Status begint 'pending' — cron unlock-commissions flipt na 30 dagen
       // naar 'payable' tenzij refund/cancel-in-lockup hem void heeft.
-      if (fulfilled.userId) {
+      //
+      // AM-deals (crmOrgIdFromMeta) slaan dit over: daar loopt de commissie via
+      // de reseller-coupon op de order (recordAmDealCommission hierboven), niet
+      // via een klant-referral van de account-manager.
+      if (fulfilled.userId && !crmOrgIdFromMeta) {
         const referral = await getReferralForUser(fulfilled.userId);
         if (referral) {
           const affiliate = await getAffiliateById(referral.affiliateId);
