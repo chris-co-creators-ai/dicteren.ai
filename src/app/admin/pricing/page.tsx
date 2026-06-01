@@ -11,8 +11,9 @@ export default function AdminPricingPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Reseller-commissie calculator</h1>
           <p className="text-sm text-[color:var(--text-muted)]">
-            Zakelijke deals. Verdeel de 50% commissie-pool tussen de reseller en jezelf
-            en zie per seat-volume wat je onderaan de streep overhoudt — recurring per jaar.
+            Zakelijke deals. Verdeel de 50% commissie-pool tussen reseller en jezelf,
+            vul het reseller-verkoopvolume per jaar in, en zie per klant én per jaar
+            wat je recurring overhoudt.
           </p>
         </div>
 
