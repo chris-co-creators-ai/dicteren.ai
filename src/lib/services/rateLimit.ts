@@ -65,6 +65,10 @@ export const RATE_LIMITS = {
   "org:invite": { limit: 30, windowSeconds: 600 },
   "org:invite_resend": { limit: 10, windowSeconds: 600 },
 
+  // Publieke prijs-config read (mini-calc fetch). Gecached + goedkoop, dus
+  // ruime cap puur tegen hammeren.
+  "pricing:read": { limit: 120, windowSeconds: 60 },
+
   // Auth: DB-based limiet voor /api/auth omdat Better Auth's eigen limiter
   // in-memory is en op Vercel multi-instance onbetrouwbaar. Brute-force op
   // login + reset-spam afremmen, per IP.
