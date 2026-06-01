@@ -252,7 +252,7 @@ export function PricingCalculator() {
             {s.tier.discountPct > 0
               ? ` (${s.tier.discountPct}% staffel, ${tierLabel(s.tier)})`
               : " (geen staffelkorting)"}{" "}
-            = <strong>{euro(s.listCents)}</strong> lijst/jaar
+            = <strong>{euro(s.listCents)}</strong> lijst/jaar excl. btw
             {effDiscount > 0 && (
               <>
                 {" "}
@@ -314,7 +314,8 @@ export function PricingCalculator() {
             </div>
             <div className="border-t border-[color:var(--border-soft)] px-4 py-2 text-[0.6875rem] text-[color:var(--text-soft)]">
               Per jaar = de hele verwachte verkoop van de reseller. Recurring: jaar 2
-              komt hier bovenop zolang de klanten blijven.
+              komt hier bovenop zolang de klanten blijven. Bedragen excl. btw, zelfde
+              staffel als de /prijzen-pagina. Facturatie per kwartaal verandert de prijs niet.
             </div>
           </div>
 
