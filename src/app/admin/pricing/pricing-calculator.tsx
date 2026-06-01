@@ -35,6 +35,7 @@ const SEAT_PRESETS = [
   { label: "MKB", seats: 25 },
   { label: "Groot", seats: 49 },
 ];
+const CUSTOMER_PRESETS = [6, 12, 24, 52];
 const SPLIT_PRESETS = [
   { label: "50 / 50", reseller: 25 },
   { label: "Jij 35 / 15", reseller: 15 },
@@ -106,6 +107,26 @@ export function PricingCalculator() {
               <span className={seats === p.seats ? "text-white/80" : "text-[color:var(--text-muted)]"}>
                 {p.seats}
               </span>
+            </button>
+          ))}
+        </div>
+        <div className="my-3 border-t border-[color:var(--border-soft)]" />
+        <div className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
+          Klanten / jaar
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {CUSTOMER_PRESETS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCustomers(c)}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                customers === c
+                  ? "border-[color:var(--navy)] bg-[color:var(--navy)] text-white"
+                  : "border-[color:var(--border-soft)] hover:border-[color:var(--navy)]"
+              }`}
+            >
+              {c}
             </button>
           ))}
         </div>
@@ -232,9 +253,9 @@ export function PricingCalculator() {
           </div>
         ) : (
           <>
-            {/* Jouw commissie-totaal over de hele reseller-portfolio */}
-            <div className="brand-card flex flex-wrap items-end justify-between gap-4 p-4">
-              <div>
+            {/* Commissie-totaal over de hele reseller-portfolio — jij vs reseller */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="brand-card p-4" style={{ boxShadow: "0 0 0 2px var(--orange)" }}>
                 <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
                   Jouw commissie / jaar — {n} klant{n === 1 ? "" : "en"}
                 </div>
@@ -245,12 +266,16 @@ export function PricingCalculator() {
                   {euro(amPerKlant)}/klant × {n} · recurring · gelijk voor elke termijn
                 </div>
               </div>
-              <div className="text-right text-sm text-[color:var(--navy)]">
-                <div>
-                  Reseller <strong>{euro(resellerTotal)}</strong>/jaar
+              <div className="brand-card p-4">
+                <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
+                  Reseller verdient / jaar — {n} klant{n === 1 ? "" : "en"}
+                </div>
+                <div className="text-3xl font-bold tracking-tight text-[color:var(--navy)]">
+                  {euro(resellerTotal)}
                 </div>
                 <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
-                  {euro(resellerPerKlant)}/klant{effDiscount > 0 ? ` · na ${effDiscount}% discount` : ""}
+                  {euro(resellerPerKlant)}/klant × {n} · recurring
+                  {effDiscount > 0 ? ` · na ${effDiscount}% discount` : ""}
                 </div>
               </div>
             </div>
