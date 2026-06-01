@@ -88,18 +88,25 @@ export async function POST(
     );
   }
 
-  // ───── Prijs-validatie tegen de SSOT (±2%) + reseller-coupon ─────
-  // SSOT-lijstprijs voor deze seats × periode. De AM mag binnen ±2% afwijken
-  // (afronding/kleine maatwerk); grotere korting hoort via een coupon zodat
-  // het getrackt + geattribueerd wordt. 50+ seats = maatwerk, vrij bedrag.
+  // ───── Te factureren bedrag bepalen ─────
+  // SSOT-lijstprijs voor deze seats × periode. Twee gevallen:
+  //  - MET coupon: de reseller-coupon (door de AM op maat aangemaakt) draagt de
+  //    afgesproken korting. De server rekent het post-coupon bedrag autoritatief
+  //    af — de AM hoeft niks uit te rekenen.
+  //  - ZONDER coupon: de AM mag een maatwerk-bedrag invullen, maar dat moet
+  //    binnen ±2% van de staffelprijs liggen (typfout-guard). 50+ = vrij.
   const pricing = await getPricing();
   const seats = org.proposedSeats;
   const isCustomQuote = seats >= pricing.customQuoteFrom;
   const ssotAmountCents = businessAmountCents(pricing, seats, plan.period);
+  const fmtEur = (c: number) =>
+    new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(
+      c / 100,
+    );
 
   let resolvedDiscountId: string | null = null;
   let discountSnapshot: { type: string; value: number } | null = null;
-  let expectedAmountCents = ssotAmountCents;
+  let chargeAmountCents = org.proposedAmountCents;
 
   if (org.discountCode) {
     const validation = await validateDiscountCode({
@@ -119,7 +126,8 @@ export async function POST(
         { status: 400 },
       );
     }
-    expectedAmountCents = validation.payableAmountCents;
+    // Server rekent het post-coupon bedrag — AM-bedrag wordt niet gebruikt.
+    chargeAmountCents = validation.payableAmountCents;
     resolvedDiscountId = validation.discount.id;
     discountSnapshot = {
       type: validation.discount.type,
@@ -128,28 +136,27 @@ export async function POST(
           ? validation.discount.value
           : validation.discountAmountCents,
     };
-  }
-
-  // ±2% guard op het door de AM ingevulde bedrag (alleen onder de maatwerk-drempel).
-  const fmtEur = (c: number) =>
-    new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR" }).format(
-      c / 100,
-    );
-  if (!isCustomQuote && expectedAmountCents > 0) {
+  } else if (!isCustomQuote && ssotAmountCents > 0) {
+    // Geen coupon: AM-bedrag mag maximaal 2% van de staffelprijs afwijken.
     const drift =
-      Math.abs(org.proposedAmountCents - expectedAmountCents) / expectedAmountCents;
+      Math.abs(org.proposedAmountCents - ssotAmountCents) / ssotAmountCents;
     if (drift > 0.02) {
       return NextResponse.json(
         {
           success: false,
-          error: `Bedrag ${fmtEur(org.proposedAmountCents)} wijkt te veel af van de staffelprijs ${fmtEur(expectedAmountCents)}${
-            org.discountCode ? " (na coupon)" : ""
-          }. Pas het bedrag aan of gebruik een kortingscode voor een grotere korting.`,
+          error: `Bedrag ${fmtEur(org.proposedAmountCents)} wijkt te veel af van de staffelprijs ${fmtEur(ssotAmountCents)}. Pas het bedrag aan, of maak een reseller-coupon aan voor een afgesproken korting.`,
           code: "AMOUNT_OUT_OF_RANGE",
         },
         { status: 400 },
       );
     }
+  }
+
+  if (chargeAmountCents < 100) {
+    return NextResponse.json(
+      { success: false, error: "Te factureren bedrag is te laag.", code: "AMOUNT_TOO_LOW" },
+      { status: 400 },
+    );
   }
 
   // Account-manager userId (voor orders.userId NOT NULL constraint)
@@ -163,7 +170,7 @@ export async function POST(
       organizationId: null,
       planId: plan.id,
       quantity: org.proposedSeats,
-      amountCents: org.proposedAmountCents,
+      amountCents: chargeAmountCents,
       currency: plan.currency,
       status: "pending",
       discountCodeId: resolvedDiscountId,
@@ -176,7 +183,7 @@ export async function POST(
   const redirectUrl = `${base}/checkout/success?order=${order.id}`;
   const description = `Dicteren.ai · ${plan.label} (${org.proposedSeats} seats) — ${org.name}`;
   const mollie = await createPayment({
-    amountCents: org.proposedAmountCents,
+    amountCents: chargeAmountCents,
     description,
     redirectUrl,
     webhookUrl,
@@ -239,7 +246,7 @@ export async function POST(
     payload: {
       orderId: order.id,
       checkoutUrl: mollie.data.checkoutUrl,
-      amountCents: org.proposedAmountCents,
+      amountCents: chargeAmountCents,
       seats: org.proposedSeats,
     },
   });
@@ -252,7 +259,7 @@ export async function POST(
     metadata: {
       orderId: order.id,
       contactEmail: primary.email,
-      amountCents: org.proposedAmountCents,
+      amountCents: chargeAmountCents,
     },
   });
 
@@ -268,7 +275,7 @@ export async function POST(
     contactName: primary.name,
     organizationName: org.name,
     seats: org.proposedSeats,
-    amountCents: org.proposedAmountCents,
+    amountCents: chargeAmountCents,
     planLabel: plan.label,
     checkoutUrl: mollie.data.checkoutUrl,
     accountManagerName: ownerRow?.name,

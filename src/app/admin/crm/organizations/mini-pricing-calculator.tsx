@@ -49,7 +49,6 @@ export function MiniPricingCalculator({
   const [pricing, setPricing] = useState<PricingSnapshot>(DEFAULT_PRICING);
   const [seats, setSeats] = useState(5);
   const [period, setPeriod] = useState<Period>("yearly");
-  const [discountPct, setDiscountPct] = useState(0);
   const [discountCode, setDiscountCode] = useState("");
 
   // Live prijs-config ophalen zodat de calculator exact rekent zoals checkout.
@@ -75,9 +74,9 @@ export function MiniPricingCalculator({
     seats,
     period as BillingPeriod,
   );
-  const subtotal = businessAmountCents(pricing, seats, period as BillingPeriod);
-  const discountAmount = Math.round(subtotal * (discountPct / 100));
-  const total = subtotal - discountAmount;
+  // Volle staffelprijs. Korting loopt via de reseller-coupon (server past 'm toe
+  // op de payment-link); de AM rekent hier geen losse korting in.
+  const total = businessAmountCents(pricing, seats, period as BillingPeriod);
 
   return (
     <div className="space-y-3">
@@ -145,33 +144,22 @@ export function MiniPricingCalculator({
         </div>
       </div>
 
-      {/* Kortingscode */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs font-semibold text-[color:var(--text)]">Korting %</label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={discountPct}
-            onChange={(e) =>
-              setDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))
-            }
-            className="mt-1 w-full rounded-lg border bg-white px-2 py-1.5 text-sm"
-            style={{ borderColor: "var(--border)" }}
-          />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-[color:var(--text)]">Code</label>
-          <input
-            type="text"
-            value={discountCode}
-            onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-            placeholder="bv. RESELLER-A1B2C3"
-            className="mt-1 w-full rounded-lg border bg-white px-2 py-1.5 text-sm uppercase"
-            style={{ borderColor: "var(--border)" }}
-          />
-        </div>
+      {/* Reseller-coupon — draagt de afgesproken korting (server past 'm toe). */}
+      <div>
+        <label className="text-xs font-semibold text-[color:var(--text)]">
+          Reseller-coupon (optioneel)
+        </label>
+        <input
+          type="text"
+          value={discountCode}
+          onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+          placeholder="bv. RESELLER-A1B2C3"
+          className="mt-1 w-full rounded-lg border bg-white px-2 py-1.5 text-sm uppercase"
+          style={{ borderColor: "var(--border)" }}
+        />
+        <p className="mt-1 text-[10px] text-[color:var(--text-muted)]">
+          Korting + commissie lopen via de coupon. Maak 'm aan bij de reseller in /admin/affiliates.
+        </p>
       </div>
 
       {/* Resultaat */}
@@ -191,21 +179,11 @@ export function MiniPricingCalculator({
             {fmtCents(perSeatThisPeriod)} / {PERIOD_LABELS[period].toLowerCase()}
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-[color:var(--text-muted)]">Subtotaal</span>
-          <span className="font-semibold">{fmtCents(subtotal)}</span>
-        </div>
-        {discountAmount > 0 && (
-          <div className="flex justify-between" style={{ color: "#9A3412" }}>
-            <span>Korting −{discountPct}%</span>
-            <span className="font-semibold">−{fmtCents(discountAmount)}</span>
-          </div>
-        )}
         <div
           className="mt-2 flex justify-between border-t pt-2"
           style={{ borderColor: "var(--aqua-200)" }}
         >
-          <span className="font-bold text-[color:var(--navy)]">Totaal</span>
+          <span className="font-bold text-[color:var(--navy)]">Totaal (excl. coupon)</span>
           <span className="text-base font-bold text-[color:var(--navy)]">
             {fmtCents(total)}
           </span>
