@@ -122,7 +122,7 @@ const BENEFITS: Benefit[] = [
     icon: Users,
     title: "Korting voor jouw klanten",
     desc:
-      "Tot 20% korting op zakelijke licenties bij meer zitplaatsen. Een scherpere prijs in jouw deal.",
+      "Tot 20% korting op zakelijke licenties bij meer gebruikers. Een scherpere prijs in jouw deal.",
   },
   {
     icon: ImageIcon,

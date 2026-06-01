@@ -7,6 +7,9 @@ import {
   Shield,
   Users,
 } from "lucide-react";
+import { getPricing } from "@/lib/services/pricing";
+
+export const dynamic = "force-dynamic";
 
 const PILLARS = [
   {
@@ -31,14 +34,6 @@ const PILLARS = [
   },
 ];
 
-const DISCOUNT_TIERS: { range: string; price: string; pct: string; popular?: boolean }[] = [
-  { range: "1 tot 4 zitplaatsen", price: "€84", pct: "0%" },
-  { range: "5 tot 9 zitplaatsen", price: "€76", pct: "10%" },
-  { range: "10 tot 24 zitplaatsen", price: "€71", pct: "15%", popular: true },
-  { range: "25 tot 49 zitplaatsen", price: "€67", pct: "20%" },
-  { range: "50 of meer zitplaatsen", price: "op maat", pct: "maatwerk" },
-];
-
 const TEAM_PREVIEW = [
   { name: "Jeroen Smit", role: "Partner", devices: "2 apparaten", status: "Actief" as const },
   { name: "Lisa Veenstra", role: "Senior associate", devices: "1 apparaat", status: "Actief" as const },
@@ -57,7 +52,29 @@ export const metadata = {
     "Dicteren voor teams en organisaties. Eén dashboard, één factuur en lokale verwerking. Met DPA en inkoop-PO op aanvraag.",
 };
 
-export default function ZakelijkPage() {
+export default async function ZakelijkPage() {
+  // Staffel uit de SSOT (pricing_tiers) zodat de zakelijke landingspagina nooit
+  // driftt t.o.v. /prijzen en de checkout.
+  const pricing = await getPricing();
+  const DISCOUNT_TIERS: {
+    range: string;
+    price: string;
+    pct: string;
+    popular?: boolean;
+  }[] = [
+    ...pricing.tiers.map((t, i) => ({
+      range: `${t.min} tot ${t.max ?? pricing.customQuoteFrom - 1} gebruikers`,
+      price: `€${(t.pricePerSeatCents / 100).toLocaleString("nl-NL")}`,
+      pct: `${t.discountPct}%`,
+      popular: i === 2,
+    })),
+    {
+      range: `${pricing.customQuoteFrom} of meer gebruikers`,
+      price: "op maat",
+      pct: "maatwerk",
+    },
+  ];
+
   return (
     <>
       {/* Hero + admin preview */}
@@ -111,7 +128,7 @@ export default function ZakelijkPage() {
               />
               <span className="font-semibold">Boom Advocaten · Admin</span>
               <span className="ml-auto font-mono text-[0.6875rem] text-[color:var(--text-soft)]">
-                14 zitplaatsen actief
+                14 gebruikers actief
               </span>
             </div>
             <div className="grid grid-cols-3 gap-2.5 p-5">

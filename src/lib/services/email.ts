@@ -928,7 +928,7 @@ function trialReminderD13Html(params: {
   <ul style="margin:0 0 14px 20px;padding:0;">
     <li style="margin-bottom:6px;"><strong>€12 per maand</strong>, maandelijks opzegbaar.</li>
     <li style="margin-bottom:6px;"><strong>€30 per kwartaal</strong>, 17% korting.</li>
-    <li><strong>€96 per jaar</strong>, 33% korting met twee maanden gratis.</li>
+    <li><strong>€96 per jaar</strong>, 33% korting (= €8 per maand).</li>
   </ul>
   <p style="margin:0;font-size:14px;color:${BRAND.textMuted};">Vragen? Antwoord op deze mail. Je hoort dezelfde dag van ons.</p>`,
   );
@@ -949,7 +949,7 @@ function trialReminderD13Text(params: {
     "Opties:",
     "- €12 per maand, maandelijks opzegbaar.",
     "- €30 per kwartaal, 17% korting.",
-    "- €96 per jaar, 33% korting met twee maanden gratis.",
+    "- €96 per jaar, 33% korting (= €8 per maand).",
     "",
     "Vragen? Antwoord op deze mail. Je hoort dezelfde dag van ons.",
     "",

@@ -94,7 +94,7 @@ export default async function AffiliateSlugPage({
               icon={Briefcase}
               chip="Voor teams"
               title="Zakelijke licenties"
-              desc="Vanaf €96 per gebruiker per jaar. Volumekorting bij 5+ seats."
+              desc="€120 per gebruiker per jaar, met volumekorting vanaf 5 seats."
               href="/zakelijk"
               cta="Bekijk zakelijk"
               variant="navy"
