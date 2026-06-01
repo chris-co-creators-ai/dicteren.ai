@@ -12,13 +12,13 @@ import {
 // Reseller-commissie-tool voor account managers.
 //
 // Van de eindklantprijs is COMMISSION_POOL_PCT (50%) commissie. Dicteren houdt
-// de andere helft. De AM verdeelt de pool tussen de reseller en zichzelf: geeft
-// 'ie de reseller meer, dan gaat dat van zijn eigen commissie af. Alles recurring
-// per jaar (zakelijk abo).
+// de andere helft. De AM verdeelt de pool tussen reseller en zichzelf: geeft 'ie
+// de reseller meer, dan gaat dat van zijn eigen commissie af. Alles recurring per
+// jaar (zakelijk abo).
 //
-// Twee dimensies:
-//   - PER KLANT: seats × staffel-prijs → de split op één deal.
-//   - PER JAAR:  × het aantal zakelijke klanten dat de reseller per jaar verkoopt.
+// Eindklant-discount: korting voor de eindklant die ALTIJD uit de reseller-
+// commissie komt. Jouw deel en Dicteren-netto blijven gelijk; alleen de reseller
+// levert in. Daarom is de discount gecapt op de reseller-%.
 
 const COMMISSION_POOL_PCT = 50;
 
@@ -30,15 +30,28 @@ function euro(cents: number): string {
   }).format(cents / 100);
 }
 
-function splitFor(seats: number, resellerPct: number) {
+function splitFor(seats: number, resellerPct: number, discountPct: number) {
   const tier = getTierForSeats(seats);
   const perSeatCents = tier.pricePerSeatCents;
-  const endCustomerCents = perSeatCents * seats;
+  const listCents = perSeatCents * seats;
   const amPct = COMMISSION_POOL_PCT - resellerPct;
-  const resellerCents = Math.round((endCustomerCents * resellerPct) / 100);
-  const amCents = Math.round((endCustomerCents * amPct) / 100);
-  const dicterenCents = endCustomerCents - resellerCents - amCents;
-  return { tier, perSeatCents, endCustomerCents, resellerCents, amCents, dicterenCents };
+
+  const discountCents = Math.round((listCents * discountPct) / 100);
+  const endCustomerCents = listCents - discountCents; // klant betaalt na korting
+  const amCents = Math.round((listCents * amPct) / 100); // ongewijzigd door discount
+  // Reseller draagt de hele korting: (reseller% − discount%) van de lijstprijs.
+  const resellerCents = Math.round((listCents * (resellerPct - discountPct)) / 100);
+  const dicterenCents = endCustomerCents - resellerCents - amCents; // = 50% lijst
+  return {
+    tier,
+    perSeatCents,
+    listCents,
+    discountCents,
+    endCustomerCents,
+    resellerCents,
+    amCents,
+    dicterenCents,
+  };
 }
 
 const MILESTONES = [4, 9, 24, 49]; // top van elke staffel
@@ -47,18 +60,21 @@ export function PricingCalculator() {
   const [seats, setSeats] = useState<number>(10);
   const [resellerPct, setResellerPct] = useState<number>(25);
   const [customersPerYear, setCustomersPerYear] = useState<number>(12);
+  const [discountOn, setDiscountOn] = useState<boolean>(false);
+  const [discountPct, setDiscountPct] = useState<number>(10);
 
   const amPct = COMMISSION_POOL_PCT - resellerPct;
   const safeSeats = Math.max(1, seats);
   const n = Math.max(0, customersPerYear);
   const custom = safeSeats >= CUSTOM_QUOTE_FROM;
-  const s = splitFor(safeSeats, resellerPct);
+  // Discount kan nooit meer zijn dan de reseller-commissie (komt daaruit).
+  const effDiscount = discountOn ? Math.min(discountPct, resellerPct) : 0;
+  const s = splitFor(safeSeats, resellerPct, effDiscount);
   const up = nextTier(safeSeats);
 
   const inputCls =
     "w-full rounded-lg border border-[color:var(--border-soft)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--orange)]";
 
-  // Per-jaar rij-data voor de resultaattabel.
   const rows: {
     label: string;
     perDeal: number;
@@ -67,7 +83,12 @@ export function PricingCalculator() {
     hero?: boolean;
   }[] = [
     { label: "Eindklant betaalt", perDeal: s.endCustomerCents, perYear: s.endCustomerCents * n },
-    { label: `Reseller (${resellerPct}%)`, perDeal: s.resellerCents, perYear: s.resellerCents * n, accent: "navy" },
+    {
+      label: `Reseller (${resellerPct}%${effDiscount > 0 ? ` − ${effDiscount}% korting` : ""})`,
+      perDeal: s.resellerCents,
+      perYear: s.resellerCents * n,
+      accent: "navy",
+    },
     { label: `Jouw commissie (${amPct}%)`, perDeal: s.amCents, perYear: s.amCents * n, accent: "orange", hero: true },
     { label: "Dicteren netto", perDeal: s.dicterenCents, perYear: s.dicterenCents * n },
   ];
@@ -111,6 +132,7 @@ export function PricingCalculator() {
           </span>
         </label>
 
+        {/* Verdeling pool */}
         <div className="block">
           <div className="mb-1 flex items-center justify-between text-xs font-semibold">
             <span className="text-[color:var(--text-muted)]">
@@ -128,7 +150,11 @@ export function PricingCalculator() {
             max={COMMISSION_POOL_PCT}
             step={1}
             value={resellerPct}
-            onChange={(e) => setResellerPct(Number(e.target.value))}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setResellerPct(v);
+              if (discountPct > v) setDiscountPct(v);
+            }}
             className="w-full accent-[color:var(--orange)]"
           />
           <div className="mt-1 flex justify-between text-[0.6875rem] text-[color:var(--text-soft)]">
@@ -136,6 +162,53 @@ export function PricingCalculator() {
             <span>50/50</span>
             <span>alles reseller</span>
           </div>
+
+          {/* Toggle: eindklant-discount */}
+          <button
+            type="button"
+            onClick={() => setDiscountOn((v) => !v)}
+            className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              discountOn
+                ? "border-[color:var(--orange)] text-[color:var(--orange)]"
+                : "border-[color:var(--border-soft)] text-[color:var(--text-muted)]"
+            }`}
+          >
+            <span
+              className={`inline-block h-3.5 w-6 rounded-full transition-colors ${
+                discountOn ? "bg-[color:var(--orange)]" : "bg-[color:var(--border-soft)]"
+              }`}
+            >
+              <span
+                className={`block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+                  discountOn ? "translate-x-2.5" : "translate-x-0"
+                }`}
+              />
+            </span>
+            Eindklant-discount
+          </button>
+
+          {discountOn && (
+            <div className="mt-2">
+              <div className="mb-1 flex items-center justify-between text-xs font-semibold">
+                <span className="text-[color:var(--text-muted)]">
+                  Discount (uit reseller-commissie)
+                </span>
+                <span style={{ color: "var(--orange)" }}>{effDiscount}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={resellerPct}
+                step={1}
+                value={Math.min(discountPct, resellerPct)}
+                onChange={(e) => setDiscountPct(Number(e.target.value))}
+                className="w-full accent-[color:var(--orange)]"
+              />
+              <div className="mt-1 text-[0.6875rem] text-[color:var(--text-soft)]">
+                max = reseller-% ({resellerPct}%); de korting gaat volledig van de reseller af.
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -153,7 +226,15 @@ export function PricingCalculator() {
             {s.tier.discountPct > 0
               ? ` (${s.tier.discountPct}% staffel, ${tierLabel(s.tier)})`
               : " (geen staffelkorting)"}{" "}
-            = <strong>{euro(s.endCustomerCents)}</strong> eindklant per jaar. Alles recurring zolang de klant blijft.
+            = <strong>{euro(s.listCents)}</strong> lijst/jaar
+            {effDiscount > 0 && (
+              <>
+                {" "}
+                · na {effDiscount}% discount betaalt de klant{" "}
+                <strong>{euro(s.endCustomerCents)}</strong>
+              </>
+            )}
+            . Alles recurring zolang de klant blijft.
           </div>
 
           {/* Resultaat: per klant + per jaar (× aantal) */}
@@ -211,10 +292,23 @@ export function PricingCalculator() {
             </div>
           </div>
 
+          {/* Pitch-zin voor de reseller (bij discount) */}
+          {effDiscount > 0 && (
+            <div className="brand-card border-l-4 border-[color:var(--navy)] p-4 text-sm">
+              <div className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
+                Pitch voor de reseller
+              </div>
+              Bij een discount van {effDiscount}% voor jouw klantenbestand verdien JIJ{" "}
+              <strong>{euro(s.resellerCents * n)}</strong> op jaarbasis aan recurring
+              commissie.
+            </div>
+          )}
+
           {/* Staffel-tabel: jouw bottom-line per deal-grootte */}
           <div className="brand-card overflow-hidden p-0">
             <div className="border-b border-[color:var(--border-soft)] px-4 py-3 text-xs font-semibold text-[color:var(--text-muted)]">
-              Jouw commissie per deal-grootte — bij reseller {resellerPct}% / jij {amPct}%
+              Jouw commissie per deal-grootte — reseller {resellerPct}% / jij {amPct}%
+              {effDiscount > 0 ? ` / ${effDiscount}% discount` : ""}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -229,7 +323,7 @@ export function PricingCalculator() {
                 </thead>
                 <tbody>
                   {MILESTONES.map((m) => {
-                    const row = splitFor(m, resellerPct);
+                    const row = splitFor(m, resellerPct, effDiscount);
                     const isCurrentTier = row.tier.id === s.tier.id;
                     return (
                       <tr
@@ -256,8 +350,8 @@ export function PricingCalculator() {
               </table>
             </div>
             <div className="border-t border-[color:var(--border-soft)] px-4 py-2 text-[0.6875rem] text-[color:var(--text-soft)]">
-              Meer seats = lagere per-seat via de staffel, maar grotere pool. De
-              gemarkeerde rij is de huidige staffel.
+              Meer seats = lagere per-seat via de staffel, maar grotere pool. Jouw deel
+              verandert niet door de eindklant-discount — die komt enkel van de reseller.
             </div>
           </div>
         </>
