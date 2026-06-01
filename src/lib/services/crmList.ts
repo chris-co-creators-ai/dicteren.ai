@@ -80,7 +80,7 @@ const PEOPLE_CTE = sql`
         ELSE 'lead'
       END,
       o.temperature::text,
-      o.account_owner_id::text,
+      COALESCE(c.assigned_to_user_id, o.account_owner_id)::text,
       c.notes,
       c.crm_organization_id::text,
       c.created_at

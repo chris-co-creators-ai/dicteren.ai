@@ -484,19 +484,40 @@ export function CrmView({
     temperature?: Temperature | null;
     assignedToUserId?: string | null;
   }) {
-    // Alleen klant-rijen: het customer-bulk-endpoint verwacht auth.user-ids.
-    // Een prospect-id (crm_contact) zou een FK-violation 500 geven. Prospect-
-    // stage/temp leeft op de org en wordt per rij bewerkt, niet via deze bulk.
+    // Klant-rijen (auth.user-ids) via het customer-bulk-endpoint.
     const userIds = selectedArray.filter(
       (id) => rowsById.get(id)?.kind !== "prospect",
     );
-    if (userIds.length === 0) return;
-    const res = await fetch("/api/admin/customers/bulk", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userIds, ...patch }),
-    });
-    if (!res.ok) return;
+    // Prospect-rijen (crm_contacts) → bulk-toewijzing via het contacts-endpoint
+    // (zet crm_contacts.assigned_to_user_id; drijft de personen-scope).
+    const prospectIds = selectedArray.filter(
+      (id) => rowsById.get(id)?.kind === "prospect",
+    );
+
+    const calls: Promise<unknown>[] = [];
+    if (userIds.length > 0) {
+      calls.push(
+        fetch("/api/admin/customers/bulk", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ userIds, ...patch }),
+        }),
+      );
+    }
+    if (prospectIds.length > 0 && patch.assignedToUserId !== undefined) {
+      calls.push(
+        fetch("/api/admin/crm/contacts/assign", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            contactIds: prospectIds,
+            assignToUserId: patch.assignedToUserId,
+          }),
+        }),
+      );
+    }
+    if (calls.length === 0) return;
+    await Promise.all(calls);
     refresh();
   }
 
