@@ -5,17 +5,20 @@ import {
   CUSTOM_QUOTE_FROM,
   getTierForSeats,
   nextTier,
-  tierLabel,
   calculateTotalCents,
 } from "@/lib/services/pricingTiers";
 
 // Reseller-commissie-tool voor account managers — gebouwd om aan de telefoon te
-// gebruiken. Links snelkeuzes, midden de drie termijnen naast elkaar met prijs +
-// korting + jouw commissie. Twee onafhankelijke kortingen:
-//   - VOLUME (staffel, per seat) — verandert NIET door de termijn.
-//   - TERMIJN — langer vastleggen = goedkoper (maand → kwartaal → jaar).
-// Van de eindklantprijs is 50% commissie-pool; Dicteren houdt 50%. De AM verdeelt
-// de pool met de reseller. Eindklant-discount komt altijd uit de reseller-commissie.
+// gebruiken. Links snelkeuzes, midden je commissie (één getal) + de drie
+// betaaltermijnen voor de eindklant.
+//
+// Model B (term-neutraal): de commissie staat ALTIJD op de jaar-basisprijs.
+//   - Volume-staffel (per seat) bepaalt de basisprijs.
+//   - 50% daarvan is commissie-pool; AM + reseller verdelen 'm. Dicteren houdt 50%.
+//   - Termijn (maand/kwartaal/jaar) verandert alleen wat de KLANT betaalt — de
+//     opslag voor maand/kwartaal gaat volledig naar Dicteren. Jouw/reseller-
+//     commissie is identiek voor elke termijn → geen prikkel om termijn te sturen.
+//   - Eindklant-discount komt altijd uit de reseller-commissie.
 
 const POOL = 50;
 
@@ -46,28 +49,9 @@ function euro(cents: number): string {
   }).format(cents / 100);
 }
 
-function annualListCents(seats: number, term: TermKey): number {
+function listAnnualCents(seats: number, term: TermKey): number {
   const t = TERMS.find((x) => x.key === term)!;
-  const perPayment = calculateTotalCents({ seats, period: term }).totalCents;
-  return perPayment * t.n;
-}
-
-function termSplit(seats: number, resellerPct: number, discountPct: number, term: TermKey) {
-  const t = TERMS.find((x) => x.key === term)!;
-  const annualList = annualListCents(seats, term);
-  const amPct = POOL - resellerPct;
-  const amCents = Math.round((annualList * amPct) / 100);
-  const dicterenCents = Math.round((annualList * POOL) / 100);
-  const resellerCents = Math.round((annualList * (resellerPct - discountPct)) / 100);
-  const eindklantAnnual = annualList - Math.round((annualList * discountPct) / 100);
-  return {
-    annualList,
-    amCents,
-    dicterenCents,
-    resellerCents,
-    eindklantAnnual,
-    eindklantPerPayment: Math.round(eindklantAnnual / t.n),
-  };
+  return calculateTotalCents({ seats, period: term }).totalCents * t.n;
 }
 
 export function PricingCalculator() {
@@ -76,7 +60,6 @@ export function PricingCalculator() {
   const [discountOn, setDiscountOn] = useState(false);
   const [discountPct, setDiscountPct] = useState(10);
   const [customersPerYear, setCustomersPerYear] = useState(12);
-  const [selected, setSelected] = useState<TermKey>("yearly");
 
   const amPct = POOL - resellerPct;
   const safeSeats = Math.max(1, seats);
@@ -85,9 +68,12 @@ export function PricingCalculator() {
   const tier = getTierForSeats(safeSeats);
   const up = nextTier(safeSeats);
 
-  // Korting per termijn t.o.v. maandelijks (duurste).
-  const monthlyAnnual = annualListCents(safeSeats, "monthly") || 1;
-  const sel = termSplit(safeSeats, resellerPct, effDiscount, selected);
+  // Commissie staat op de jaar-basisprijs (term-neutraal).
+  const baseCents = listAnnualCents(safeSeats, "yearly");
+  const amCents = Math.round((baseCents * amPct) / 100);
+  const resellerCents = Math.round((baseCents * (resellerPct - effDiscount)) / 100);
+  const discountCents = Math.round((baseCents * effDiscount) / 100);
+  const monthlyList = listAnnualCents(safeSeats, "monthly") || 1;
 
   const inputCls =
     "w-full rounded-lg border border-[color:var(--border-soft)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--orange)]";
@@ -113,7 +99,7 @@ export function PricingCalculator() {
             >
               <span className="font-semibold">{p.label}</span>
               <span className={seats === p.seats ? "text-white/80" : "text-[color:var(--text-muted)]"}>
-                {p.seats} seats
+                {p.seats}
               </span>
             </button>
           ))}
@@ -225,59 +211,67 @@ export function PricingCalculator() {
           </div>
         ) : (
           <>
-            {/* Drie termijn-kolommen */}
-            <div className="grid gap-3 sm:grid-cols-3">
-              {TERMS.map((t) => {
-                const sp = termSplit(safeSeats, resellerPct, effDiscount, t.key);
-                const korting = Math.round((1 - sp.annualList / monthlyAnnual) * 100);
-                const isSel = selected === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setSelected(t.key)}
-                    className="brand-card p-0 text-left"
-                    style={isSel ? { boxShadow: "0 0 0 2px var(--orange)" } : undefined}
-                  >
-                    <div className="flex items-center justify-between border-b border-[color:var(--border-soft)] px-4 py-2.5">
-                      <span className="text-sm font-bold">{t.label}</span>
-                      {korting > 0 ? (
-                        <span className="rounded-full bg-[color:var(--green)] px-2 py-0.5 text-[0.625rem] font-bold text-white">
-                          −{korting}%
-                        </span>
-                      ) : (
-                        <span className="text-[0.625rem] font-semibold text-[color:var(--text-soft)]">
-                          basis
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-2.5 p-4">
-                      <div>
-                        <div className="text-xl font-bold tracking-tight">
-                          {euro(sp.eindklantPerPayment)}
-                        </div>
-                        <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
-                          eindklant {t.per} · {euro(sp.eindklantAnnual)}/jaar
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold tracking-tight text-[color:var(--orange)]">
-                          {euro(sp.amCents)}
-                        </div>
-                        <div className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
-                          jouw commissie / jaar
-                        </div>
-                      </div>
-                      <div className="text-[0.75rem] text-[color:var(--navy)]">
-                        reseller {euro(sp.resellerCents)}/jaar
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+            {/* Jouw commissie — hoofdgetal, gelijk voor elke termijn */}
+            <div className="brand-card flex flex-wrap items-end justify-between gap-4 p-4">
+              <div>
+                <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
+                  Jouw commissie / jaar
+                </div>
+                <div className="text-3xl font-bold tracking-tight text-[color:var(--orange)]">
+                  {euro(amCents)}
+                </div>
+                <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
+                  recurring · gelijk voor elke betaaltermijn
+                </div>
+              </div>
+              <div className="text-sm text-[color:var(--navy)]">
+                Reseller <strong>{euro(resellerCents)}</strong>/jaar
+                {effDiscount > 0 ? ` (na ${effDiscount}% discount)` : ""}
+              </div>
             </div>
 
-            {/* Jaarprojectie reseller + pitch — op basis van de gekozen termijn */}
+            {/* Drie betaaltermijnen voor de eindklant */}
+            <div>
+              <div className="mb-1.5 text-xs font-semibold text-[color:var(--text-muted)]">
+                Wat de eindklant betaalt
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {TERMS.map((t) => {
+                  const list = listAnnualCents(safeSeats, t.key);
+                  const paidAnnual = list - discountCents;
+                  const perPayment = Math.round(paidAnnual / t.n);
+                  const dicteren = paidAnnual - amCents - resellerCents;
+                  const korting = Math.round((1 - list / monthlyList) * 100);
+                  return (
+                    <div key={t.key} className="brand-card p-0">
+                      <div className="flex items-center justify-between border-b border-[color:var(--border-soft)] px-4 py-2.5">
+                        <span className="text-sm font-bold">{t.label}</span>
+                        {korting > 0 ? (
+                          <span className="rounded-full bg-[color:var(--green)] px-2 py-0.5 text-[0.625rem] font-bold text-white">
+                            −{korting}%
+                          </span>
+                        ) : (
+                          <span className="text-[0.625rem] font-semibold text-[color:var(--text-soft)]">
+                            basis
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <div className="text-2xl font-bold tracking-tight">{euro(perPayment)}</div>
+                        <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
+                          {t.per} · {euro(paidAnnual)}/jaar
+                        </div>
+                        <div className="mt-2 text-[0.6875rem] text-[color:var(--text-muted)]">
+                          Dicteren {euro(dicteren)}/jaar
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Reseller-jaarprojectie (term-neutraal) */}
             <div className="brand-card flex flex-wrap items-center gap-x-6 gap-y-2 p-4 text-sm">
               <span className="font-semibold">
                 Reseller verkoopt
@@ -288,17 +282,13 @@ export function PricingCalculator() {
                   onChange={(e) => setCustomersPerYear(Math.max(0, Number(e.target.value)))}
                   className="mx-2 w-16 rounded-md border border-[color:var(--border-soft)] px-2 py-1 text-center"
                 />
-                klanten/jaar ({TERMS.find((t) => t.key === selected)!.label.toLowerCase()}):
+                klanten/jaar:
               </span>
               <span>
                 Jij{" "}
-                <strong className="text-[color:var(--orange)]">
-                  {euro(sel.amCents * customersPerYear)}
-                </strong>{" "}
+                <strong className="text-[color:var(--orange)]">{euro(amCents * customersPerYear)}</strong>{" "}
                 · reseller{" "}
-                <strong className="text-[color:var(--navy)]">
-                  {euro(sel.resellerCents * customersPerYear)}
-                </strong>{" "}
+                <strong className="text-[color:var(--navy)]">{euro(resellerCents * customersPerYear)}</strong>{" "}
                 recurring / jaar
               </span>
             </div>
@@ -309,14 +299,15 @@ export function PricingCalculator() {
                   Pitch voor de reseller
                 </div>
                 Bij een discount van {effDiscount}% voor jouw klantenbestand verdien JIJ{" "}
-                <strong>{euro(sel.resellerCents * customersPerYear)}</strong> op jaarbasis aan
+                <strong>{euro(resellerCents * customersPerYear)}</strong> op jaarbasis aan
                 recurring commissie.
               </div>
             )}
 
             <p className="text-[0.6875rem] text-[color:var(--text-soft)]">
-              Bedragen excl. btw, zelfde staffel als /prijzen. Termijn-korting is t.o.v.
-              maandelijks; de volumekorting (per seat) staat los van de termijn.
+              Bedragen excl. btw, zelfde staffel als /prijzen. Jouw commissie staat op de
+              jaarprijs en is gelijk voor elke termijn; de maand/kwartaal-opslag gaat naar
+              Dicteren. Termijn-korting is t.o.v. maandelijks.
             </p>
           </>
         )}
