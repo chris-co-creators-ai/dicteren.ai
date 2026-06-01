@@ -69,6 +69,9 @@ export const RATE_LIMITS = {
   // ruime cap puur tegen hammeren.
   "pricing:read": { limit: 120, windowSeconds: 60 },
 
+  // Affiliate first-touch cookie-set vanaf een slug-landing.
+  "affiliate:ref": { limit: 30, windowSeconds: 60 },
+
   // Auth: DB-based limiet voor /api/auth omdat Better Auth's eigen limiter
   // in-memory is en op Vercel multi-instance onbetrouwbaar. Brute-force op
   // login + reset-spam afremmen, per IP.

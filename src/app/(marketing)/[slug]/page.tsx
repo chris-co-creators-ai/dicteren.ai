@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Briefcase, User, Sparkles, ArrowRight } from "lucide-react";
 import { getAffiliateBySlug } from "@/lib/services/affiliateSlug";
-import { setRefCookie } from "@/lib/affiliateCookie";
+import { RefTracker } from "./ref-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +44,8 @@ export default async function AffiliateSlugPage({
     notFound();
   }
 
-  // Set first-touch cookie. Geen mutation als al een ref-cookie staat.
-  await setRefCookie({
-    affiliateId: affiliate.id,
-    source: "slug",
-  });
-
+  // First-touch ref-cookie wordt client-side gezet via een route-handler
+  // (Next 16 staat cookies().set() niet toe tijdens een page-render).
   const displayName = affiliate.displayName ?? affiliate.name;
   const hasConsumer =
     affiliate.consumerCommissionType !== null &&
@@ -62,6 +58,7 @@ export default async function AffiliateSlugPage({
 
   return (
     <>
+      <RefTracker affiliateId={affiliate.id} />
       <section className="relative px-4 py-16 sm:px-6 sm:py-20 lg:px-14">
         <div
           aria-hidden
