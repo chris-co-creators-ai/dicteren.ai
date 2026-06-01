@@ -10,6 +10,7 @@
     { "path": "/api/cron/cleanup-pending-seats", "schedule": "*/30 * * * *" },
     { "path": "/api/cron/route-signals", "schedule": "*/15 * * * *" },
     { "path": "/api/cron/reconcile-mollie-subs", "schedule": "30 3 * * *" },
+    { "path": "/api/cron/expire-pending-orders", "schedule": "0 */6 * * *" },
     { "path": "/api/cron/recalibrate-tiers", "schedule": "0 5 * * *" },
     { "path": "/api/cron/unlock-commissions", "schedule": "30 4 * * *" },
     { "path": "/api/cron/monthly-affiliate-payout", "schedule": "0 9 25 * *" }

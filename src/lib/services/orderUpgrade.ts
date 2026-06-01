@@ -155,6 +155,7 @@ export type UpgradeResult =
         | "NO_SUBSCRIPTION"
         | "NO_CUSTOMER"
         | "PRORATE_CHARGE_FAILED"
+        | "PERIOD_NOT_SUPPORTED"
         | "MOLLIE_NOT_CONFIGURED";
       error: string;
     };
@@ -195,6 +196,7 @@ export async function executeSeatExpansion(args: {
       amountCents: subscriptions.amountCents,
       nextBillingAt: subscriptions.nextBillingAt,
       seats: subscriptions.seats,
+      intervalLabel: subscriptions.intervalLabel,
     })
     .from(subscriptions)
     .where(eq(subscriptions.id, snapshot.subscription.id))
@@ -204,6 +206,17 @@ export async function executeSeatExpansion(args: {
       success: false,
       code: "NO_CUSTOMER",
       error: "Geen Mollie customer-id gekoppeld aan organisatie.",
+    };
+  }
+  // De pro-rata berekening hieronder gaat uit van een jaartermijn (daysInPeriod
+  // 365, jaar-staffel). Voor maand/kwartaal klopt dat niet — blokkeer i.p.v.
+  // fout te rekenen. Periode-bewuste seat-uitbreiding is een follow-up.
+  if (subRow.intervalLabel && subRow.intervalLabel !== "12 months") {
+    return {
+      success: false,
+      code: "PERIOD_NOT_SUPPORTED",
+      error:
+        "Seat-uitbreiding is nu alleen voor jaarabonnementen. Neem contact op voor maand/kwartaal-uitbreiding.",
     };
   }
 
