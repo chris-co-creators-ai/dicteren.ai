@@ -17,6 +17,7 @@ type Props = {
   affiliateCode: string | null;
   initialDiscountCode?: string | null;
   defaultBillingEmail: string;
+  isLoggedIn: boolean;
   upgradeFromConsumer?: boolean;
 };
 
@@ -46,6 +47,7 @@ export function CheckoutForm({
   affiliateCode,
   initialDiscountCode,
   defaultBillingEmail,
+  isLoggedIn,
   upgradeFromConsumer,
 }: Props) {
   const [period, setPeriod] = useState<Exclude<BillingPeriod, "lifetime">>(
@@ -74,8 +76,37 @@ export function CheckoutForm({
   const total = businessAmountCents(pricing, seats, period);
   const periodNl = periodLabelNl(period);
 
+  // Besparing per termijn t.o.v. maandelijks betalen (op jaarbasis). Maand =
+  // basis; kwartaal/jaar zijn goedkoper omdat de premie wegvalt. Dynamisch uit
+  // de SSOT zodat het meebeweegt als admin de premies wijzigt.
+  const annualByPeriod = {
+    monthly: perSeatCentsForPeriod(pricing, seats, "monthly") * 12,
+    quarterly: perSeatCentsForPeriod(pricing, seats, "quarterly") * 4,
+    yearly: perSeatCentsForPeriod(pricing, seats, "yearly"),
+  } as const;
+  function savingPct(p: Exclude<BillingPeriod, "lifetime">): number {
+    if (annualByPeriod.monthly <= 0) return 0;
+    return Math.round((1 - annualByPeriod[p] / annualByPeriod.monthly) * 100);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Niet ingelogd → eerst account aanmaken, daarna terug naar deze form met
+    // periode + seats (+ coupon) bewaard in de next-URL.
+    if (!isLoggedIn) {
+      const params = new URLSearchParams({
+        plan: ORG_SLUG[period],
+        seats: String(seats),
+      });
+      if (affiliateCode) params.set("ref", affiliateCode);
+      if (discountCode) params.set("code", discountCode);
+      window.location.href = `/auth/sign-up?next=${encodeURIComponent(
+        `/zakelijk/start?${params.toString()}`,
+      )}`;
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -124,21 +155,36 @@ export function CheckoutForm({
         <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
           Termijn
         </div>
-        <div className="mt-2 inline-flex rounded-full border border-[color:var(--border-soft)] bg-[color:var(--bg)] p-1">
-          {PERIOD_TABS.map((t) => (
-            <button
-              key={t.period}
-              type="button"
-              onClick={() => setPeriod(t.period)}
-              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
-                period === t.period
-                  ? "bg-[color:var(--navy)] text-white"
-                  : "text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="mt-2 inline-flex flex-wrap gap-1 rounded-full border border-[color:var(--border-soft)] bg-[color:var(--bg)] p-1">
+          {PERIOD_TABS.map((t) => {
+            const save = savingPct(t.period);
+            return (
+              <button
+                key={t.period}
+                type="button"
+                onClick={() => setPeriod(t.period)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                  period === t.period
+                    ? "bg-[color:var(--navy)] text-white"
+                    : "text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
+                }`}
+              >
+                {t.label}
+                {save > 0 && (
+                  <span
+                    className="rounded-full px-1.5 py-0.5 text-[0.625rem] font-bold"
+                    style={{
+                      background:
+                        period === t.period ? "var(--orange)" : "color-mix(in srgb, var(--green) 16%, white)",
+                      color: period === t.period ? "white" : "var(--green)",
+                    }}
+                  >
+                    bespaar {save}%
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
         <div className="mt-2 text-xs text-[color:var(--text-muted)]">
           {isCustom ? (
@@ -333,7 +379,11 @@ export function CheckoutForm({
         disabled={submitting || isCustom}
         className="btn btn-primary w-full disabled:opacity-50"
       >
-        {submitting ? "Verbinden met Mollie…" : "Doorgaan naar betalen"}
+        {submitting
+          ? "Verbinden met Mollie…"
+          : isLoggedIn
+            ? "Doorgaan naar betalen"
+            : "Account aanmaken en betalen"}
       </button>
 
       {!isCustom && (

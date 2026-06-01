@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { getPricing } from "@/lib/services/pricing";
 import type { BillingPeriod } from "@/lib/services/pricingTiers";
@@ -36,20 +35,7 @@ export default async function ZakelijkStartPage({
   } = await searchParams;
   const upgradeFromConsumer = from === "consumer_upgrade";
   const session = await getSession();
-
-  if (!session?.user) {
-    const nextUrl = `/zakelijk/start${
-      planSlug || seatsParam || ref || code
-        ? `?${new URLSearchParams({
-            ...(planSlug ? { plan: planSlug } : {}),
-            ...(seatsParam ? { seats: seatsParam } : {}),
-            ...(ref ? { ref } : {}),
-            ...(code ? { code } : {}),
-          }).toString()}`
-        : ""
-    }`;
-    redirect(`/auth/sign-up?next=${encodeURIComponent(nextUrl)}`);
-  }
+  const isLoggedIn = Boolean(session?.user);
 
   const pricing = await getPricing();
   const initialPeriod = periodFromSlug(planSlug);
@@ -84,7 +70,8 @@ export default async function ZakelijkStartPage({
           initialSeats={seats}
           affiliateCode={ref ?? null}
           initialDiscountCode={code ?? null}
-          defaultBillingEmail={session.user.email}
+          defaultBillingEmail={session?.user.email ?? ""}
+          isLoggedIn={isLoggedIn}
           upgradeFromConsumer={upgradeFromConsumer}
         />
       </div>
