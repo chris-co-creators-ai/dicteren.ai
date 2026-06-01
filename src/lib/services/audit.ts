@@ -24,6 +24,7 @@ export type AuditAction =
   | "organization.member_removed"
   | "admin.login"
   | "admin.action"
+  | "pricing.updated"
   | "partner.created"
   | "partner.bulk_created"
   | "partner.archived"

@@ -80,3 +80,84 @@ export async function getPricing(force = false): Promise<PricingSnapshot> {
 export function invalidatePricingCache(): void {
   cache = null;
 }
+
+export type PricingSaveInput = {
+  tiers: {
+    minSeats: number;
+    maxSeats: number | null;
+    pricePerSeatCents: number;
+  }[];
+  quarterlyPremiumPct: number;
+  monthlyPremiumPct: number;
+  customQuoteFrom: number;
+  currency?: string;
+};
+
+/** Valideer een prijs-input. Returnt een foutmelding of null. */
+export function validatePricingInput(input: PricingSaveInput): string | null {
+  if (!input.tiers.length) return "Minstens één staffel-rij vereist.";
+  const sorted = [...input.tiers].sort((a, b) => a.minSeats - b.minSeats);
+  if (sorted[0].minSeats !== 1) return "De eerste staffel moet bij 1 seat beginnen.";
+  let prevMax = 0;
+  for (const t of sorted) {
+    if (t.pricePerSeatCents <= 0) return "Prijs per seat moet groter dan 0 zijn.";
+    if (t.minSeats <= prevMax) return "Staffels mogen niet overlappen.";
+    if (t.maxSeats !== null && t.maxSeats < t.minSeats) {
+      return "Boven-grens mag niet onder de onder-grens liggen.";
+    }
+    prevMax = t.maxSeats ?? Number.MAX_SAFE_INTEGER;
+  }
+  if (input.quarterlyPremiumPct < 0 || input.quarterlyPremiumPct > 500) {
+    return "Kwartaal-premie buiten bereik (0–500%).";
+  }
+  if (input.monthlyPremiumPct < 0 || input.monthlyPremiumPct > 500) {
+    return "Maand-premie buiten bereik (0–500%).";
+  }
+  const topMax = sorted[sorted.length - 1].maxSeats;
+  if (topMax !== null && input.customQuoteFrom <= topMax) {
+    return "Maatwerk-drempel moet boven de hoogste staffel liggen.";
+  }
+  return null;
+}
+
+/**
+ * Vervang de volledige prijs-config (staffel + settings). De tier-tabel wordt
+ * leeggemaakt en opnieuw gevuld; mocht het insert falen na de delete, dan valt
+ * `getPricing()` terug op DEFAULT_PRICING (= de seed) — dus geen kapotte staat.
+ * Singleton settings via upsert op id=1.
+ */
+export async function savePricing(input: PricingSaveInput): Promise<void> {
+  await db
+    .insert(pricingSettings)
+    .values({
+      id: 1,
+      quarterlyPremiumPct: input.quarterlyPremiumPct,
+      monthlyPremiumPct: input.monthlyPremiumPct,
+      customQuoteFrom: input.customQuoteFrom,
+      currency: input.currency ?? "EUR",
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: pricingSettings.id,
+      set: {
+        quarterlyPremiumPct: input.quarterlyPremiumPct,
+        monthlyPremiumPct: input.monthlyPremiumPct,
+        customQuoteFrom: input.customQuoteFrom,
+        currency: input.currency ?? "EUR",
+        updatedAt: new Date(),
+      },
+    });
+
+  const sorted = [...input.tiers].sort((a, b) => a.minSeats - b.minSeats);
+  await db.delete(pricingTiers);
+  await db.insert(pricingTiers).values(
+    sorted.map((t, i) => ({
+      minSeats: t.minSeats,
+      maxSeats: t.maxSeats,
+      pricePerSeatCents: t.pricePerSeatCents,
+      sortOrder: i,
+    })),
+  );
+
+  invalidatePricingCache();
+}
