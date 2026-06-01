@@ -273,6 +273,22 @@ export async function fulfillPaidOrder(args: {
     insertedCodes.push(code);
   }
 
+  // Trial → betaald: zet de trial/beta-licentie(s) van de koper op 'expired'
+  // zodra hij een betaalde licentie krijgt. Anders draait de klant met twee
+  // actieve licenties (trial + paid) en telt analytics dubbel.
+  if (order.userId) {
+    await db
+      .update(licenses)
+      .set({ status: "expired", updatedAt: new Date() })
+      .where(
+        and(
+          eq(licenses.userId, order.userId),
+          eq(licenses.type, "beta"),
+          inArray(licenses.status, ["trial", "active"] as const),
+        ),
+      );
+  }
+
   return {
     licenseId: insertedIds[0],
     licenseCode: insertedCodes[0],
