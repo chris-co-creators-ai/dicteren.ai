@@ -24,6 +24,9 @@ export async function GET(request: Request) {
     assigneeUserId: p.get("assignee") || null,
     search: p.get("search") || null,
     listId: p.get("listId") || null,
+    industry: p.get("industry") || null,
+    companySizeRange: p.get("size") || null,
+    minScore: p.get("minScore") ? Number(p.get("minScore")) : null,
     // AM's zien alleen eigen toegewezen leads + de niet-toegewezen pool; admin alles.
     scopeAssignedTo: isAdmin ? null : session.user.id,
   };

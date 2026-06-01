@@ -17,7 +17,12 @@ export type ColumnKey =
   | "memberSince"
   | "accountOwner"
   | "discountCode"
-  | "lists";
+  | "lists"
+  | "niche"
+  | "industry"
+  | "companySize"
+  | "reach"
+  | "leadScore";
 
 export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
   "customer",
@@ -51,6 +56,11 @@ export const COLUMN_LABELS: Record<ColumnKey, string> = {
   accountOwner: "Account owner",
   discountCode: "Discount-code",
   lists: "Lijsten",
+  niche: "Niche",
+  industry: "Branche",
+  companySize: "Bedrijfsgrootte",
+  reach: "Bereik",
+  leadScore: "Score",
 };
 
 export type ColumnPrefs = {

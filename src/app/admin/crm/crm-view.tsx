@@ -107,6 +107,44 @@ type Customer = {
   kind?: "customer" | "prospect";
   company?: string | null;
   organizationId?: string | null;
+  enrichment?: ProspectEnrichmentClient | null;
+};
+
+// Clay-aligned GTM-verrijking (alleen prospects). Client-spiegel van
+// ProspectEnrichment in services/crmContactEnrichment.ts.
+type ProspectEnrichmentClient = {
+  firstName: string | null;
+  lastName: string | null;
+  jobTitle: string | null;
+  seniority: string | null;
+  department: string | null;
+  linkedinUrl: string | null;
+  twitterUrl: string | null;
+  city: string | null;
+  country: string | null;
+  emailStatus: string | null;
+  companyName: string | null;
+  companyDomain: string | null;
+  companyLinkedinUrl: string | null;
+  niche: string | null;
+  industry: string | null;
+  companySizeRange: string | null;
+  employeeCount: number | null;
+  revenueRange: string | null;
+  foundedYear: number | null;
+  followersLinkedin: number | null;
+  followersInstagram: number | null;
+  followersFacebook: number | null;
+  followersYoutube: number | null;
+  followersSubstack: number | null;
+  followersOwn: number | null;
+  totalReach: number | null;
+  leadScore: number | null;
+  lastContactAt: string | null;
+  lastChannel: string | null;
+  touchCount: number;
+  enrichmentSource: string | null;
+  enrichedAt: string | null;
 };
 
 // People-stage (customerStage) → org-pipeline-status. Spiegelt
@@ -304,6 +342,10 @@ export function CrmView({
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [discountFilter, setDiscountFilter] = useState<string>("all");
+  // GTM-targeting op prospect-verrijking (server-side).
+  const [industryFilter, setIndustryFilter] = useState<string>("");
+  const [sizeFilter, setSizeFilter] = useState<string>("all");
+  const [minScoreFilter, setMinScoreFilter] = useState<string>("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showColumnManager, setShowColumnManager] = useState(false);
   const [showCreateList, setShowCreateList] = useState(false);
@@ -312,6 +354,7 @@ export function CrmView({
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [addingInline, setAddingInline] = useState(false);
   const [notesFor, setNotesFor] = useState<Customer | null>(null);
+  const [enrichFor, setEnrichFor] = useState<Customer | null>(null);
 
   // Server-side gepagineerde rijen. `customers` is alleen de eerste pagina;
   // filter-wissels + "meer laden" halen volgende pagina's via de API, zodat
@@ -331,6 +374,9 @@ export function CrmView({
     if (assigneeFilter !== "all") p.set("assignee", assigneeFilter);
     if (activeListId !== "all") p.set("listId", activeListId);
     if (search.trim()) p.set("search", search.trim());
+    if (industryFilter.trim()) p.set("industry", industryFilter.trim());
+    if (sizeFilter !== "all") p.set("size", sizeFilter);
+    if (minScoreFilter.trim()) p.set("minScore", minScoreFilter.trim());
     if (!reset && cursor) {
       p.set("cursorCreatedAt", cursor.createdAt);
       p.set("cursorId", cursor.id);
@@ -359,7 +405,17 @@ export function CrmView({
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kindFilter, stageFilter, tempFilter, assigneeFilter, activeListId, search]);
+  }, [
+    kindFilter,
+    stageFilter,
+    tempFilter,
+    assigneeFilter,
+    activeListId,
+    search,
+    industryFilter,
+    sizeFilter,
+    minScoreFilter,
+  ]);
 
   // Na een mutatie: herlaad de huidige gefilterde eerste pagina.
   function refresh() {
@@ -370,7 +426,7 @@ export function CrmView({
   // Custom-column keys hebben prefix "custom:" (zie services/customColumns.ts).
   const allKeys = useMemo<string[]>(
     () => [
-      ...DEFAULT_VISIBLE_COLUMNS,
+      ...(Object.keys(COLUMN_LABELS) as string[]),
       ...customColumns.map((c) => c.key),
     ],
     [customColumns],
@@ -780,6 +836,37 @@ export function CrmView({
                 label: d.code,
               }))}
             />
+            {/* GTM-targeting op prospect-verrijking */}
+            <input
+              type="text"
+              value={industryFilter}
+              onChange={(e) => setIndustryFilter(e.target.value)}
+              placeholder="Branche…"
+              className="w-32 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-2 text-sm outline-none focus:border-[color:var(--orange)]"
+              style={{ background: "var(--bg)" }}
+            />
+            <FilterSelect
+              value={sizeFilter}
+              onChange={setSizeFilter}
+              label="Alle groottes"
+              options={[
+                { value: "1-10", label: "1-10" },
+                { value: "11-50", label: "11-50" },
+                { value: "51-200", label: "51-200" },
+                { value: "201-1000", label: "201-1000" },
+                { value: "1000+", label: "1000+" },
+              ]}
+            />
+            <input
+              type="number"
+              value={minScoreFilter}
+              onChange={(e) => setMinScoreFilter(e.target.value)}
+              placeholder="Min. score"
+              min={0}
+              max={100}
+              className="w-24 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-2 text-sm outline-none focus:border-[color:var(--orange)]"
+              style={{ background: "var(--bg)" }}
+            />
             <div className="ml-auto flex items-center gap-2">
               <div className="inline-flex rounded-lg border border-[color:var(--border-soft)] bg-white p-0.5">
                 <button
@@ -1051,12 +1138,13 @@ export function CrmView({
                       ))}
                       <td className="px-3 py-3 align-top">
                         {r.kind === "prospect" ? (
-                          <span
-                            className="text-xs text-[color:var(--text-muted)]"
-                            title="Prospect — beheer details via de Organisaties-tab"
+                          <button
+                            onClick={() => setEnrichFor(r)}
+                            className="text-xs font-semibold text-blue-600 hover:underline"
+                            title="Verrijking bewerken"
                           >
-                            ·
-                          </span>
+                            ✦
+                          </button>
                         ) : (
                           <Link
                             href={`/admin/crm/${r.id}`}
@@ -1161,7 +1249,244 @@ export function CrmView({
           }}
         />
       )}
+
+      {enrichFor && (
+        <EnrichmentPanel
+          prospect={enrichFor}
+          onClose={() => setEnrichFor(null)}
+          onSaved={() => {
+            setEnrichFor(null);
+            refresh();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+// ── Verrijking-side-panel: een AM bewerkt de Clay-aligned velden van een
+//    prospect tijdens prospecting. Saved via PATCH .../enrichment; total_reach
+//    wordt server-side herberekend. ──
+const SENIORITY_OPTIONS = ["C-level", "VP", "Director", "Manager", "IC"];
+const SIZE_OPTIONS = ["1-10", "11-50", "51-200", "201-1000", "1000+"];
+const CHANNEL_OPTIONS = ["email", "linkedin", "phone", "other"];
+
+function EnrichmentPanel({
+  prospect,
+  onClose,
+  onSaved,
+}: {
+  prospect: Customer;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const e = prospect.enrichment;
+  const [form, setForm] = useState({
+    jobTitle: e?.jobTitle ?? "",
+    seniority: e?.seniority ?? "",
+    department: e?.department ?? "",
+    linkedinUrl: e?.linkedinUrl ?? "",
+    twitterUrl: e?.twitterUrl ?? "",
+    city: e?.city ?? "",
+    country: e?.country ?? "",
+    companyName: e?.companyName ?? "",
+    companyDomain: e?.companyDomain ?? "",
+    niche: e?.niche ?? "",
+    industry: e?.industry ?? "",
+    companySizeRange: e?.companySizeRange ?? "",
+    employeeCount: e?.employeeCount?.toString() ?? "",
+    revenueRange: e?.revenueRange ?? "",
+    foundedYear: e?.foundedYear?.toString() ?? "",
+    followersLinkedin: e?.followersLinkedin?.toString() ?? "",
+    followersInstagram: e?.followersInstagram?.toString() ?? "",
+    followersFacebook: e?.followersFacebook?.toString() ?? "",
+    followersYoutube: e?.followersYoutube?.toString() ?? "",
+    followersSubstack: e?.followersSubstack?.toString() ?? "",
+    followersOwn: e?.followersOwn?.toString() ?? "",
+    leadScore: e?.leadScore?.toString() ?? "",
+    lastChannel: e?.lastChannel ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  function set(key: keyof typeof form, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  const liveReach =
+    [
+      form.followersLinkedin,
+      form.followersInstagram,
+      form.followersFacebook,
+      form.followersYoutube,
+      form.followersSubstack,
+      form.followersOwn,
+    ].reduce((sum, v) => sum + (Number(v) || 0), 0) || 0;
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch(
+        `/api/admin/crm/contacts/${prospect.id}/enrichment`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(form),
+        },
+      );
+      if (res.ok) onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
+      <div className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-[color:var(--border-soft)] p-4">
+          <div>
+            <h2 className="text-base font-bold text-[color:var(--navy)]">
+              Verrijking — {prospect.name}
+            </h2>
+            <p className="text-xs text-[color:var(--text-soft)]">
+              {prospect.email}
+              {e?.enrichmentSource ? ` · bron: ${e.enrichmentSource}` : ""}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--bg-deep)]"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-5 overflow-y-auto p-4">
+          <EnrichSection title="Persoon">
+            <EnrichField label="Functietitel" value={form.jobTitle} onChange={(v) => set("jobTitle", v)} />
+            <EnrichSelect label="Senioriteit" value={form.seniority} onChange={(v) => set("seniority", v)} options={SENIORITY_OPTIONS} />
+            <EnrichField label="Afdeling" value={form.department} onChange={(v) => set("department", v)} />
+            <EnrichField label="LinkedIn-URL" value={form.linkedinUrl} onChange={(v) => set("linkedinUrl", v)} />
+            <EnrichField label="Twitter/X-URL" value={form.twitterUrl} onChange={(v) => set("twitterUrl", v)} />
+            <EnrichField label="Stad" value={form.city} onChange={(v) => set("city", v)} />
+            <EnrichField label="Land" value={form.country} onChange={(v) => set("country", v)} />
+          </EnrichSection>
+
+          <EnrichSection title="Bedrijf">
+            <EnrichField label="Bedrijfsnaam" value={form.companyName} onChange={(v) => set("companyName", v)} />
+            <EnrichField label="Domein" value={form.companyDomain} onChange={(v) => set("companyDomain", v)} />
+            <EnrichField label="Niche" value={form.niche} onChange={(v) => set("niche", v)} />
+            <EnrichField label="Branche" value={form.industry} onChange={(v) => set("industry", v)} />
+            <EnrichSelect label="Bedrijfsgrootte" value={form.companySizeRange} onChange={(v) => set("companySizeRange", v)} options={SIZE_OPTIONS} />
+            <EnrichField label="Aantal medewerkers" value={form.employeeCount} onChange={(v) => set("employeeCount", v)} type="number" />
+            <EnrichField label="Omzet-range" value={form.revenueRange} onChange={(v) => set("revenueRange", v)} />
+            <EnrichField label="Opgericht (jaar)" value={form.foundedYear} onChange={(v) => set("foundedYear", v)} type="number" />
+          </EnrichSection>
+
+          <EnrichSection title={`Social-bereik — totaal ${formatReach(liveReach)}`}>
+            <EnrichField label="LinkedIn-volgers" value={form.followersLinkedin} onChange={(v) => set("followersLinkedin", v)} type="number" />
+            <EnrichField label="Instagram-volgers" value={form.followersInstagram} onChange={(v) => set("followersInstagram", v)} type="number" />
+            <EnrichField label="Facebook-volgers" value={form.followersFacebook} onChange={(v) => set("followersFacebook", v)} type="number" />
+            <EnrichField label="YouTube-abonnees" value={form.followersYoutube} onChange={(v) => set("followersYoutube", v)} type="number" />
+            <EnrichField label="Substack-abonnees" value={form.followersSubstack} onChange={(v) => set("followersSubstack", v)} type="number" />
+            <EnrichField label="Eigen platform" value={form.followersOwn} onChange={(v) => set("followersOwn", v)} type="number" />
+          </EnrichSection>
+
+          <EnrichSection title="Scoring + outreach">
+            <EnrichField label="Lead-score (0-100)" value={form.leadScore} onChange={(v) => set("leadScore", v)} type="number" />
+            <EnrichSelect label="Laatste kanaal" value={form.lastChannel} onChange={(v) => set("lastChannel", v)} options={CHANNEL_OPTIONS} />
+          </EnrichSection>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-[color:var(--border-soft)] p-4">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-[color:var(--border-soft)] px-4 py-2 text-sm font-semibold text-[color:var(--text-muted)]"
+          >
+            Annuleren
+          </button>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="rounded-lg bg-[color:var(--orange)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {saving ? "Opslaan…" : "Opslaan"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EnrichSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[color:var(--text-soft)]">
+        {title}
+      </h3>
+      <div className="grid grid-cols-2 gap-2">{children}</div>
+    </div>
+  );
+}
+
+function EnrichField({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: "text" | "number";
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+      {label}
+      <input
+        type={type}
+        value={value}
+        onChange={(ev) => onChange(ev.target.value)}
+        className="rounded-lg border border-[color:var(--border-soft)] px-2 py-1.5 text-sm font-normal text-[color:var(--navy)] outline-none focus:border-[color:var(--orange)]"
+        style={{ background: "var(--bg)" }}
+      />
+    </label>
+  );
+}
+
+function EnrichSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+      {label}
+      <select
+        value={value}
+        onChange={(ev) => onChange(ev.target.value)}
+        className="rounded-lg border border-[color:var(--border-soft)] px-2 py-1.5 text-sm font-normal text-[color:var(--navy)] outline-none focus:border-[color:var(--orange)]"
+        style={{ background: "var(--bg)" }}
+      >
+        <option value="">—</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -1645,9 +1970,65 @@ function CellRenderer({
           </button>
         </div>
       );
+    case "niche":
+      return (
+        <span className="text-xs text-[color:var(--text-muted)]">
+          {row.enrichment?.niche ?? "—"}
+        </span>
+      );
+    case "industry":
+      return (
+        <span className="text-xs text-[color:var(--text-muted)]">
+          {row.enrichment?.industry ?? "—"}
+        </span>
+      );
+    case "companySize":
+      return (
+        <span className="text-xs text-[color:var(--text-muted)]">
+          {row.enrichment?.companySizeRange ??
+            (row.enrichment?.employeeCount != null
+              ? `${row.enrichment.employeeCount}`
+              : "—")}
+        </span>
+      );
+    case "reach":
+      return row.enrichment?.totalReach != null ? (
+        <span className="font-mono text-xs font-semibold text-[color:var(--navy)]">
+          {formatReach(row.enrichment.totalReach)}
+        </span>
+      ) : (
+        <span className="text-[color:var(--text-soft)]">—</span>
+      );
+    case "leadScore":
+      return row.enrichment?.leadScore != null ? (
+        <span
+          className="inline-flex min-w-8 justify-center rounded-full px-1.5 py-0.5 text-[0.625rem] font-bold text-white"
+          style={{ background: scoreColor(row.enrichment.leadScore) }}
+        >
+          {row.enrichment.leadScore}
+        </span>
+      ) : (
+        <span className="text-[color:var(--text-soft)]">—</span>
+      );
     default:
       return null;
   }
+}
+
+/** Compacte volger-/bereik-notatie: 12500 → "12,5k". */
+function formatReach(n: number): string {
+  if (n >= 1_000_000)
+    return `${(n / 1_000_000).toFixed(1).replace(".", ",")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(".", ",")}k`;
+  return String(n);
+}
+
+/** Lead-score → kleur (rood laag → groen hoog). */
+function scoreColor(score: number): string {
+  if (score >= 75) return "var(--green-600, #16a34a)";
+  if (score >= 50) return "var(--orange-600, #ea580c)";
+  if (score >= 25) return "#ca8a04";
+  return "#9ca3af";
 }
 
 function CreateListModal({

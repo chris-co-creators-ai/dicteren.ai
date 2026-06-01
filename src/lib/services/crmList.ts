@@ -27,6 +27,10 @@ export type CrmPeopleFilters = {
   /** Harde scope-guard (los van de user-filter): een AM ziet alleen z'n
    *  toegewezen leads + de niet-toegewezen pool. null/undefined = admin (alles). */
   scopeAssignedTo?: string | null;
+  /** GTM-targeting (alleen prospects hebben deze velden). */
+  industry?: string | null;
+  companySizeRange?: string | null;
+  minScore?: number | null;
 };
 
 export type CrmPeopleCursor = { createdAt: string; id: string };
@@ -59,6 +63,9 @@ const PEOPLE_CTE = sql`
       ca.assigned_to_user_id::text     AS assignee_id,
       ca.notes                         AS notes,
       NULL::text                       AS organization_id,
+      NULL::text                       AS industry,
+      NULL::text                       AS company_size_range,
+      NULL::int                        AS lead_score,
       u."createdAt"                    AS created_at
     FROM auth."user" u
     LEFT JOIN public.customer_attributes ca ON ca.user_id = u.id
@@ -83,6 +90,9 @@ const PEOPLE_CTE = sql`
       COALESCE(c.assigned_to_user_id, o.account_owner_id)::text,
       c.notes,
       c.crm_organization_id::text,
+      c.industry,
+      c.company_size_range,
+      c.lead_score,
       c.created_at
     FROM public.crm_contacts c
     LEFT JOIN public.crm_organizations o ON o.id = c.crm_organization_id
@@ -111,6 +121,16 @@ function buildConditions(filters: CrmPeopleFilters): SQL[] {
   if (filters.search) {
     const q = `%${filters.search.trim()}%`;
     conds.push(sql`(people.name ILIKE ${q} OR people.email ILIKE ${q})`);
+  }
+  // GTM-targeting op prospect-verrijking.
+  if (filters.industry) {
+    conds.push(sql`people.industry ILIKE ${`%${filters.industry.trim()}%`}`);
+  }
+  if (filters.companySizeRange) {
+    conds.push(sql`people.company_size_range = ${filters.companySizeRange}`);
+  }
+  if (typeof filters.minScore === "number") {
+    conds.push(sql`people.lead_score >= ${filters.minScore}`);
   }
   if (filters.listId) {
     conds.push(

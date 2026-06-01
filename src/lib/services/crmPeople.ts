@@ -24,6 +24,10 @@ import {
   membershipsByUser,
   membershipsByContact,
 } from "./leadList";
+import {
+  enrichmentByContact,
+  type ProspectEnrichment,
+} from "./crmContactEnrichment";
 
 export type CrmPersonRow = {
   id: string;
@@ -71,6 +75,8 @@ export type CrmPersonRow = {
   kind: "customer" | "prospect";
   company: string | null;
   organizationId: string | null;
+  /** Clay-aligned GTM-verrijking; alleen gevuld voor prospects. */
+  enrichment: ProspectEnrichment | null;
 };
 
 export async function loadCrmPeoplePage(args: {
@@ -90,10 +96,11 @@ export async function loadCrmPeoplePage(args: {
   ]);
 
   const customerIds = page.filter((r) => r.kind === "customer").map((r) => r.id);
+  const prospectIds = page.filter((r) => r.kind === "prospect").map((r) => r.id);
 
   const lists = await listLeadLists({ userId: args.sessionUserId });
   const visibleListIds = lists.map((l) => l.id);
-  const [funnelRows, attrs, memberships, contactMemberships] =
+  const [funnelRows, attrs, memberships, contactMemberships, enrichments] =
     await Promise.all([
       customerIds.length
         ? listCustomerFunnel({ userIds: customerIds })
@@ -103,6 +110,9 @@ export async function loadCrmPeoplePage(args: {
         : Promise.resolve(new Map()),
       membershipsByUser({ visibleListIds }),
       membershipsByContact({ visibleListIds }),
+      prospectIds.length
+        ? enrichmentByContact(prospectIds)
+        : Promise.resolve(new Map<string, ProspectEnrichment>()),
     ]);
   const funnelById = new Map(funnelRows.map((r) => [r.id, r]));
 
@@ -163,6 +173,7 @@ export async function loadCrmPeoplePage(args: {
         kind: "customer",
         company: null,
         organizationId: null,
+        enrichment: null,
       });
     } else {
       rows.push({
@@ -199,6 +210,7 @@ export async function loadCrmPeoplePage(args: {
         kind: "prospect",
         company: p.company,
         organizationId: p.organizationId,
+        enrichment: enrichments.get(p.id) ?? null,
       });
     }
   }
