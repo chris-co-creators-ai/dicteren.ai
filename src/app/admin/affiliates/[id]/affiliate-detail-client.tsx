@@ -100,6 +100,24 @@ function formatEur(cents: number): string {
   })}`;
 }
 
+/** V2-commissie-samenvatting (zakelijk/consument), fallback naar legacy. */
+function commissionSummary(a: Affiliate): string {
+  const rule = (type: string | null, pct: number, fixed: number) => {
+    if (type === "percentage" && pct > 0) return `${pct}%`;
+    if (type === "fixed_per_seat" && fixed > 0) return `€${(fixed / 100).toFixed(0)}/seat`;
+    return null;
+  };
+  const biz = rule(a.businessCommissionType, a.businessCommissionPct, a.businessCommissionFixedCents);
+  const con = rule(a.consumerCommissionType, a.consumerCommissionPct, a.consumerCommissionFixedCents);
+  const parts: string[] = [];
+  if (biz) parts.push(`Zakelijk ${biz}`);
+  if (con) parts.push(`Consument ${con}`);
+  if (parts.length) return parts.join(" · ");
+  return a.commissionType === "percentage"
+    ? `${a.commissionPct}% per order`
+    : `${formatEur(a.commissionFixedCents)} per seat`;
+}
+
 export function AffiliateDetailClient({
   affiliate,
   stats,
@@ -311,10 +329,7 @@ export function AffiliateDetailClient({
           {affiliateLink}
         </div>
         <div className="mt-2 text-xs text-muted-foreground">
-          Commissie:{" "}
-          {affiliate.commissionType === "percentage"
-            ? `${affiliate.commissionPct}% per order`
-            : `${formatEur(affiliate.commissionFixedCents)} per seat`}
+          Commissie: {commissionSummary(affiliate)}
           {affiliate.payoutMethod && ` · payout via ${affiliate.payoutMethod}`}
         </div>
       </section>
