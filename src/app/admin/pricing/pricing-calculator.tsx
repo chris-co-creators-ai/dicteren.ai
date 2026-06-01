@@ -60,10 +60,15 @@ export function PricingCalculator() {
   const [seats, setSeats] = useState<number>(10);
   const [resellerPct, setResellerPct] = useState<number>(25);
   const [customersPerYear, setCustomersPerYear] = useState<number>(12);
+  const [period, setPeriod] = useState<"yearly" | "quarterly">("yearly");
   const [discountOn, setDiscountOn] = useState<boolean>(false);
   const [discountPct, setDiscountPct] = useState<number>(10);
 
   const amPct = COMMISSION_POOL_PCT - resellerPct;
+  // Facturatie verandert alleen de betaalcadans, niet de jaaromzet: kwartaal =
+  // jaartotaal in 4 termijnen. Recurring per jaar blijft gelijk.
+  const paymentsPerYear = period === "quarterly" ? 4 : 1;
+  const perLabel = period === "quarterly" ? "kwartaal" : "jaar";
   const safeSeats = Math.max(1, seats);
   const n = Math.max(0, customersPerYear);
   const custom = safeSeats >= CUSTOM_QUOTE_FROM;
@@ -82,15 +87,15 @@ export function PricingCalculator() {
     accent?: "orange" | "navy";
     hero?: boolean;
   }[] = [
-    { label: "Eindklant betaalt", perDeal: s.endCustomerCents, perYear: s.endCustomerCents * n },
+    { label: "Eindklant betaalt", perDeal: Math.round(s.endCustomerCents / paymentsPerYear), perYear: s.endCustomerCents * n },
     {
       label: `Reseller (${resellerPct}%${effDiscount > 0 ? ` − ${effDiscount}% korting` : ""})`,
-      perDeal: s.resellerCents,
+      perDeal: Math.round(s.resellerCents / paymentsPerYear),
       perYear: s.resellerCents * n,
       accent: "navy",
     },
-    { label: `Jouw commissie (${amPct}%)`, perDeal: s.amCents, perYear: s.amCents * n, accent: "orange", hero: true },
-    { label: "Dicteren netto", perDeal: s.dicterenCents, perYear: s.dicterenCents * n },
+    { label: `Jouw commissie (${amPct}%)`, perDeal: Math.round(s.amCents / paymentsPerYear), perYear: s.amCents * n, accent: "orange", hero: true },
+    { label: "Dicteren netto", perDeal: Math.round(s.dicterenCents / paymentsPerYear), perYear: s.dicterenCents * n },
   ];
 
   return (
@@ -212,6 +217,27 @@ export function PricingCalculator() {
         </div>
       </div>
 
+      {/* Facturatie-periode */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-[color:var(--text-muted)]">
+          Facturatie:
+        </span>
+        {(["yearly", "quarterly"] as const).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPeriod(p)}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              period === p
+                ? "border-[color:var(--navy)] bg-[color:var(--navy)] text-white"
+                : "border-[color:var(--border-soft)] text-[color:var(--text-muted)]"
+            }`}
+          >
+            {p === "yearly" ? "Per jaar" : "Per kwartaal"}
+          </button>
+        ))}
+      </div>
+
       {custom ? (
         <div className="brand-card border-l-4 border-[color:var(--orange)] p-4 text-sm">
           <strong>{CUSTOM_QUOTE_FROM}+ seats = maatwerk-offerte.</strong> Boven de
@@ -244,7 +270,7 @@ export function PricingCalculator() {
                 <thead>
                   <tr className="text-left text-[0.6875rem] uppercase tracking-wide text-[color:var(--text-muted)]">
                     <th className="px-4 py-2.5 font-semibold"> </th>
-                    <th className="px-4 py-2.5 font-semibold">Per klant / jr</th>
+                    <th className="px-4 py-2.5 font-semibold">Per klant / {perLabel}</th>
                     <th className="px-4 py-2.5 font-semibold">
                       Per jaar ({n} klant{n === 1 ? "" : "en"})
                     </th>
