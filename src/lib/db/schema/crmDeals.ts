@@ -152,6 +152,62 @@ export const crmContacts = pgTable(
       onDelete: "set null",
     }),
     notes: text("notes"),
+
+    // ── GTM-toewijzing: de AM die deze prospect bewerkt. null = ongetoewezen
+    //    (admin's prospecting-pool). Bulk-toewijzen verplaatst rows naar een AM. ──
+    assignedToUserId: uuid("assigned_to_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" },
+    ),
+
+    // ── Persoon (Clay person-enrichment) ──
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    jobTitle: text("job_title"),
+    seniority: text("seniority"), // C-level / VP / Director / Manager / IC
+    department: text("department"),
+    linkedinUrl: text("linkedin_url"),
+    twitterUrl: text("twitter_url"),
+    city: text("city"),
+    country: text("country"),
+    emailStatus: text("email_status"), // valid / risky / invalid / unknown
+
+    // ── Bedrijf (Clay company-enrichment) ──
+    companyName: text("company_name"),
+    companyDomain: text("company_domain"),
+    companyLinkedinUrl: text("company_linkedin_url"),
+    niche: text("niche"),
+    industry: text("industry"), // branche
+    companySizeRange: text("company_size_range"), // 1-10 / 11-50 / 51-200 / 201-1000 / 1000+
+    employeeCount: integer("employee_count"),
+    revenueRange: text("revenue_range"),
+    foundedYear: integer("founded_year"),
+    techStack: jsonb("tech_stack"), // string[]
+    keywords: jsonb("keywords"), // string[]
+
+    // ── Social-bereik (volger-aantallen + som) ──
+    followersLinkedin: integer("followers_linkedin"),
+    followersInstagram: integer("followers_instagram"),
+    followersFacebook: integer("followers_facebook"),
+    followersYoutube: integer("followers_youtube"),
+    followersSubstack: integer("followers_substack"),
+    followersOwn: integer("followers_own"),
+    totalReach: integer("total_reach"),
+
+    // ── Lead-scoring ──
+    leadScore: integer("lead_score"), // 0-100
+    temperature: customerTemperature("temperature"),
+
+    // ── Outreach-status per prospect (cadence-tracking) ──
+    lastContactAt: timestamp("last_contact_at", { withTimezone: true }),
+    lastChannel: text("last_channel"), // email / linkedin / phone / other
+    touchCount: integer("touch_count").notNull().default(0),
+
+    // ── Provenance + catch-all voor extra Clay-velden (geen data-verlies) ──
+    enrichmentSource: text("enrichment_source"), // bv. "clay"
+    enrichedAt: timestamp("enriched_at", { withTimezone: true }),
+    enrichment: jsonb("enrichment"), // alle overige Clay-kolommen
+
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -163,6 +219,9 @@ export const crmContacts = pgTable(
     index("crm_contacts_org_idx").on(t.crmOrganizationId),
     index("crm_contacts_email_idx").on(t.email),
     index("crm_contacts_auth_user_idx").on(t.authUserId),
+    index("crm_contacts_assigned_idx").on(t.assignedToUserId),
+    index("crm_contacts_industry_idx").on(t.industry),
+    index("crm_contacts_score_idx").on(t.leadScore),
   ],
 );
 
