@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "./server";
@@ -25,31 +26,33 @@ export type AuthSession = {
  *
  * Server components that call this must export `dynamic = 'force-dynamic'`.
  */
-export async function getSession(): Promise<AuthSession | null> {
-  try {
-    const result = await auth.api.getSession({
-      headers: await headers(),
-    });
-    if (!result?.user) return null;
-    return {
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        name: result.user.name ?? "",
-        role: (result.user as { role?: string | null }).role ?? null,
-        emailVerified: result.user.emailVerified ?? false,
-        image: result.user.image ?? null,
-      },
-      session: {
-        id: result.session.id,
-        expiresAt: result.session.expiresAt,
-        token: result.session.token,
-      },
-    };
-  } catch {
-    return null;
-  }
-}
+export const getSession = cache(
+  async (): Promise<AuthSession | null> => {
+    try {
+      const result = await auth.api.getSession({
+        headers: await headers(),
+      });
+      if (!result?.user) return null;
+      return {
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name ?? "",
+          role: (result.user as { role?: string | null }).role ?? null,
+          emailVerified: result.user.emailVerified ?? false,
+          image: result.user.image ?? null,
+        },
+        session: {
+          id: result.session.id,
+          expiresAt: result.session.expiresAt,
+          token: result.session.token,
+        },
+      };
+    } catch {
+      return null;
+    }
+  },
+);
 
 /**
  * Require any authenticated session. Redirects to sign-in if missing.
