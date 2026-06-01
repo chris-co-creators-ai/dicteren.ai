@@ -1,5 +1,5 @@
 import "server-only";
-import { count, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   authUsers,
@@ -10,6 +10,7 @@ import {
   licenses,
   licenseActivations,
   orders,
+  organizationBilling,
   plans,
   payments,
 } from "@/lib/db/schema";
@@ -218,6 +219,190 @@ export async function listInvoices(limit = 100): Promise<InvoiceRow[]> {
       orderId: r.orderId,
     };
   });
+}
+
+// ─────────────────────── Klant-facing factuur ───────────────────────
+
+/** Verkoper-gegevens voor op de factuur. KvK + btw-nummer komen uit env zodat
+ *  we geen placeholder-cijfers op een echte factuur zetten. */
+export const INVOICE_SELLER = {
+  name: "Dicteren.ai",
+  email: "info@dicteren.ai",
+  website: "dicteren.ai",
+  kvk: process.env.DICTEREN_KVK ?? null,
+  vat: process.env.DICTEREN_VAT ?? null,
+};
+
+export type CustomerInvoiceListItem = {
+  orderId: string;
+  number: string;
+  issuedAt: Date;
+  totalCents: number;
+  currency: string;
+  planLabel: string | null;
+};
+
+export type CustomerInvoice = {
+  number: string;
+  issuedAt: Date;
+  orderId: string;
+  paymentMethod: string | null;
+  buyerName: string;
+  buyerEmail: string | null;
+  org: {
+    name: string;
+    vatNumber: string | null;
+    addressLine1: string | null;
+    addressLine2: string | null;
+    postalCode: string | null;
+    city: string | null;
+    countryCode: string | null;
+  } | null;
+  lineDescription: string;
+  quantity: number;
+  unitNetCents: number;
+  netCents: number;
+  vatCents: number;
+  totalCents: number;
+  currency: string;
+};
+
+/** Stabiel, oplopend factuurnummer per betaling (op volgorde van aanmaak). */
+async function invoiceNumberFor(createdAt: Date, paymentId: string): Promise<string> {
+  const [{ n }] = await db
+    .select({ n: count() })
+    .from(payments)
+    .where(lt(payments.createdAt, createdAt));
+  const seq = Number(n ?? 0) + 1;
+  void paymentId;
+  return `DIC-${createdAt.getFullYear()}-${String(seq).padStart(5, "0")}`;
+}
+
+/** Lijst van betaalde facturen van één gebruiker (voor /account). */
+export async function listUserInvoices(
+  userId: string,
+): Promise<CustomerInvoiceListItem[]> {
+  const rows = await db
+    .select({
+      orderId: orders.id,
+      totalCents: orders.amountCents,
+      currency: orders.currency,
+      createdAt: orders.paidAt,
+      planLabel: plans.label,
+      paymentId: payments.id,
+      paymentCreatedAt: payments.createdAt,
+    })
+    .from(orders)
+    .leftJoin(plans, eq(plans.id, orders.planId))
+    .leftJoin(payments, eq(payments.orderId, orders.id))
+    .where(and(eq(orders.userId, userId), eq(orders.status, "paid")))
+    .orderBy(desc(orders.paidAt));
+
+  const out: CustomerInvoiceListItem[] = [];
+  for (const r of rows) {
+    const issued = r.paymentCreatedAt ?? r.createdAt ?? new Date();
+    out.push({
+      orderId: r.orderId,
+      number: await invoiceNumberFor(issued, r.paymentId ?? r.orderId),
+      issuedAt: issued,
+      totalCents: r.totalCents,
+      currency: r.currency,
+      planLabel: r.planLabel,
+    });
+  }
+  return out;
+}
+
+/** Volledige factuur voor één order, scoped op de gebruiker (ownership-check). */
+export async function getUserInvoice(
+  orderId: string,
+  userId: string,
+): Promise<CustomerInvoice | null> {
+  const [o] = await db
+    .select({
+      id: orders.id,
+      userId: orders.userId,
+      organizationId: orders.organizationId,
+      status: orders.status,
+      amountCents: orders.amountCents,
+      currency: orders.currency,
+      quantity: orders.quantity,
+      paidAt: orders.paidAt,
+      planLabel: plans.label,
+      planPeriod: plans.period,
+      planIsPerSeat: plans.isPerSeat,
+    })
+    .from(orders)
+    .leftJoin(plans, eq(plans.id, orders.planId))
+    .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
+    .limit(1);
+
+  if (!o || o.status !== "paid") return null;
+
+  const [pay] = await db
+    .select({ method: payments.id, createdAt: payments.createdAt, paymentId: payments.id })
+    .from(payments)
+    .where(eq(payments.orderId, o.id))
+    .orderBy(desc(payments.createdAt))
+    .limit(1);
+
+  const issued = pay?.createdAt ?? o.paidAt ?? new Date();
+  const totalCents = o.amountCents; // bruto (incl. btw)
+  const { baseCents, vatCents } = splitVatHigh(totalCents);
+  const quantity = Math.max(1, o.quantity);
+
+  const [buyer] = await db
+    .select({ name: authUsers.name, email: authUsers.email })
+    .from(authUsers)
+    .where(eq(authUsers.id, userId))
+    .limit(1);
+
+  let org: CustomerInvoice["org"] = null;
+  if (o.organizationId) {
+    const [orgRow] = await db
+      .select({ name: authOrganizations.name })
+      .from(authOrganizations)
+      .where(eq(authOrganizations.id, o.organizationId))
+      .limit(1);
+    const [bill] = await db
+      .select({
+        vatNumber: organizationBilling.vatNumber,
+        addressLine1: organizationBilling.addressLine1,
+        addressLine2: organizationBilling.addressLine2,
+        postalCode: organizationBilling.postalCode,
+        city: organizationBilling.city,
+        countryCode: organizationBilling.countryCode,
+      })
+      .from(organizationBilling)
+      .where(eq(organizationBilling.organizationId, o.organizationId))
+      .limit(1);
+    org = {
+      name: orgRow?.name ?? "Organisatie",
+      vatNumber: bill?.vatNumber ?? null,
+      addressLine1: bill?.addressLine1 ?? null,
+      addressLine2: bill?.addressLine2 ?? null,
+      postalCode: bill?.postalCode ?? null,
+      city: bill?.city ?? null,
+      countryCode: bill?.countryCode ?? null,
+    };
+  }
+
+  return {
+    number: await invoiceNumberFor(issued, pay?.paymentId ?? o.id),
+    issuedAt: issued,
+    orderId: o.id,
+    paymentMethod: null,
+    buyerName: buyer?.name ?? "Klant",
+    buyerEmail: buyer?.email ?? null,
+    org,
+    lineDescription: o.planLabel ?? "Dicteren.ai licentie",
+    quantity,
+    unitNetCents: Math.round(baseCents / quantity),
+    netCents: baseCents,
+    vatCents,
+    totalCents,
+    currency: o.currency,
+  };
 }
 
 // ─────────────────────── Discount codes ───────────────────────

@@ -46,14 +46,25 @@ function formatAmount(cents: number, currency: string): string {
   }).format(cents / 100);
 }
 
+type InvoiceItem = {
+  orderId: string;
+  number: string;
+  issuedAt: string;
+  totalCents: number;
+  currency: string;
+  planLabel: string | null;
+};
+
 export function BillingView({
   hasCustomer,
   subscriptions,
   consumerPlans = [],
+  invoices = [],
 }: {
   hasCustomer: boolean;
   subscriptions: Subscription[];
   consumerPlans?: ConsumerPlanOption[];
+  invoices?: InvoiceItem[];
 }) {
   void hasCustomer;
   const hasActive = subscriptions.some(
@@ -77,6 +88,42 @@ export function BillingView({
 
       {/* Geen actief abonnement → laat de gebruiker er direct één afsluiten. */}
       {!hasActive && <PlanPicker plans={consumerPlans} />}
+
+      {invoices.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-sm font-bold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+            Facturen
+          </h2>
+          <div className="mt-3 divide-y divide-[color:var(--border-soft)] overflow-hidden rounded-2xl border border-[color:var(--border-soft)] bg-white">
+            {invoices.map((inv) => (
+              <Link
+                key={inv.orderId}
+                href={`/account/invoices/${inv.orderId}`}
+                className="flex items-center justify-between gap-3 px-5 py-3.5 text-sm hover:bg-[color:var(--bg)]"
+              >
+                <div>
+                  <div className="font-semibold">{inv.number}</div>
+                  <div className="text-xs text-[color:var(--text-muted)]">
+                    {formatDate(inv.issuedAt)}
+                    {inv.planLabel ? ` · ${inv.planLabel}` : ""}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold">
+                    {formatAmount(inv.totalCents, inv.currency)}
+                  </span>
+                  <span className="text-xs font-semibold text-[color:var(--navy)]">
+                    Bekijk →
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-[color:var(--text-muted)]">
+            Bedragen incl. btw. Open een factuur en kies "Download als PDF".
+          </p>
+        </section>
+      )}
     </main>
   );
 }
