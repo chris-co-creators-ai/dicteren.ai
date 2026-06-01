@@ -586,14 +586,20 @@ export type CrmDealsKpis = {
   totalForecastCents: number;
 };
 
-export async function crmDealsKpis(): Promise<CrmDealsKpis> {
+export async function crmDealsKpis(ownerId?: string): Promise<CrmDealsKpis> {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
+  // Scope op account-owner (AM ziet alleen eigen KPI's; admin = undefined = alles).
+  const owner = ownerId
+    ? eq(crmOrganizations.accountOwnerId, ownerId)
+    : undefined;
+
   const [total] = await db
     .select({ count: sql<number>`count(*)::int` })
-    .from(crmOrganizations);
+    .from(crmOrganizations)
+    .where(owner);
 
   const [open] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -601,13 +607,14 @@ export async function crmDealsKpis(): Promise<CrmDealsKpis> {
     .where(
       and(
         sql`${crmOrganizations.status} NOT IN ('won', 'lost')`,
+        owner,
       ),
     );
 
   const [proposals] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(crmOrganizations)
-    .where(eq(crmOrganizations.status, "proposal_sent"));
+    .where(and(eq(crmOrganizations.status, "proposal_sent"), owner));
 
   const [won] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -617,6 +624,7 @@ export async function crmDealsKpis(): Promise<CrmDealsKpis> {
         eq(crmOrganizations.status, "won"),
         isNotNull(crmOrganizations.paidAt),
         sql`${crmOrganizations.paidAt} >= ${startOfMonth.toISOString()}`,
+        owner,
       ),
     );
 
@@ -629,6 +637,7 @@ export async function crmDealsKpis(): Promise<CrmDealsKpis> {
       and(
         sql`${crmOrganizations.status} NOT IN ('won', 'lost')`,
         isNotNull(crmOrganizations.proposedAmountCents),
+        owner,
       ),
     );
 

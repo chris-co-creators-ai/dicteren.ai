@@ -40,6 +40,11 @@ export default async function AdminCrmPage({
   const initialTab: "people" | "organizations" =
     tab === "organizations" ? "organizations" : "people";
 
+  // Scope: account_managers zien alleen hun eigen leads; admin ziet alles.
+  // (account_owner_id-filter — anders lekt de CRM-lijst andermans pijplijn.)
+  const isAdmin = session.user.role === "admin";
+  const scopeOwnerId = isAdmin ? undefined : session.user.id;
+
   // Beide datasets parallel laden — client-side tab switcht zonder reload.
   const [
     rows,
@@ -61,8 +66,10 @@ export default async function AdminCrmPage({
     listAdminUsers(),
     getColumnPrefs(session.user.id),
     listCustomColumns(),
-    listCrmOrganizations(),
-    crmDealsKpis(),
+    listCrmOrganizations(
+      scopeOwnerId ? { accountOwnerId: scopeOwnerId } : {},
+    ),
+    crmDealsKpis(scopeOwnerId),
   ]);
 
   // KPI-counts (header) over ALLE klanten, server-side. De zware rij-data gaat
