@@ -15,10 +15,51 @@ type AffiliateRow = {
   commissionType: string;
   commissionPct: number;
   commissionFixedCents: number;
+  businessCommissionType: string | null;
+  businessCommissionPct: number;
+  businessCommissionFixedCents: number;
+  consumerCommissionType: string | null;
+  consumerCommissionPct: number;
+  consumerCommissionFixedCents: number;
   totalEarnedCents: number;
   totalPaidCents: number;
   createdAt: string;
 };
+
+/** Commissie-samenvatting: toon de V2 per-type-regels (zakelijk/consument) als
+ *  die gezet zijn, anders de legacy-regel. Voorkomt "0% per order" voor V2-affiliates. */
+function commissionLabel(a: {
+  commissionType: string;
+  commissionPct: number;
+  commissionFixedCents: number;
+  businessCommissionType: string | null;
+  businessCommissionPct: number;
+  businessCommissionFixedCents: number;
+  consumerCommissionType: string | null;
+  consumerCommissionPct: number;
+  consumerCommissionFixedCents: number;
+}): string {
+  const rule = (
+    type: string | null,
+    pct: number,
+    fixed: number,
+  ): string | null => {
+    if (type === "percentage" && pct > 0) return `${pct}%`;
+    if (type === "fixed_per_seat" && fixed > 0)
+      return `€${(fixed / 100).toFixed(0)}/seat`;
+    return null;
+  };
+  const biz = rule(a.businessCommissionType, a.businessCommissionPct, a.businessCommissionFixedCents);
+  const con = rule(a.consumerCommissionType, a.consumerCommissionPct, a.consumerCommissionFixedCents);
+  const parts: string[] = [];
+  if (biz) parts.push(`Zakelijk ${biz}`);
+  if (con) parts.push(`Consument ${con}`);
+  if (parts.length) return parts.join(" · ");
+  // Fallback: legacy
+  return a.commissionType === "percentage"
+    ? `${a.commissionPct}% per order`
+    : `€${(a.commissionFixedCents / 100).toFixed(0)}/seat`;
+}
 
 function eur(cents: number): string {
   return `€${(cents / 100).toLocaleString("nl-NL", {
@@ -59,8 +100,7 @@ export function AffiliatesIndexClient({
       "Code",
       "Email",
       "Status",
-      "Commissie-type",
-      "Commissie-waarde",
+      "Commissie",
       "Verdiend (€)",
       "Uitbetaald (€)",
       "Openstaand (€)",
@@ -71,10 +111,7 @@ export function AffiliatesIndexClient({
       a.code,
       a.contactEmail,
       a.status,
-      a.commissionType,
-      a.commissionType === "percentage"
-        ? `${a.commissionPct}%`
-        : `${(a.commissionFixedCents / 100).toFixed(2)}/seat`,
+      commissionLabel(a),
       (a.totalEarnedCents / 100).toFixed(2),
       (a.totalPaidCents / 100).toFixed(2),
       ((a.totalEarnedCents - a.totalPaidCents) / 100).toFixed(2),
@@ -175,11 +212,7 @@ export function AffiliatesIndexClient({
                     </div>
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">{a.code}</td>
-                  <td className="px-4 py-3 text-xs">
-                    {a.commissionType === "percentage"
-                      ? `${a.commissionPct}% per order`
-                      : `${eur(a.commissionFixedCents)} per seat`}
-                  </td>
+                  <td className="px-4 py-3 text-xs">{commissionLabel(a)}</td>
                   <td className="px-4 py-3 text-xs">
                     <StatusBadge value={a.status} />
                   </td>
