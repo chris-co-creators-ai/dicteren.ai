@@ -71,6 +71,17 @@ export function PrijzenClient({ pricing }: { pricing: PricingSnapshot }) {
     ? null
     : perSeatCentsForPeriod(pricing, seats, bizPeriod) / 100;
   const total = isCustom ? null : businessAmountCents(pricing, seats, bizPeriod) / 100;
+  // Termijn-besparing t.o.v. maandelijks (op jaarbasis), dynamisch uit de SSOT.
+  const bizAnnualMonthly = perSeatCentsForPeriod(pricing, seats, "monthly") * 12;
+  const bizAnnualThis =
+    bizPeriod === "yearly"
+      ? perSeatCentsForPeriod(pricing, seats, "yearly")
+      : perSeatCentsForPeriod(pricing, seats, bizPeriod) *
+        (bizPeriod === "quarterly" ? 4 : 12);
+  const bizSavePct =
+    !isCustom && bizPeriod !== "monthly" && bizAnnualMonthly > 0
+      ? Math.round((1 - bizAnnualThis / bizAnnualMonthly) * 100)
+      : 0;
   const upcoming = nextTierFromSnapshot(pricing, seats);
   const currentPlan = PLANS[billing];
 
@@ -274,6 +285,11 @@ export function PrijzenClient({ pricing }: { pricing: PricingSnapshot }) {
                     style={{ color: "var(--aqua)" }}
                   >
                     {Math.round(discount * 100)}% volumekorting actief
+                  </p>
+                )}
+                {bizSavePct > 0 && (
+                  <p className="mt-0.5 text-xs font-semibold text-[#9ee6c8]">
+                    bespaar {bizSavePct}% t.o.v. maandelijks
                   </p>
                 )}
               </>
