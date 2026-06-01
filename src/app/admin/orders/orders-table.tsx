@@ -5,6 +5,7 @@ import { Download, ExternalLink, Search } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { cn } from "@/lib/utils";
 import { RefundButton } from "./refund-button";
+import { FulfillButton } from "./fulfill-button";
 
 type OrderStatus = "pending" | "paid" | "failed" | "refunded" | "canceled";
 type TabKey = "all" | OrderStatus;
@@ -246,6 +247,12 @@ export function OrdersTable({ orders, kpis }: { orders: OrderRow[]; kpis: Kpi[] 
                               reference={o.reference}
                               amount={o.amount}
                               status={o.status}
+                            />
+                            <FulfillButton
+                              orderId={o.id}
+                              reference={o.reference}
+                              status={o.status}
+                              hasPayment={Boolean(o.molliePaymentId)}
                             />
                             {o.molliePaymentId ? (
                               <a
