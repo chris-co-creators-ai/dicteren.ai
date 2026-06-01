@@ -10,6 +10,8 @@ type Affiliate = {
   name: string;
   displayName: string | null;
   welcomeMessage: string | null;
+  brandColor: string | null;
+  brandLogoUrl: string | null;
   contactEmail: string;
   contactPhone: string | null;
   status: string;
@@ -50,6 +52,8 @@ export function EditAffiliateModal({ affiliate, onClose, onSaved }: Props) {
   const [welcomeMessage, setWelcomeMessage] = useState(
     affiliate.welcomeMessage ?? "",
   );
+  const [brandColor, setBrandColor] = useState(affiliate.brandColor ?? "");
+  const [brandLogoUrl, setBrandLogoUrl] = useState(affiliate.brandLogoUrl ?? "");
   const [contactEmail, setContactEmail] = useState(affiliate.contactEmail);
   const [contactPhone, setContactPhone] = useState(affiliate.contactPhone ?? "");
   const [status, setStatus] = useState(affiliate.status);
@@ -132,6 +136,8 @@ export function EditAffiliateModal({ affiliate, onClose, onSaved }: Props) {
           slug: slug.trim() || null,
           displayName: displayName.trim() || null,
           welcomeMessage: welcomeMessage.trim() || null,
+          brandColor: brandColor.trim() || null,
+          brandLogoUrl: brandLogoUrl.trim() || null,
           contactEmail,
           contactPhone: contactPhone || null,
           status,
@@ -278,6 +284,37 @@ export function EditAffiliateModal({ affiliate, onClose, onSaved }: Props) {
               placeholder="Quote of korte intro die op de landingspagina staat."
             />
           </label>
+
+          {/* Brandkit voor de op-maat slug-landing */}
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1">
+              <span className="text-xs font-semibold">Accentkleur (hex)</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={brandColor || "#0A2A73"}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="h-9 w-12 rounded border"
+                  aria-label="Accentkleur"
+                />
+                <input
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="input flex-1"
+                  placeholder="#1F8A4C"
+                />
+              </div>
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs font-semibold">Logo-URL</span>
+              <input
+                value={brandLogoUrl}
+                onChange={(e) => setBrandLogoUrl(e.target.value)}
+                className="input"
+                placeholder="https://…/logo.png"
+              />
+            </label>
+          </div>
 
           {/* Consumer-config */}
           <section className="rounded-xl border bg-[color:var(--bg)] p-4">

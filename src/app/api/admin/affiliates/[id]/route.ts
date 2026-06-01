@@ -66,6 +66,8 @@ export async function PATCH(
     "name",
     "displayName",
     "welcomeMessage",
+    "brandColor",
+    "brandLogoUrl",
     "contactEmail",
     "contactPhone",
     "status",

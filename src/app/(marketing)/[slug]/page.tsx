@@ -72,8 +72,31 @@ export default async function AffiliateSlugPage({
           }}
         />
         <div className="relative mx-auto max-w-3xl text-center">
-          <span className="chip chip-orange">Welkom bij Dicteren.ai</span>
-          <h1 className="mt-5 text-balance text-4xl font-bold leading-[1.05] tracking-tight text-[color:var(--navy)] sm:text-5xl lg:text-6xl">
+          {affiliate.brandLogoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={affiliate.brandLogoUrl}
+              alt={displayName}
+              className="mx-auto mb-6 h-12 w-auto object-contain"
+            />
+          )}
+          <span
+            className="chip"
+            style={
+              affiliate.brandColor
+                ? {
+                    background: `color-mix(in srgb, ${affiliate.brandColor} 14%, white)`,
+                    color: affiliate.brandColor,
+                  }
+                : undefined
+            }
+          >
+            Welkom bij Dicteren.ai
+          </span>
+          <h1
+            className="mt-5 text-balance text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
+            style={{ color: affiliate.brandColor ?? "var(--navy)" }}
+          >
             Doorverwezen door {displayName}.
           </h1>
           {affiliate.welcomeMessage ? (

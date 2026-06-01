@@ -88,6 +88,7 @@ export async function POST(request: Request) {
           | "consumer_upgrade"
           | "csv_import"
           | "lead_form"
+          | "reseller_recruitment"
           | undefined) ?? "am_outreach",
       status: "lead",
       accountOwnerId: forcedOwnerId,

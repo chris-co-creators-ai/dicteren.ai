@@ -36,11 +36,12 @@ export const crmOrgStatus = pgEnum("crm_org_status", [
 ]);
 
 export const crmOrgSource = pgEnum("crm_org_source", [
-  "am_outreach",       // account manager startte de deal
-  "self_service",      // klant via /zakelijk/start
-  "consumer_upgrade",  // bestaande consumer-user is opgewaardeerd
-  "csv_import",        // bulk import
-  "lead_form",         // /contact, /word-partner, /zakelijk-quote
+  "am_outreach",          // account manager startte de deal
+  "self_service",         // klant via /zakelijk/start
+  "consumer_upgrade",     // bestaande consumer-user is opgewaardeerd
+  "csv_import",           // bulk import
+  "lead_form",            // /contact, /word-partner, /zakelijk-quote
+  "reseller_recruitment", // AM werft een reseller/affiliate-partner
 ]);
 
 export const crmEventKind = pgEnum("crm_event_kind", [
@@ -98,6 +99,11 @@ export const crmOrganizations = pgTable(
     proposedAmountCents: integer("proposed_amount_cents"),
     proposedPlanSlug: text("proposed_plan_slug"),
     discountCode: text("discount_code"),
+
+    // Reseller-werving: als deze CRM-org een affiliate-partner is die de AM
+    // binnenhaalt, linkt dit naar de affiliate-record. FK staat in de migratie
+    // (geen drizzle .references om circulaire schema-import te vermijden).
+    affiliateId: uuid("affiliate_id"),
 
     // Mollie + Better-Auth koppeling
     authOrganizationId: uuid("auth_organization_id").references(

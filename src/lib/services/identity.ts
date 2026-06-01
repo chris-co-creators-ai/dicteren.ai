@@ -101,6 +101,7 @@ export type OrganizationRow = {
     | "consumer_upgrade"
     | "csv_import"
     | "lead_form"
+    | "reseller_recruitment"
     | null;
 };
 

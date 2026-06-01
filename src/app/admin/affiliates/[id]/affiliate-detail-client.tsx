@@ -14,6 +14,8 @@ type Affiliate = {
   name: string;
   displayName: string | null;
   welcomeMessage: string | null;
+  brandColor: string | null;
+  brandLogoUrl: string | null;
   contactEmail: string;
   contactPhone: string | null;
   status: string;

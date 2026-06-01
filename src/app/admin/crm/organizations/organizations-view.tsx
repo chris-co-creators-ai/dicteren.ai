@@ -35,7 +35,8 @@ export type OrgRow = {
     | "self_service"
     | "consumer_upgrade"
     | "csv_import"
-    | "lead_form";
+    | "lead_form"
+    | "reseller_recruitment";
   temperature: string | null;
   accountOwnerId: string | null;
   ownerName: string | null;

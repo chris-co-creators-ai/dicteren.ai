@@ -56,6 +56,8 @@ export default async function AffiliateDetailPage({
             name: affiliate.name,
             displayName: affiliate.displayName,
             welcomeMessage: affiliate.welcomeMessage,
+            brandColor: affiliate.brandColor,
+            brandLogoUrl: affiliate.brandLogoUrl,
             contactEmail: affiliate.contactEmail,
             contactPhone: affiliate.contactPhone,
             status: affiliate.status,

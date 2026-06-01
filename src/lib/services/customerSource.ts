@@ -17,6 +17,7 @@ export type CustomerSourceKey =
   | "admin_grant"
   | "csv_import"
   | "lead_form"
+  | "reseller_recruitment"
   | "signal_triggered";
 
 export type CustomerSourceMeta = {
@@ -49,6 +50,7 @@ export const CUSTOMER_SOURCE_BADGES: Record<CustomerSourceKey, CustomerSourceMet
   admin_grant:        { label: "Admin-grant",      color: "gray",   icon: "Gift" },
   csv_import:         { label: "CSV-import",       color: "gray",   icon: "Upload" },
   lead_form:          { label: "Lead-formulier",   color: "navy",   icon: "FileText" },
+  reseller_recruitment: { label: "Reseller-werving", color: "purple", icon: "Users" },
   signal_triggered:   { label: "Via signaal",      color: "orange", icon: "Zap" },
 };
 
@@ -62,6 +64,7 @@ export type CustomerSourceContext = {
     | "consumer_upgrade"
     | "csv_import"
     | "lead_form"
+    | "reseller_recruitment"
     | null;
   /** licenses.type — bepaalt partner-activation en trial */
   licenseType?: "beta" | "consumer" | "team" | "partner" | null;

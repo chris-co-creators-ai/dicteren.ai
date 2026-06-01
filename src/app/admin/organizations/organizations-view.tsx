@@ -23,6 +23,7 @@ type Organization = {
     | "consumer_upgrade"
     | "csv_import"
     | "lead_form"
+    | "reseller_recruitment"
     | null;
   createdAt: string;
   totalSeats: number;
