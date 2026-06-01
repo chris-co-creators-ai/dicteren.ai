@@ -101,7 +101,14 @@ export function validatePricingInput(input: PricingSaveInput): string | null {
   let prevMax = 0;
   for (const t of sorted) {
     if (t.pricePerSeatCents <= 0) return "Prijs per seat moet groter dan 0 zijn.";
-    if (t.minSeats <= prevMax) return "Staffels mogen niet overlappen.";
+    // Aaneengesloten: elke band moet exact bij prevMax+1 beginnen. Vangt zowel
+    // overlap (min ≤ prevMax) als gaten (min > prevMax+1) af — anders valt een
+    // seat-aantal in een verkeerde of geen staffel.
+    if (t.minSeats !== prevMax + 1) {
+      return prevMax === 0
+        ? "De eerste staffel moet bij 1 seat beginnen."
+        : `Staffels moeten aaneengesloten zijn — er ontbreekt of overlapt een band rond ${prevMax} seats.`;
+    }
     if (t.maxSeats !== null && t.maxSeats < t.minSeats) {
       return "Boven-grens mag niet onder de onder-grens liggen.";
     }
