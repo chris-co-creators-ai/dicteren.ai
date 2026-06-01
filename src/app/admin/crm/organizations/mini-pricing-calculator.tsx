@@ -1,11 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calculator, Send } from "lucide-react";
 import {
-  SEAT_TIERS,
-  getTierForSeats,
+  DEFAULT_PRICING,
+  tierForSeats,
+  perSeatCentsForPeriod,
+  businessAmountCents,
   tierLabel,
+  type BillingPeriod,
+  type PricingSnapshot,
 } from "@/lib/services/pricingTiers";
 
 type Period = "monthly" | "quarterly" | "yearly";
@@ -14,12 +18,6 @@ const PERIOD_LABELS: Record<Period, string> = {
   monthly: "Maand",
   quarterly: "Kwartaal",
   yearly: "Jaar",
-};
-
-const PERIOD_MULTIPLIER: Record<Period, number> = {
-  monthly: 1 / 12,
-  quarterly: 1 / 4,
-  yearly: 1,
 };
 
 const PLAN_SLUG: Record<Period, string> = {
@@ -48,41 +46,49 @@ export function MiniPricingCalculator({
 }: {
   onInject: (r: Result) => void;
 }) {
+  const [pricing, setPricing] = useState<PricingSnapshot>(DEFAULT_PRICING);
   const [seats, setSeats] = useState(5);
   const [period, setPeriod] = useState<Period>("yearly");
   const [discountPct, setDiscountPct] = useState(0);
   const [discountCode, setDiscountCode] = useState("");
 
-  const tier = useMemo(() => getTierForSeats(seats), [seats]);
+  // Live prijs-config ophalen zodat de calculator exact rekent zoals checkout.
+  useEffect(() => {
+    let active = true;
+    fetch("/api/pricing")
+      .then((r) => r.json())
+      .then((d) => {
+        if (active && d?.success && d.data) setPricing(d.data as PricingSnapshot);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  const baseYearlyPerSeat = tier.pricePerSeatCents; // €/seat/jaar in cents
-  const perSeatThisPeriod = Math.round(
-    baseYearlyPerSeat * PERIOD_MULTIPLIER[period],
+  const maxSeats = pricing.customQuoteFrom - 1;
+  const tier = useMemo(() => tierForSeats(pricing, seats), [pricing, seats]);
+  const isCustom = seats >= pricing.customQuoteFrom;
+
+  const perSeatThisPeriod = perSeatCentsForPeriod(
+    pricing,
+    seats,
+    period as BillingPeriod,
   );
-  const subtotal = perSeatThisPeriod * seats;
+  const subtotal = businessAmountCents(pricing, seats, period as BillingPeriod);
   const discountAmount = Math.round(subtotal * (discountPct / 100));
   const total = subtotal - discountAmount;
-
-  const isCustom = seats >= 50;
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Calculator
-          className="size-4"
-          style={{ color: "#042660" }}
-          strokeWidth={2.2}
-        />
-        <h3 className="text-sm font-bold text-[color:var(--navy)]">
-          Prijzen-calculator
-        </h3>
+        <Calculator className="size-4" style={{ color: "#042660" }} strokeWidth={2.2} />
+        <h3 className="text-sm font-bold text-[color:var(--navy)]">Prijzen-calculator</h3>
       </div>
 
       {/* Seats */}
       <div>
-        <label className="text-xs font-semibold text-[color:var(--text)]">
-          Seats
-        </label>
+        <label className="text-xs font-semibold text-[color:var(--text)]">Seats</label>
         <div className="mt-1 flex items-center gap-2">
           <button
             type="button"
@@ -95,17 +101,17 @@ export function MiniPricingCalculator({
           <input
             type="number"
             min={1}
-            max={49}
+            max={maxSeats}
             value={seats}
             onChange={(e) =>
-              setSeats(Math.max(1, Math.min(49, Number(e.target.value) || 1)))
+              setSeats(Math.max(1, Math.min(maxSeats, Number(e.target.value) || 1)))
             }
             className="w-16 rounded-lg border bg-white px-2 py-1.5 text-center text-sm font-bold"
             style={{ borderColor: "var(--border)" }}
           />
           <button
             type="button"
-            onClick={() => setSeats(Math.min(49, seats + 1))}
+            onClick={() => setSeats(Math.min(maxSeats, seats + 1))}
             className="size-7 rounded-lg border bg-white text-sm font-bold"
             style={{ borderColor: "var(--border)" }}
           >
@@ -116,9 +122,7 @@ export function MiniPricingCalculator({
 
       {/* Periode */}
       <div>
-        <label className="text-xs font-semibold text-[color:var(--text)]">
-          Periode
-        </label>
+        <label className="text-xs font-semibold text-[color:var(--text)]">Periode</label>
         <div
           className="mt-1 inline-flex gap-1 rounded-lg border bg-white p-0.5 text-xs"
           style={{ borderColor: "var(--border)" }}
@@ -144,32 +148,26 @@ export function MiniPricingCalculator({
       {/* Kortingscode */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-xs font-semibold text-[color:var(--text)]">
-            Korting %
-          </label>
+          <label className="text-xs font-semibold text-[color:var(--text)]">Korting %</label>
           <input
             type="number"
             min={0}
             max={100}
             value={discountPct}
             onChange={(e) =>
-              setDiscountPct(
-                Math.max(0, Math.min(100, Number(e.target.value) || 0)),
-              )
+              setDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))
             }
             className="mt-1 w-full rounded-lg border bg-white px-2 py-1.5 text-sm"
             style={{ borderColor: "var(--border)" }}
           />
         </div>
         <div>
-          <label className="text-xs font-semibold text-[color:var(--text)]">
-            Code
-          </label>
+          <label className="text-xs font-semibold text-[color:var(--text)]">Code</label>
           <input
             type="text"
             value={discountCode}
             onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-            placeholder="bv. ZOMER10"
+            placeholder="bv. RESELLER-A1B2C3"
             className="mt-1 w-full rounded-lg border bg-white px-2 py-1.5 text-sm uppercase"
             style={{ borderColor: "var(--border)" }}
           />
@@ -216,11 +214,14 @@ export function MiniPricingCalculator({
 
       {/* Staffel-tabel */}
       <div className="rounded-lg border bg-white" style={{ borderColor: "var(--border)" }}>
-        <div className="border-b px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]" style={{ borderColor: "var(--border)" }}>
+        <div
+          className="border-b px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]"
+          style={{ borderColor: "var(--border)" }}
+        >
           Staffels
         </div>
         <ul className="text-xs">
-          {SEAT_TIERS.map((t) => (
+          {pricing.tiers.map((t) => (
             <li
               key={t.id}
               className={`flex justify-between px-3 py-1 ${
@@ -229,7 +230,7 @@ export function MiniPricingCalculator({
               style={t.id === tier.id ? { color: "#042660" } : { color: "#5a6478" }}
             >
               <span>
-                {t.min}–{t.max} seats
+                {t.min}–{t.max ?? "∞"} seats
               </span>
               <span>
                 {fmtCents(t.pricePerSeatCents)}/j {t.discountPct > 0 && `(−${t.discountPct}%)`}
@@ -260,7 +261,7 @@ export function MiniPricingCalculator({
 
       {isCustom && (
         <p className="text-[11px] text-[color:var(--text-muted)]">
-          50+ seats vereist een maatwerk-offerte. Neem direct contact op.
+          {pricing.customQuoteFrom}+ seats vereist een maatwerk-offerte. Neem direct contact op.
         </p>
       )}
     </div>

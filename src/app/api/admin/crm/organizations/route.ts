@@ -99,6 +99,9 @@ export async function POST(request: Request) {
         ? Number(body.proposedAmountCents)
         : null,
       proposedPlanSlug: (body.proposedPlanSlug as string | null) ?? null,
+      discountCode:
+        ((body.discountCode as string | null) ?? null)?.trim()?.toUpperCase() ||
+        null,
     },
   });
 
