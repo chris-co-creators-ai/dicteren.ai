@@ -9,8 +9,20 @@ import { inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import { getOrgSeatSnapshot } from "@/lib/services/orgSeats";
-import { getTierForSeats } from "@/lib/services/pricingTiers";
+import {
+  businessAmountCents,
+  tierForSeats,
+  type BillingPeriod,
+} from "@/lib/services/pricingTiers";
+import { getPricing } from "@/lib/services/pricing";
 import { logEvent } from "@/lib/services/audit";
+
+/** Mollie-interval-label → onze periode. */
+function periodFromInterval(interval: string | null): BillingPeriod {
+  if (interval === "1 month") return "monthly";
+  if (interval === "3 months") return "quarterly";
+  return "yearly";
+}
 
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
@@ -24,16 +36,23 @@ export async function GET(request: Request) {
       organizationId: subscriptions.organizationId,
       amountCents: subscriptions.amountCents,
       seats: subscriptions.seats,
+      intervalLabel: subscriptions.intervalLabel,
     })
     .from(subscriptions)
     .where(inArray(subscriptions.status, ["active", "past_due"]));
 
+  const pricing = await getPricing();
   let drifts = 0;
   for (const sub of active) {
     if (!sub.organizationId) continue;
     const snapshot = await getOrgSeatSnapshot(sub.organizationId);
-    const expectedTier = getTierForSeats(snapshot.totalSeats);
-    const expectedAmount = expectedTier.pricePerSeatCents * snapshot.totalSeats;
+    const period = periodFromInterval(sub.intervalLabel);
+    const expectedTier = tierForSeats(pricing, snapshot.totalSeats);
+    const expectedAmount = businessAmountCents(
+      pricing,
+      snapshot.totalSeats,
+      period,
+    );
 
     const seatsDrift = snapshot.totalSeats !== sub.seats;
     const amountDrift = Math.abs(sub.amountCents - expectedAmount) > 100; // €1 tolerance

@@ -41,7 +41,8 @@ import { getAffiliateBySlug } from "@/lib/services/affiliateSlug";
 import { getRefCookie } from "@/lib/affiliateCookie";
 import { validateDiscountCode } from "@/lib/services/discount";
 import { enforceRateLimit } from "@/lib/services/rateLimit";
-import { getTierForSeats } from "@/lib/services/pricingTiers";
+import { businessAmountCents } from "@/lib/services/pricingTiers";
+import { getPricing } from "@/lib/services/pricing";
 import { appBase, webhookUrlFor } from "@/lib/url";
 
 type BillingInput = {
@@ -99,10 +100,11 @@ export async function POST(request: Request) {
   if (!planSlug) return clientError(400, "planSlug ontbreekt", "MISSING_PLAN");
 
   const seatCount = Math.max(1, Math.floor(Number(seats ?? 1)));
-  if (seatCount > 49) {
+  const pricing = await getPricing();
+  if (seatCount >= pricing.customQuoteFrom) {
     return clientError(
       400,
-      "Voor 50+ seats vragen we een maatwerk-offerte.",
+      `Voor ${pricing.customQuoteFrom}+ seats vragen we een maatwerk-offerte.`,
       "CUSTOM_QUOTE_REQUIRED",
     );
   }
@@ -290,11 +292,10 @@ export async function POST(request: Request) {
   // discount-code in de form invullen (= ook attribution via discount_codes.
   // affiliateId + korting). Beide tegelijk mag.
   //
-  // Tier-aware pricing: zakelijke staffel uit services/pricingTiers wordt
-  // direct toegepast (5+ = -10%, 10+ = -15%, 25+ = -20%). Dat is wat de
-  // prijzen-pagina belooft en wat de owner heeft gezien voor hij betaalde.
-  const tier = getTierForSeats(seatCount);
-  const listAmountCents = tier.pricePerSeatCents * seatCount;
+  // Periode-bewuste staffel-prijs uit de SSOT (pricing_tiers + premie). Jaar =
+  // staffel, kwartaal = jaar/4 ×premie, maand = jaar/12 ×premie. Dat is exact
+  // wat /prijzen toont en wat de owner zag voor hij betaalde.
+  const listAmountCents = businessAmountCents(pricing, seatCount, plan.period);
   let payableAmountCents = listAmountCents;
   let resolvedDiscountId: string | null = null;
   if (discountCode) {

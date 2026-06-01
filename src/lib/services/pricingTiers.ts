@@ -108,12 +108,11 @@ export function calculateTotalCents(args: {
   const customQuoteRequired = tier.id === "tier_custom";
   const perSeatCents = customQuoteRequired ? 0 : tier.pricePerSeatCents;
 
-  // Conversie: yearly is de basis. Andere periods: maandelijks = /12 + 25% premium,
-  // kwartaal = /4 + 17% premium. Maar voor zakelijk hanteren we ALLEEN yearly —
-  // dat is wat de prijzen-pagina toont (en wat checkout/organization gebruikt).
+  // Conversie: yearly is de basis. Premie-model = SSOT (zie pricing_settings):
+  // maand = jaar/12 ×1,5 (+50%), kwartaal = jaar/4 ×1,25 (+25%).
   let totalCents = perSeatCents * args.seats;
-  if (args.period === "monthly") totalCents = Math.round(totalCents / 12 * 1.25);
-  if (args.period === "quarterly") totalCents = Math.round(totalCents / 4 * 1.08);
+  if (args.period === "monthly") totalCents = Math.round(totalCents / 12 * 1.5);
+  if (args.period === "quarterly") totalCents = Math.round(totalCents / 4 * 1.25);
   if (args.period === "lifetime") totalCents = perSeatCents * args.seats * 4;
 
   return { totalCents, tier, perSeatCents, customQuoteRequired };
