@@ -1,10 +1,18 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { getPlanBySlug } from "@/lib/services/order";
+import { getPricing } from "@/lib/services/pricing";
+import type { BillingPeriod } from "@/lib/services/pricingTiers";
 import { CheckoutForm } from "./checkout-form";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Zakelijke licenties starten · Dicteren.ai" };
+
+/** org-monthly/quarterly/yearly → periode. Default jaar. */
+function periodFromSlug(slug: string | undefined): BillingPeriod {
+  if (slug === "org-monthly") return "monthly";
+  if (slug === "org-quarterly") return "quarterly";
+  return "yearly";
+}
 
 type SearchParams = Promise<{
   plan?: string;
@@ -43,24 +51,12 @@ export default async function ZakelijkStartPage({
     redirect(`/auth/sign-up?next=${encodeURIComponent(nextUrl)}`);
   }
 
-  const requestedSlug = planSlug ?? "org-yearly";
-  const plan = await getPlanBySlug(requestedSlug);
-  const seats = Math.min(49, Math.max(1, Number(seatsParam ?? 1) || 1));
-
-  if (!plan || plan.customerType !== "organization" || !plan.isActive) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-16">
-        <h1 className="text-2xl font-bold">Plan niet beschikbaar</h1>
-        <p className="mt-3 text-sm text-[color:var(--text-muted)]">
-          Het geselecteerde zakelijke plan bestaat niet of is gedeactiveerd.
-          Ga terug naar de prijzenpagina om een plan te kiezen.
-        </p>
-        <a href="/prijzen" className="btn btn-primary mt-6 inline-flex">
-          Naar prijzen
-        </a>
-      </main>
-    );
-  }
+  const pricing = await getPricing();
+  const initialPeriod = periodFromSlug(planSlug);
+  const seats = Math.min(
+    pricing.customQuoteFrom - 1,
+    Math.max(1, Number(seatsParam ?? 1) || 1),
+  );
 
   return (
     <main
@@ -83,10 +79,8 @@ export default async function ZakelijkStartPage({
         </p>
 
         <CheckoutForm
-          planSlug={plan.slug}
-          planLabel={plan.label}
-          planPriceCents={plan.priceCents}
-          planPeriod={plan.period}
+          pricing={pricing}
+          initialPeriod={initialPeriod}
           initialSeats={seats}
           affiliateCode={ref ?? null}
           initialDiscountCode={code ?? null}

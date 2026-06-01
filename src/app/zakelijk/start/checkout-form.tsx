@@ -1,18 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import {
+  perSeatCentsForPeriod,
+  businessAmountCents,
+  tierForSeats,
+  periodLabelNl,
+  type BillingPeriod,
+  type PricingSnapshot,
+} from "@/lib/services/pricingTiers";
 
 type Props = {
-  planSlug: string;
-  planLabel: string;
-  planPriceCents: number;
-  planPeriod: string;
+  pricing: PricingSnapshot;
+  initialPeriod: BillingPeriod;
   initialSeats: number;
   affiliateCode: string | null;
   initialDiscountCode?: string | null;
   defaultBillingEmail: string;
   upgradeFromConsumer?: boolean;
 };
+
+const ORG_SLUG: Record<Exclude<BillingPeriod, "lifetime">, string> = {
+  monthly: "org-monthly",
+  quarterly: "org-quarterly",
+  yearly: "org-yearly",
+};
+
+const PERIOD_TABS: { period: Exclude<BillingPeriod, "lifetime">; label: string }[] = [
+  { period: "monthly", label: "Maand" },
+  { period: "quarterly", label: "Kwartaal" },
+  { period: "yearly", label: "Jaar" },
+];
 
 function eur(cents: number): string {
   return `€${(cents / 100).toLocaleString("nl-NL", {
@@ -22,16 +40,17 @@ function eur(cents: number): string {
 }
 
 export function CheckoutForm({
-  planSlug,
-  planLabel,
-  planPriceCents,
-  planPeriod,
+  pricing,
+  initialPeriod,
   initialSeats,
   affiliateCode,
   initialDiscountCode,
   defaultBillingEmail,
   upgradeFromConsumer,
 }: Props) {
+  const [period, setPeriod] = useState<Exclude<BillingPeriod, "lifetime">>(
+    initialPeriod === "lifetime" ? "yearly" : initialPeriod,
+  );
   const [seats, setSeats] = useState(initialSeats);
   const [organizationName, setOrganizationName] = useState("");
   const [billingEmail, setBillingEmail] = useState(defaultBillingEmail);
@@ -48,8 +67,12 @@ export function CheckoutForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const subtotal = planPriceCents * seats;
-  const total = subtotal; // het server-side payable bedrag wordt op de Mollie-page getoond
+  const maxSeats = pricing.customQuoteFrom - 1;
+  const isCustom = seats >= pricing.customQuoteFrom;
+  const tier = tierForSeats(pricing, seats);
+  const perSeatCents = perSeatCentsForPeriod(pricing, seats, period);
+  const total = businessAmountCents(pricing, seats, period);
+  const periodNl = periodLabelNl(period);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +83,7 @@ export function CheckoutForm({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          planSlug,
+          planSlug: ORG_SLUG[period],
           seats,
           affiliateCode,
           discountCode: discountCode || null,
@@ -96,13 +119,40 @@ export function CheckoutForm({
       onSubmit={handleSubmit}
       className="mt-7 grid gap-5 rounded-2xl border border-[color:var(--border-soft)] bg-white p-6"
     >
+      {/* Termijn-keuze */}
       <div>
         <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
-          Plan
+          Termijn
         </div>
-        <div className="mt-1 text-lg font-bold">{planLabel}</div>
-        <div className="text-xs text-[color:var(--text-muted)]">
-          {eur(planPriceCents)} per gebruiker / {planPeriod === "monthly" ? "maand" : planPeriod === "quarterly" ? "kwartaal" : "jaar"}
+        <div className="mt-2 inline-flex rounded-full border border-[color:var(--border-soft)] bg-[color:var(--bg)] p-1">
+          {PERIOD_TABS.map((t) => (
+            <button
+              key={t.period}
+              type="button"
+              onClick={() => setPeriod(t.period)}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                period === t.period
+                  ? "bg-[color:var(--navy)] text-white"
+                  : "text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 text-xs text-[color:var(--text-muted)]">
+          {isCustom ? (
+            "Maatwerk-offerte"
+          ) : (
+            <>
+              {eur(perSeatCents)} per gebruiker / {periodNl}
+              {tier.discountPct > 0 && (
+                <span className="ml-1 font-semibold text-[color:var(--green)]">
+                  · {tier.discountPct}% volumekorting
+                </span>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -118,16 +168,16 @@ export function CheckoutForm({
           <input
             type="number"
             min={1}
-            max={49}
+            max={maxSeats}
             value={seats}
             onChange={(e) =>
-              setSeats(Math.min(49, Math.max(1, Number(e.target.value) || 1)))
+              setSeats(Math.min(maxSeats, Math.max(1, Number(e.target.value) || 1)))
             }
             className="w-16 rounded-md border border-[color:var(--border-soft)] px-2 py-1 text-center font-bold"
           />
           <button
             type="button"
-            onClick={() => setSeats((s) => Math.min(49, s + 1))}
+            onClick={() => setSeats((s) => Math.min(maxSeats, s + 1))}
             className="grid size-8 place-items-center rounded-full bg-[color:var(--bg)] font-bold"
           >
             +
@@ -238,23 +288,37 @@ export function CheckoutForm({
       </Field>
 
       <div className="flex flex-col gap-1 border-t border-[color:var(--border-soft)] pt-4">
-        <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
-          <span>{seats} × {eur(planPriceCents)}</span>
-          <span>{eur(subtotal)}</span>
-        </div>
-        <div className="flex items-center justify-between text-base font-bold">
-          <span>Subtotaal excl. btw</span>
-          <span>{eur(total)}</span>
-        </div>
-        {discountCode && (
-          <div className="mt-1 text-[0.6875rem] text-[color:var(--green)]">
-            Kortingscode {discountCode} wordt op de volgende pagina toegepast.
-          </div>
-        )}
-        {affiliateCode && (
-          <div className="mt-1 text-[0.6875rem] text-[color:var(--text-soft)]">
-            Affiliate-referentie: {affiliateCode}
-          </div>
+        {isCustom ? (
+          <p className="text-sm text-[color:var(--text-muted)]">
+            Vanaf {pricing.customQuoteFrom} gebruikers maken we een offerte op maat.{" "}
+            <a href="/contact?onderwerp=zakelijke-offerte" className="font-semibold underline">
+              Vraag een offerte aan
+            </a>
+            .
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between text-sm text-[color:var(--text-muted)]">
+              <span>
+                {seats} × {eur(perSeatCents)} / {periodNl}
+              </span>
+              <span>{eur(total)}</span>
+            </div>
+            <div className="flex items-center justify-between text-base font-bold">
+              <span>Totaal excl. btw · per {periodNl}</span>
+              <span>{eur(total)}</span>
+            </div>
+            {discountCode && (
+              <div className="mt-1 text-[0.6875rem] text-[color:var(--green)]">
+                Kortingscode {discountCode} wordt op de volgende pagina toegepast.
+              </div>
+            )}
+            {affiliateCode && (
+              <div className="mt-1 text-[0.6875rem] text-[color:var(--text-soft)]">
+                Affiliate-referentie: {affiliateCode}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -266,16 +330,19 @@ export function CheckoutForm({
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || isCustom}
         className="btn btn-primary w-full disabled:opacity-50"
       >
         {submitting ? "Verbinden met Mollie…" : "Doorgaan naar betalen"}
       </button>
 
-      <p className="text-[0.6875rem] text-[color:var(--text-soft)]">
-        Je betaalt {eur(total)} excl. btw. Na succesvolle betaling word je de
-        eigenaar van de nieuwe organisatie en kun je teamleden uitnodigen.
-      </p>
+      {!isCustom && (
+        <p className="text-[0.6875rem] text-[color:var(--text-soft)]">
+          Je betaalt {eur(total)} excl. btw per {periodNl}. Na succesvolle betaling
+          word je de eigenaar van de nieuwe organisatie en kun je teamleden
+          uitnodigen.
+        </p>
+      )}
     </form>
   );
 }
