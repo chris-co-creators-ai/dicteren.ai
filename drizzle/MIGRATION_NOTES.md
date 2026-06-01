@@ -1,5 +1,26 @@
 # Migration Notes
 
+## 0025 — Editbare prijs-SSOT (2026-06-01)
+
+Verplaatst de zakelijke staffel uit hardcoded `services/pricingTiers.ts` naar de
+DB zodat admin de prijs kan wijzigen zonder deploy. Twee tabellen:
+- `pricing_tiers` — jaarprijs per seat per staffel-band (seed: 1-4 €120, 5-9 €108,
+  10-24 €102, 25-49 €96).
+- `pricing_settings` — singleton (CHECK id=1) met periode-premies (kwartaal +25%,
+  maand +50%) + custom-quote-drempel (50).
+
+**Premie-model:** staffel = jaarprijs. kwartaal = jaar/4 ×1,25, maand = jaar/12 ×1,5.
+Base €120 → €37,50/kwartaal → €15/maand.
+
+**Read-pad:** `services/pricing.ts::getPricing()` (server, cache 60s, fallback naar
+`DEFAULT_PRICING` als tabel leeg/onbereikbaar). PURE rekenfuncties
+(`tierForSeats`, `perSeatCentsForPeriod`, `businessAmountCents`) in
+`pricingTiers.ts` zodat client-componenten ze zonder db-import kunnen gebruiken.
+
+**Uitgevoerd op:** 2026-06-01 (Neon `fragrant-silence-83171500`). Additief.
+
+---
+
 ## 0018 — Prospect-flow naar crm_contacts (2026-05-28)
 
 Background: tot deze datum schreef `/api/admin/prospects` rijen direct in

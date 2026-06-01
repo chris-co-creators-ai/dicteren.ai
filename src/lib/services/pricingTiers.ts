@@ -23,7 +23,9 @@ export type SeatTierId =
   | "tier_custom";
 
 export type SeatTier = {
-  id: SeatTierId;
+  /** Stabiel id voor UI-equality. Vaste staffels gebruiken de literals hierboven;
+   *  DB-staffels krijgen `tier_<min>_<max>`. "tier_custom" = maatwerk-sentinel. */
+  id: string;
   min: number;
   /** null = open einde (custom tier) */
   max: number | null;
@@ -167,4 +169,113 @@ export function tierLabel(tier: SeatTier): string {
   if (tier.id === "tier_custom") return "Maatwerk-offerte";
   if (tier.max === null) return `${tier.min}+ seats`;
   return `${tier.min}–${tier.max} seats`;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Periode-bewuste, editbare prijs-laag (SSOT)
+//
+// De staffel hierboven (SEAT_TIERS) is de hardcoded fallback. De echte prijs
+// leeft in de DB (pricing_tiers + pricing_settings) en wordt server-side
+// ingeladen via `getPricing()` in services/pricing.ts. Dat levert een
+// PricingSnapshot die je in deze PURE functies stopt — zo blijven deze
+// helpers bruikbaar in zowel server- als client-componenten (geen db-import).
+//
+// Premie-model: de staffel is een JAARprijs per seat. Kwartaal en maand zijn
+// die jaarprijs gedeeld door 4 resp. 12, met een premie eroverheen:
+//   kwartaal = jaar/4  × (1 + quarterlyPremiumPct/100)
+//   maand    = jaar/12 × (1 + monthlyPremiumPct/100)
+// ───────────────────────────────────────────────────────────────────────────
+
+export type BillingPeriod = "monthly" | "quarterly" | "yearly" | "lifetime";
+
+/** Volledige prijs-config: staffel + premies + maatwerk-drempel. */
+export type PricingSnapshot = {
+  /** Gesorteerde staffel, exclusief de custom-tier. */
+  tiers: SeatTier[];
+  quarterlyPremiumPct: number;
+  monthlyPremiumPct: number;
+  customQuoteFrom: number;
+  currency: string;
+};
+
+/** Hardcoded fallback — exact de oude staffel + premie-defaults. Gebruikt als
+ *  de DB (nog) leeg is of niet bereikbaar. */
+export const DEFAULT_PRICING: PricingSnapshot = {
+  tiers: [...SEAT_TIERS],
+  quarterlyPremiumPct: 25,
+  monthlyPremiumPct: 50,
+  customQuoteFrom: CUSTOM_QUOTE_FROM,
+  currency: "EUR",
+};
+
+/** Pak de staffel-rij voor een seat-aantal binnen een snapshot. 50+ → custom. */
+export function tierForSeats(pricing: PricingSnapshot, seats: number): SeatTier {
+  if (seats >= pricing.customQuoteFrom) {
+    return { ...CUSTOM_TIER, min: pricing.customQuoteFrom };
+  }
+  for (const tier of pricing.tiers) {
+    if (seats >= tier.min && (tier.max === null || seats <= tier.max)) {
+      return tier;
+    }
+  }
+  return pricing.tiers[0] ?? SEAT_TIERS[0];
+}
+
+/** Prijs per seat voor de gekozen termijn (premie op de jaar-staffel).
+ *  Returnt 0 voor de custom-tier (maatwerk-offerte). */
+export function perSeatCentsForPeriod(
+  pricing: PricingSnapshot,
+  seats: number,
+  period: BillingPeriod,
+): number {
+  const tier = tierForSeats(pricing, seats);
+  if (tier.id === "tier_custom") return 0;
+  const yearly = tier.pricePerSeatCents;
+  switch (period) {
+    case "yearly":
+      return yearly;
+    case "quarterly":
+      return Math.round((yearly / 4) * (1 + pricing.quarterlyPremiumPct / 100));
+    case "monthly":
+      return Math.round((yearly / 12) * (1 + pricing.monthlyPremiumPct / 100));
+    case "lifetime":
+      return yearly * 4;
+  }
+}
+
+/** Totaal te betalen zakelijk bedrag (cents) voor seats × periode.
+ *  0 = maatwerk-offerte vereist (seats ≥ customQuoteFrom). */
+export function businessAmountCents(
+  pricing: PricingSnapshot,
+  seats: number,
+  period: BillingPeriod,
+): number {
+  if (seats >= pricing.customQuoteFrom) return 0;
+  return perSeatCentsForPeriod(pricing, seats, period) * Math.max(1, seats);
+}
+
+/** Volgende staffel-mijlpaal binnen een snapshot (voor nudges). */
+export function nextTierFromSnapshot(
+  pricing: PricingSnapshot,
+  seats: number,
+): SeatTier | null {
+  if (seats >= pricing.customQuoteFrom) return null;
+  for (const tier of pricing.tiers) {
+    if (tier.min > seats) return tier;
+  }
+  return null;
+}
+
+/** Mollie-interval-string per termijn (lifetime → null, niet recurring). */
+export function periodLabelNl(period: BillingPeriod): string {
+  switch (period) {
+    case "monthly":
+      return "maand";
+    case "quarterly":
+      return "kwartaal";
+    case "yearly":
+      return "jaar";
+    case "lifetime":
+      return "eenmalig";
+  }
 }

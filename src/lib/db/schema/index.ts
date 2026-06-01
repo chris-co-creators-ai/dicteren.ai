@@ -7,6 +7,7 @@
 //  - auth-bridge      — re-exports van Better Auth's auth.* tabellen
 //  - licensing        — licenses, devices, activations, plans
 //  - billing          — orders, payments, subscriptions, discount-codes
+//  - pricing          — editbare zakelijke staffel + periode-premies (SSOT)
 //  - identity-extensions — user/organization billing + staff page-blocks
 //  - crm              — customer-attributes, lead-lists, column-prefs
 //  - partner          — maatschappelijke outreach + tasks + comments
@@ -17,6 +18,7 @@
 export * from "./auth-bridge";
 export * from "./licensing";
 export * from "./billing";
+export * from "./pricing";
 export * from "./identity-extensions";
 export * from "./crm";
 export * from "./crmDeals";

@@ -30,7 +30,6 @@ import {
 import {
   getTierForSeats,
   type SeatTier,
-  type SeatTierId,
 } from "./pricingTiers";
 import { generateLicenseCode, hashLicenseCode } from "./license";
 import { logEvent } from "./audit";
@@ -755,7 +754,7 @@ export async function getOrgInfo(orgId: string): Promise<{
 }
 
 /** Helper voor enum-naar-pricing tier-id mapping in subscription history. */
-export function tierIdString(tier: SeatTier): SeatTierId {
+export function tierIdString(tier: SeatTier): string {
   return tier.id;
 }
 
