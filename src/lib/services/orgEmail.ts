@@ -907,6 +907,76 @@ function b2bPaymentLinkText(params: {
   ].join("\n");
 }
 
+// ───── 13. Brand-identity-verzoek (AM → geïnteresseerde partner/reseller) ──
+
+export async function sendBrandIdentityRequestEmail(params: {
+  to: string;
+  contactName?: string;
+  organizationName: string;
+  accountManagerName?: string;
+  accountManagerEmail: string;
+}): Promise<ServiceResult<SendResult>> {
+  return sendEmail({
+    to: params.to,
+    subject: `Wat we nodig hebben voor de partnership met ${params.organizationName}`,
+    html: brandIdentityRequestHtml(params),
+    text: brandIdentityRequestText(params),
+    // Reageren gaat rechtstreeks naar de account manager, niet naar de
+    // algemene inbox — de partner stuurt de bestanden terug in de reply.
+    replyTo: params.accountManagerEmail,
+    tags: [{ name: "category", value: "brand_identity_request" }],
+    log: { category: "other" },
+  });
+}
+
+function brandIdentityRequestHtml(params: {
+  contactName?: string;
+  organizationName: string;
+  accountManagerName?: string;
+}): string {
+  const am = params.accountManagerName ?? "team Dicteren.ai";
+  return shellHtml(
+    "Even wat we van je nodig hebben",
+    `<p style="margin:0 0 14px 0;">Hoi${params.contactName ? " " + params.contactName : ""},</p>
+    <p style="margin:0 0 14px 0;">Leuk dat <strong>${params.organizationName}</strong> partner wil worden van Dicteren.ai. Om jullie eigen partnerpagina en materialen te bouwen, hebben we een paar dingen van je nodig.</p>
+    <p style="margin:0 0 8px 0;font-weight:700;color:${BRAND.navy};">Stuur ons terug:</p>
+    <ul style="margin:0 0 18px 18px;padding:0;color:${BRAND.text};">
+      <li style="margin-bottom:6px;">Je logo (PNG of SVG)</li>
+      <li style="margin-bottom:6px;">Je lettertype (naam of bestand)</li>
+      <li style="margin-bottom:6px;">Je merkkleuren (hex-codes)</li>
+      <li style="margin-bottom:6px;">Een paar foto's van je team</li>
+      <li style="margin-bottom:6px;">Een korte omschrijving: wie je bent, wat je doet, en waarom je voor een partnership met Dicteren.ai koos</li>
+    </ul>
+    <p style="margin:0 0 14px 0;">Reageer gewoon op deze mail met de bestanden, dan gaan we ermee aan de slag.</p>
+    <p style="margin:0;">Groet,<br>${am}</p>`,
+  );
+}
+
+function brandIdentityRequestText(params: {
+  contactName?: string;
+  organizationName: string;
+  accountManagerName?: string;
+}): string {
+  const am = params.accountManagerName ?? "team Dicteren.ai";
+  return [
+    `Hoi${params.contactName ? " " + params.contactName : ""},`,
+    "",
+    `Leuk dat ${params.organizationName} partner wil worden van Dicteren.ai. Om jullie eigen partnerpagina en materialen te bouwen, hebben we een paar dingen van je nodig.`,
+    "",
+    "Stuur ons terug:",
+    "- Je logo (PNG of SVG)",
+    "- Je lettertype (naam of bestand)",
+    "- Je merkkleuren (hex-codes)",
+    "- Een paar foto's van je team",
+    "- Een korte omschrijving: wie je bent, wat je doet, en waarom je voor een partnership met Dicteren.ai koos",
+    "",
+    "Reageer gewoon op deze mail met de bestanden, dan gaan we ermee aan de slag.",
+    "",
+    "Groet,",
+    am,
+  ].join("\n");
+}
+
 // ───── 12. B2B welkomstmail met ALLE seat-codes (Route 2 + AM) ────
 
 export async function sendB2BWelcomeWithCodesEmail(params: {

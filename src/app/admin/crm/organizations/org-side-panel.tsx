@@ -578,6 +578,8 @@ function ResellerTab({
 }) {
   const [notes, setNotes] = useState(org.resellerNotes ?? "");
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState<string | null>(null);
   useEffect(() => setNotes(org.resellerNotes ?? ""), [org.resellerNotes]);
 
   async function save() {
@@ -589,8 +591,55 @@ function ResellerTab({
     }
   }
 
+  async function requestBrandIdentity() {
+    setSending(true);
+    setSendMsg(null);
+    try {
+      const res = await fetch(
+        `/api/admin/crm/organizations/${org.id}/brand-identity-request`,
+        { method: "POST" },
+      );
+      const data = await res.json().catch(() => null);
+      setSendMsg(
+        res.ok && data?.success
+          ? `Verzoek verstuurd naar ${data.sentTo}. De partner reageert op jouw mail.`
+          : data?.error ?? "Versturen mislukt",
+      );
+    } catch (e) {
+      setSendMsg((e as Error).message);
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <div className="space-y-3">
+      <div
+        className="space-y-2 rounded-lg border bg-[color:var(--bg)] p-3"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <h4 className="text-xs font-bold uppercase text-[color:var(--text-muted)]">
+          Partnership opstarten
+        </h4>
+        <p className="text-xs text-[color:var(--text-muted)]">
+          Stuur het primaire contact een verzoek om hun brand-identity (logo,
+          lettertype, hex-codes, teamfoto's, korte omschrijving). De partner
+          reageert rechtstreeks op jouw mail met de bestanden.
+        </p>
+        <button
+          type="button"
+          onClick={requestBrandIdentity}
+          disabled={sending}
+          className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+          style={{ background: "var(--navy)" }}
+        >
+          {sending ? "Versturen..." : "Brand-identity opvragen"}
+        </button>
+        {sendMsg && (
+          <p className="text-xs font-medium text-[color:var(--navy)]">{sendMsg}</p>
+        )}
+      </div>
+
       <h3 className="text-sm font-bold text-[color:var(--navy)]">
         Reseller-notities
       </h3>
