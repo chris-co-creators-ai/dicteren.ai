@@ -1091,6 +1091,7 @@ export function CrmView({
               className="border-separate border-spacing-0 text-sm"
               style={{
                 tableLayout: "fixed",
+                minWidth: "100%",
                 width:
                   72 +
                   orderedColumns.reduce((sum, c) => sum + colWidth(c), 0),
@@ -1102,6 +1103,9 @@ export function CrmView({
                   <col key={col} style={{ width: colWidth(col) }} />
                 ))}
                 <col style={{ width: 36 }} />
+                {/* Filler: slokt resterende breedte zodat er geen dode witruimte
+                    rechts staat (Excel/Clay). Geen width = krijgt de rest. */}
+                <col />
               </colgroup>
               <thead>
                 <tr
@@ -1159,7 +1163,8 @@ export function CrmView({
                       </th>
                     );
                   })}
-                  <th className="border-b border-[color:var(--border-soft)] px-2"></th>
+                  <th className="border-b border-r border-[color:var(--border-soft)] px-2"></th>
+                  <th className="border-b border-[color:var(--border-soft)]"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1178,7 +1183,7 @@ export function CrmView({
                 {filtered.length === 0 && !addingInline ? (
                   <tr>
                     <td
-                      colSpan={orderedColumns.length + 2}
+                      colSpan={orderedColumns.length + 3}
                       className="px-3 py-10 text-center text-sm text-[color:var(--text-muted)]"
                     >
                       Geen contacten in dit filter.
@@ -1273,6 +1278,7 @@ export function CrmView({
                           </button>
                         )}
                       </td>
+                      <td className="border-b border-[color:var(--border-soft)]" />
                     </tr>
                     );
                   })
