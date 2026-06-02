@@ -60,6 +60,9 @@ export async function validateDiscountCode(args: {
   planId?: string | null;
   seats?: number;
   audience?: "consumer" | "organization" | null;
+  /** Looptijd van het plan in maanden (jaar=12, kwartaal=3, maand=1). Nodig om
+   *  een free_months-code te vertalen naar een korting op de eerste betaling. */
+  periodMonths?: number | null;
 }): Promise<DiscountValidation> {
   const normalized = normalizeCode(args.code);
   const [row] = await db
@@ -141,19 +144,31 @@ export async function validateDiscountCode(args: {
     );
   } else if (row.type === "fixed") {
     discountAmountCents = Math.min(row.value, args.basisAmountCents);
+  } else if (row.type === "free_months") {
+    // "N maanden gratis" = korting t.w.v. N maanden op de EERSTE betaling.
+    // Bewuste keuze: het label "2 maanden gratis" geeft sterkere waarde-
+    // perceptie dan een percentage, maar de korting valt meteen op de prijs
+    // (jaar €96, 2 mnd gratis → €80 nu). Het recurring-bedrag blijft vol —
+    // alleen de eerste periode is goedkoper.
+    if (args.periodMonths && args.periodMonths > 0) {
+      const perMonthCents = args.basisAmountCents / args.periodMonths;
+      discountAmountCents = Math.min(
+        Math.round(perMonthCents * row.value),
+        args.basisAmountCents,
+      );
+    }
   }
-  // free_months → geen direct kortingsbedrag, wordt vertaald naar
-  // subscription.startDate in de webhook-flow.
 
   const payableAmountCents = Math.max(
     0,
     args.basisAmountCents - discountAmountCents,
   );
 
-  // Een te betalen bedrag van €0 (100%-korting of fixed ≥ bedrag) laat Mollie
-  // met 422 klappen — er is geen €0-fulfillment-pad. Weiger zo'n code i.p.v.
-  // de checkout te laten crashen. free_months heeft geen direct kortingsbedrag.
-  if (row.type !== "free_months" && payableAmountCents <= 0) {
+  // Een te betalen bedrag van €0 laat Mollie met 422 klappen — er is geen
+  // €0-fulfillment-pad. Geldt nu ook voor free_months: "12 maanden gratis op
+  // een jaarabo" = 100% → weigeren. Voor volledig gratis is een admin-grant
+  // het juiste pad, niet een checkout-code.
+  if (payableAmountCents <= 0) {
     return {
       success: false,
       error:

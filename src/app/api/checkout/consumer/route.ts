@@ -7,6 +7,7 @@ import {
   getPlanBySlug,
   isRecurringPlan,
   mollieMetadataForOrder,
+  periodToMonths,
 } from "@/lib/services/order";
 import { createCustomerPayment, createPayment } from "@/lib/services/mollie";
 import { buildMollieMetadata } from "@/lib/services/mollie-metadata";
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
       planId: plan.id,
       seats: 1,
       audience: "consumer",
+      periodMonths: periodToMonths(plan.period),
     });
     if (!validation.success) {
       return NextResponse.json(

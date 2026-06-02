@@ -733,18 +733,9 @@ export async function POST(request: Request) {
             subMetadata.seats = fulfilled.seats;
           }
 
-          // free_months-korting: stel de eerste incasso N maanden uit bovenop de
-          // betaalde periode. De klant betaalde periode 1 nu; met free_months
-          // krijgt hij N maanden extra voordat de auto-renew start.
-          const subStartAt = new Date(fulfilled.expiresAt);
-          if (
-            discountFromMeta?.type === "free_months" &&
-            typeof discountFromMeta.value === "number" &&
-            discountFromMeta.value > 0
-          ) {
-            subStartAt.setMonth(subStartAt.getMonth() + discountFromMeta.value);
-          }
-
+          // free_months is een korting op de EERSTE betaling (zie discount.ts),
+          // niet een uitgestelde incasso. De subscription start dus gewoon aan
+          // het eind van de betaalde periode, tegen het volle recurring-bedrag.
           const sub = await createMollieSubscription({
             customerId,
             amountCents: subAmountCents,
@@ -752,7 +743,7 @@ export async function POST(request: Request) {
             interval,
             description: `Dicteren.ai · ${fulfilled.plan.label} (auto-renew)`,
             webhookUrl: webhookUrlFor(base),
-            startDate: subStartAt.toISOString().slice(0, 10),
+            startDate: fulfilled.expiresAt.toISOString().slice(0, 10),
             metadata: subMetadata,
           });
           if (sub.success) {
