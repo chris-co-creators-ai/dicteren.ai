@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { licenses, orders } from "@/lib/db/schema";
 import { requireStaffApi } from "@/lib/auth/session";
 import { logEvent } from "@/lib/services/audit";
 import { appBase, webhookUrlFor } from "@/lib/url";
@@ -46,9 +46,19 @@ export async function POST(
       { status: 400 },
     );
   }
-  if (order.status === "paid") {
+
+  // Guard op het echte invariant: is er al een licentie voor deze order? Zo ja
+  // → echt klaar, niets te doen. Een order die op "paid" staat maar ZONDER
+  // licentie (halve fulfillment, B1-scenario) mag wél opnieuw — de idempotente
+  // webhook + fulfillPaidOrder herstelt 'm dan alsnog.
+  const [existingLicense] = await db
+    .select({ id: licenses.id })
+    .from(licenses)
+    .where(eq(licenses.orderId, order.id))
+    .limit(1);
+  if (existingLicense) {
     return NextResponse.json(
-      { success: false, error: "Order is al betaald en verwerkt." },
+      { success: false, error: "Order is al verwerkt: er bestaat al een licentie." },
       { status: 400 },
     );
   }
