@@ -49,7 +49,7 @@ export function PricingPreviewSection() {
           Eerlijke prijs. Geen verrassingen.
         </h2>
         <p className="mt-3 text-base text-[color:var(--text-muted)]">
-          Start gratis in de beta. Daarna kies je het abonnement dat past, of
+          Probeer 14 dagen gratis. Daarna kies je het abonnement dat past, of
           je stopt.
         </p>
       </div>
@@ -114,7 +114,7 @@ export function PricingPreviewSection() {
       </div>
 
       <p className="mt-4 text-center text-xs text-[color:var(--text-soft)]">
-        Prijzen zijn indicatief tijdens beta. Eindprijzen kunnen wijzigen.
+        Bedragen voor consumenten zijn inclusief btw.
       </p>
     </section>
   );

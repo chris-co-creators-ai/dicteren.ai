@@ -268,7 +268,7 @@ export default function AiToolsPage() {
               </div>
             </div>
             <p className="mt-4 text-[0.6875rem] italic text-[color:var(--text-soft)]">
-              Indicatief, op basis van interne tests met beta-gebruikers.
+              Indicatief, op basis van interne tests.
             </p>
           </div>
         </div>

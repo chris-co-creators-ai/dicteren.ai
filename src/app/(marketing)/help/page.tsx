@@ -479,13 +479,13 @@ export default function HelpPage() {
               <li>
                 Ga naar{" "}
                 <Link
-                  href="/beta"
+                  href="/prijzen"
                   className="font-semibold underline"
                   style={{ color: "var(--navy)" }}
                 >
-                  dicteren.ai/beta
+                  dicteren.ai/prijzen
                 </Link>{" "}
-                en vul je e-mail in.
+                en klik op de knop om 14 dagen gratis te starten.
               </li>
               <li>Je krijgt direct een mail met een code.</li>
               <li>
