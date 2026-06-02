@@ -9,11 +9,11 @@ import { customerAttributes } from "@/lib/db/schema";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ userId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const guard = await requireStaffApi();
   if ("response" in guard) return guard.response;
-  const { userId } = await params;
+  const { id: userId } = await params;
 
   let body: { key?: string; value?: string | number | null };
   try {

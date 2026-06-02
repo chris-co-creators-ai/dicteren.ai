@@ -73,6 +73,18 @@ export const auth = betterAuth({
       jwks: authJwks,
     },
   }),
+  // KRITIEK: onze auth.user-schema heeft een NOT NULL-kolom `email_normalized`
+  // (anti-abuse) + nullable `assistant_name`. Better Auth schrijft bij create
+  // ALLEEN gedeclareerde velden weg. Zonder deze declaratie gooit 'ie de in de
+  // create-hook gezette `emailNormalized` weg → INSERT met `default` (=NULL) →
+  // NOT NULL-violation → sign-up faalt (FAILED_TO_CREATE_USER). input:false =
+  // client mag ze niet zetten; de waarde komt server-side uit de hook.
+  user: {
+    additionalFields: {
+      emailNormalized: { type: "string", required: false, input: false },
+      assistantName: { type: "string", required: false, input: false },
+    },
+  },
   databaseHooks: {
     user: {
       create: {
