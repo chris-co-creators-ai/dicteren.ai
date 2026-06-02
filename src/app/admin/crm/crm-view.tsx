@@ -1413,9 +1413,29 @@ function PersonSidePanel({
   lists: LeadListOption[];
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<"overzicht" | "commercie" | "email">(
-    "overzicht",
-  );
+  const [tab, setTab] = useState<
+    "overzicht" | "activiteit" | "commercie" | "email"
+  >("overzicht");
+  const [timeline, setTimeline] = useState<
+    { id: string; at: string; kind: string; title: string; detail: string | null }[]
+  >([]);
+  const [tlLoaded, setTlLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/admin/customers/${person.id}/timeline`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (active && d.success) setTimeline(d.entries);
+      })
+      .finally(() => {
+        if (active) setTlLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [person.id]);
+
   const amName =
     adminUsers.find((u) => u.id === person.assignedToUserId)?.name ??
     "Niet toegewezen";
@@ -1432,6 +1452,7 @@ function PersonSidePanel({
 
   const TABS: { key: typeof tab; label: string }[] = [
     { key: "overzicht", label: "Overzicht" },
+    { key: "activiteit", label: "Activiteit" },
     { key: "commercie", label: "Commercie" },
     { key: "email", label: "E-mail" },
   ];
@@ -1509,6 +1530,47 @@ function PersonSidePanel({
                 <div className="mt-3 rounded-lg bg-[color:var(--bg)] p-3 text-xs text-[color:var(--text-muted)]">
                   {person.notes}
                 </div>
+              )}
+            </div>
+          )}
+
+          {tab === "activiteit" && (
+            <div>
+              {!tlLoaded ? (
+                <p className="py-6 text-center text-xs text-[color:var(--text-soft)]">
+                  Laden…
+                </p>
+              ) : timeline.length === 0 ? (
+                <p className="py-6 text-center text-xs text-[color:var(--text-soft)]">
+                  Nog geen activiteit voor deze klant.
+                </p>
+              ) : (
+                <ul className="space-y-0">
+                  {timeline.map((e, i) => (
+                    <li
+                      key={e.id}
+                      className={cn(
+                        "flex items-start gap-3 py-2.5",
+                        i > 0 && "border-t border-[color:var(--border-soft)]",
+                      )}
+                    >
+                      <span className="mt-1 size-2 shrink-0 rounded-full bg-[color:var(--orange)]" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-[color:var(--navy)]">
+                          {e.title}
+                        </div>
+                        {e.detail && (
+                          <div className="truncate text-[0.6875rem] text-[color:var(--text-muted)]">
+                            {e.detail}
+                          </div>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-[0.625rem] text-[color:var(--text-soft)]">
+                        {formatDate(e.at)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           )}
