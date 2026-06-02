@@ -80,7 +80,9 @@ export const crmOrganizations = pgTable(
     addressLine1: text("address_line1"),
     addressLine2: text("address_line2"),
     postalCode: text("postal_code"),
+    houseNumber: text("house_number"),
     city: text("city"),
+    province: text("province"),
     countryCode: text("country_code").default("NL"),
 
     // CRM-metadata

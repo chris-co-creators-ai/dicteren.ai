@@ -22,6 +22,7 @@ import {
   type ActivityType,
   type ActivityDirection,
 } from "@/lib/config/crmActivity";
+import { NL_PROVINCES } from "@/lib/services/nlProvinces";
 
 type Admin = { id: string; name: string; email: string };
 
@@ -34,7 +35,9 @@ type Org = {
   addressLine1: string | null;
   addressLine2: string | null;
   postalCode: string | null;
+  houseNumber: string | null;
   city: string | null;
+  province: string | null;
   countryCode: string | null;
   status: string;
   source: string;
@@ -293,6 +296,42 @@ function DetailsTab({
 }) {
   const [f, setF] = useState(org);
   const [saving, setSaving] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
+  const [lookupMsg, setLookupMsg] = useState<string | null>(null);
+
+  // PDOK-lookup: postcode + huisnummer → straat/plaats/provincie auto-invullen.
+  async function runAddressLookup() {
+    if (!f.postalCode || !f.houseNumber) {
+      setLookupMsg("Vul postcode + huisnummer in");
+      return;
+    }
+    setLookingUp(true);
+    setLookupMsg(null);
+    try {
+      const res = await fetch(
+        `/api/admin/crm/address-lookup?postcode=${encodeURIComponent(f.postalCode)}&huisnummer=${encodeURIComponent(f.houseNumber)}`,
+      );
+      const data = await res.json();
+      if (!data.success) {
+        setLookupMsg(data.error ?? "Geen adres gevonden");
+        return;
+      }
+      const a = data.address;
+      setF((prev) => ({
+        ...prev,
+        addressLine1:
+          a.street && a.houseNumber ? `${a.street} ${a.houseNumber}` : prev.addressLine1,
+        postalCode: a.postalCode ?? prev.postalCode,
+        city: a.city ?? prev.city,
+        province: a.province ?? prev.province,
+      }));
+      setLookupMsg(`✓ ${a.displayName ?? "adres gevonden"}`);
+    } catch {
+      setLookupMsg("Adres-service niet bereikbaar");
+    } finally {
+      setLookingUp(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -304,7 +343,9 @@ function DetailsTab({
       addressLine1: f.addressLine1,
       addressLine2: f.addressLine2,
       postalCode: f.postalCode,
+      houseNumber: f.houseNumber,
       city: f.city,
+      province: f.province,
       countryCode: f.countryCode,
       accountOwnerId: f.accountOwnerId,
       notes: f.notes,
@@ -331,11 +372,44 @@ function DetailsTab({
       </Section>
 
       <Section title="Adres">
+        {/* Postcode + huisnummer → automatisch adres via PDOK (gratis, NL-overheid) */}
+        <div className="flex items-end gap-2">
+          <div className="grid flex-1 grid-cols-2 gap-2">
+            <TextField label="Postcode" value={f.postalCode ?? ""} onChange={(v) => setF({ ...f, postalCode: v })} />
+            <TextField label="Huisnr." value={f.houseNumber ?? ""} onChange={(v) => setF({ ...f, houseNumber: v })} />
+          </div>
+          <button
+            type="button"
+            onClick={runAddressLookup}
+            disabled={lookingUp}
+            className="mb-0.5 shrink-0 rounded-lg bg-[color:var(--navy)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            {lookingUp ? "Zoeken…" : "Adres ophalen"}
+          </button>
+        </div>
+        {lookupMsg && (
+          <p className="text-[0.6875rem] text-[color:var(--text-muted)]">{lookupMsg}</p>
+        )}
         <TextField label="Straat + nummer" value={f.addressLine1 ?? ""} onChange={(v) => setF({ ...f, addressLine1: v })} />
         <TextField label="Adres extra" value={f.addressLine2 ?? ""} onChange={(v) => setF({ ...f, addressLine2: v })} />
         <div className="grid grid-cols-3 gap-2">
-          <TextField label="Postcode" value={f.postalCode ?? ""} onChange={(v) => setF({ ...f, postalCode: v })} />
           <TextField label="Plaats" value={f.city ?? ""} onChange={(v) => setF({ ...f, city: v })} />
+          <label className="block">
+            <span className="text-xs font-semibold">Provincie</span>
+            <select
+              value={f.province ?? ""}
+              onChange={(e) => setF({ ...f, province: e.target.value || null })}
+              className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <option value="">—</option>
+              {NL_PROVINCES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
           <TextField label="Land" value={f.countryCode ?? "NL"} onChange={(v) => setF({ ...f, countryCode: v })} />
         </div>
       </Section>
