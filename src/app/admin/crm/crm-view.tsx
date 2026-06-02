@@ -6,6 +6,7 @@ import {
   AtSign,
   Building2,
   Columns3,
+  Expand,
   Eye,
   EyeOff,
   FileSpreadsheet,
@@ -591,6 +592,18 @@ export function CrmView({
     setSelected(new Set());
   }
 
+  // Clay-stijl "expand record": opent het detail-side-panel voor déze rij.
+  // Klant (auth.user) → PersonSidePanel; prospect (crm_contact) → het docked
+  // bedrijf-panel rechts. Wordt aangeroepen door het Expand-icoon links in de
+  // checkbox-kolom (op hover) én de pijl-knop in de actie-kolom.
+  function openRecord(r: Customer) {
+    if (r.kind === "prospect") {
+      if (r.organizationId) setDockedOrgId(r.organizationId);
+    } else {
+      setPersonFor(r);
+    }
+  }
+
   async function bulkUpdate(patch: {
     stage?: CrmStage | null;
     temperature?: Temperature | null;
@@ -1097,12 +1110,12 @@ export function CrmView({
                 tableLayout: "fixed",
                 minWidth: "100%",
                 width:
-                  72 +
+                  116 +
                   orderedColumns.reduce((sum, c) => sum + colWidth(c), 0),
               }}
             >
               <colgroup>
-                <col style={{ width: 36 }} />
+                <col style={{ width: 56 }} />
                 {orderedColumns.map((col) => (
                   <col key={col} style={{ width: colWidth(col) }} />
                 ))}
@@ -1204,13 +1217,23 @@ export function CrmView({
                         isSel ? "bg-[color:var(--bg-deep)]" : "bg-white hover:bg-[color:var(--bg)]",
                       )}
                     >
-                      <td className="h-8 w-9 border-b border-r border-[color:var(--border-soft)] px-2 text-center align-middle">
-                        <input
-                          type="checkbox"
-                          checked={isSel}
-                          onChange={() => toggleRow(r.id)}
-                          aria-label={`Select ${r.email}`}
-                        />
+                      <td className="h-8 border-b border-r border-[color:var(--border-soft)] px-1 align-middle">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={isSel}
+                            onChange={() => toggleRow(r.id)}
+                            aria-label={`Select ${r.email}`}
+                          />
+                          <button
+                            onClick={() => openRecord(r)}
+                            className="text-[color:var(--text-soft)] opacity-0 transition-opacity hover:text-[color:var(--navy)] group-hover:opacity-100"
+                            title="Open record (side-panel)"
+                            aria-label={`Open ${r.email}`}
+                          >
+                            <Expand className="size-3.5" strokeWidth={2} />
+                          </button>
+                        </div>
                       </td>
                       {orderedColumns.map((col) => (
                         <td
