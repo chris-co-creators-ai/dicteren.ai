@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowRight,
   AtSign,
   Building2,
   Columns3,
@@ -598,9 +599,12 @@ export function CrmView({
   // checkbox-kolom (op hover) én de pijl-knop in de actie-kolom.
   function openRecord(r: Customer) {
     if (r.kind === "prospect") {
-      if (r.organizationId) setDockedOrgId(r.organizationId);
+      const orgId = r.organizationId;
+      if (!orgId) return;
+      // Toggle: zelfde rij nog eens = panel dicht.
+      setDockedOrgId((cur) => (cur === orgId ? null : orgId));
     } else {
-      setPersonFor(r);
+      setPersonFor((cur) => (cur?.id === r.id ? null : r));
     }
   }
 
@@ -765,38 +769,38 @@ export function CrmView({
     <>
       <AdminTopbar />
 
-      <div className="flex flex-col gap-5 px-5 py-7 lg:px-7">
-        <CrmTabs active={activeTab} onChange={onTabChange} />
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-[1.625rem]">
+      <div className="flex flex-col gap-3 px-5 py-4 lg:px-7">
+        {/* Titel links, compacte view-toggle (Personen / Organisaties) rechts */}
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold tracking-tight text-[color:var(--navy)]">
             CRM
           </h1>
-          <p className="mt-1 text-sm text-[color:var(--text-muted)]">
-            Pipeline-management: lijsten, stages (lead → MQL → SQL → klant),
-            temperatuur, account-manager toewijzing en overdracht naar
-            sales/affiliate.
-          </p>
+          <CrmTabs active={activeTab} onChange={onTabChange} />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* KPI's als dichte strook — geen losse kaarten (data-dense cockpit) */}
+        <div className="flex flex-wrap overflow-hidden rounded-lg border border-[color:var(--border-soft)] bg-white">
           {kpis.map((kpi) => (
-            <div key={kpi.label} className="brand-card p-4">
-              <div className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+            <div
+              key={kpi.label}
+              className="flex min-w-[150px] flex-1 flex-col gap-0.5 border-r border-[color:var(--border-soft)] px-4 py-2 last:border-r-0"
+            >
+              <span className="text-[0.6875rem] font-medium text-[color:var(--text-muted)]">
                 {kpi.label}
-              </div>
-              <div className="mt-1 text-2xl font-bold tracking-tight">
+              </span>
+              <span className="text-lg font-bold leading-none tracking-tight tabular-nums text-[color:var(--navy)]">
                 {kpi.value}
-              </div>
-              <div className="mt-1 text-[0.6875rem] text-[color:var(--text-soft)]">
+              </span>
+              <span className="text-[0.625rem] text-[color:var(--text-soft)]">
                 {kpi.detail}
-              </div>
+              </span>
             </div>
           ))}
         </div>
 
         <div className="brand-card overflow-hidden p-0">
-          {/* Tab-rij: Alle + lijsten + Nieuwe */}
-          <div className="flex items-center gap-1 overflow-x-auto border-b border-[color:var(--border-soft)] px-3 py-2">
+          {/* Lijsten-rij: Alle + custom lijsten + Nieuwe */}
+          <div className="flex items-center gap-1 overflow-x-auto border-b border-[color:var(--border-soft)] px-3 py-1.5">
             <TabButton
               active={activeListId === "all"}
               onClick={() => setActiveListId("all")}
@@ -848,9 +852,9 @@ export function CrmView({
             </div>
           )}
 
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--border-soft)] p-3">
-            <div className="relative w-full sm:w-72">
+          {/* Filters + acties */}
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-[color:var(--border-soft)] px-3 py-2">
+            <div className="relative w-full sm:w-64">
               <Search
                 className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2"
                 strokeWidth={2.2}
@@ -982,7 +986,7 @@ export function CrmView({
               </div>
               <button
                 onClick={() => setAddingInline(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--orange)] px-3 py-2 text-xs font-semibold text-white hover:bg-[color:var(--orange-600)]"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--orange)] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[color:var(--orange-600)]"
                 title="Voeg een nieuwe prospect-rij toe (inline)"
               >
                 <Plus className="size-3.5" strokeWidth={2.2} />
@@ -990,7 +994,7 @@ export function CrmView({
               </button>
               <button
                 onClick={() => setShowCsvImport(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-1.5 text-xs font-semibold"
                 style={{ background: "var(--bg)" }}
                 title="CSV import met auto-lijst"
               >
@@ -999,7 +1003,7 @@ export function CrmView({
               </button>
               <button
                 onClick={() => setShowAddProspect(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-1.5 text-xs font-semibold"
                 style={{ background: "var(--bg)" }}
                 title="Uitgebreid prospect-form (volledige velden + lijsten)"
               >
@@ -1008,7 +1012,7 @@ export function CrmView({
               </button>
               <button
                 onClick={() => setShowColumnManager(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-2 text-xs font-semibold"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-1.5 text-xs font-semibold"
                 style={{ background: "var(--bg)" }}
                 title="Kolommen beheren"
               >
@@ -1288,33 +1292,30 @@ export function CrmView({
                       ))}
                       <td className="h-8 border-b border-[color:var(--border-soft)] px-1 text-center align-middle">
                         {r.kind === "prospect" ? (
-                          <div className="flex items-center justify-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() =>
-                                r.organizationId &&
-                                setDockedOrgId(r.organizationId)
-                              }
+                              onClick={() => openRecord(r)}
                               disabled={!r.organizationId}
-                              className="text-blue-600 opacity-60 hover:opacity-100 disabled:opacity-20"
+                              className="text-[color:var(--text-soft)] hover:text-[color:var(--navy)] disabled:opacity-20"
                               title="Open bedrijf-panel (notuleren, belscript, FAQ)"
                             >
-                              →
+                              <ArrowRight className="size-3.5" strokeWidth={2} />
                             </button>
                             <button
                               onClick={() => setEnrichFor(r)}
-                              className="text-blue-600 opacity-60 hover:opacity-100"
+                              className="text-[color:var(--text-soft)] hover:text-[color:var(--orange)]"
                               title="Verrijking bewerken"
                             >
-                              ✦
+                              <Sparkles className="size-3.5" strokeWidth={2} />
                             </button>
                           </div>
                         ) : (
                           <button
-                            onClick={() => setPersonFor(r)}
-                            className="text-blue-600 opacity-60 hover:opacity-100"
+                            onClick={() => openRecord(r)}
+                            className="text-[color:var(--text-soft)] hover:text-[color:var(--navy)]"
                             title="Open klant-paneel"
                           >
-                            →
+                            <ArrowRight className="size-3.5" strokeWidth={2} />
                           </button>
                         )}
                       </td>
@@ -1326,8 +1327,8 @@ export function CrmView({
               </tbody>
             </table>
           </div>
-          <aside className="sticky top-4 hidden h-[calc(100vh-150px)] w-[420px] shrink-0 overflow-hidden rounded-xl border border-[color:var(--border-soft)] bg-white xl:block">
-            {dockedOrgId ? (
+          {dockedOrgId && (
+            <aside className="sticky top-4 hidden h-[calc(100vh-150px)] w-[420px] shrink-0 overflow-hidden rounded-xl border border-[color:var(--border-soft)] bg-white xl:block">
               <OrgSidePanel
                 key={dockedOrgId}
                 docked
@@ -1336,13 +1337,8 @@ export function CrmView({
                 onClose={() => setDockedOrgId(null)}
                 onChanged={refresh}
               />
-            ) : (
-              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-[color:var(--text-muted)]">
-                Klik op → bij een prospect om het bedrijf, belscript, FAQ en
-                activiteit hier te zien en te notuleren.
-              </div>
-            )}
-          </aside>
+            </aside>
+          )}
           </div>
 
           )}
@@ -2083,7 +2079,7 @@ function TabButton({
   return (
     <div
       className={cn(
-        "group inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm",
+        "group inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs",
         active
           ? "bg-[color:var(--bg-deep)] font-bold text-[color:var(--navy)]"
           : "font-medium text-[color:var(--text-muted)] hover:text-[color:var(--navy)]",
@@ -2131,7 +2127,7 @@ function FilterSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-[color:var(--border-soft)] py-2 px-3 text-sm outline-none"
+      className="rounded-lg border border-[color:var(--border-soft)] px-2.5 py-1.5 text-xs outline-none focus:border-[color:var(--orange)]"
       style={{ background: "var(--bg)" }}
     >
       <option value="all">{label}</option>

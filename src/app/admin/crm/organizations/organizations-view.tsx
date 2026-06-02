@@ -189,17 +189,41 @@ export function OrganizationsView({
   return (
     <>
       <AdminTopbar />
-      <main className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-7 lg:px-7">
-        <CrmTabs active={activeTab} onChange={onTabChange} />
+      <main className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-4 lg:px-7">
+        {/* Titel links, view-toggle rechts — consistent met de Personen-tab */}
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold tracking-tight text-[color:var(--navy)]">
+            CRM
+          </h1>
+          <CrmTabs active={activeTab} onChange={onTabChange} />
+        </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <KpiCard label="Totaal" value={String(kpis.totalOrgs)} />
-        <KpiCard label="Open deals" value={String(kpis.openDeals)} />
-        <KpiCard label="Betaal-links uit" value={String(kpis.proposalsOut)} />
-        <KpiCard label="Klanten deze maand" value={String(kpis.wonThisMonth)} />
-        <KpiCard label="Forecast" value={fmtCents(kpis.totalForecastCents)} />
-      </div>
+        {/* KPI's als dichte strook — geen losse kaarten */}
+        <div
+          className="flex flex-wrap overflow-hidden rounded-lg border bg-white"
+          style={{ borderColor: "var(--border)" }}
+        >
+          {[
+            { label: "Totaal", value: String(kpis.totalOrgs) },
+            { label: "Open deals", value: String(kpis.openDeals) },
+            { label: "Betaal-links uit", value: String(kpis.proposalsOut) },
+            { label: "Klanten deze maand", value: String(kpis.wonThisMonth) },
+            { label: "Forecast", value: fmtCents(kpis.totalForecastCents) },
+          ].map((kpi) => (
+            <div
+              key={kpi.label}
+              className="flex min-w-[140px] flex-1 flex-col gap-0.5 border-r px-4 py-2 last:border-r-0"
+              style={{ borderColor: "var(--border-soft)" }}
+            >
+              <span className="text-[0.6875rem] font-medium text-[color:var(--text-muted)]">
+                {kpi.label}
+              </span>
+              <span className="text-lg font-bold leading-none tracking-tight tabular-nums text-[color:var(--navy)]">
+                {kpi.value}
+              </span>
+            </div>
+          ))}
+        </div>
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
@@ -387,22 +411,6 @@ export function OrganizationsView({
       )}
       </main>
     </>
-  );
-}
-
-function KpiCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      className="rounded-xl border bg-white p-4"
-      style={{ borderColor: "var(--border)" }}
-    >
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
-        {label}
-      </div>
-      <div className="mt-1 text-xl font-bold text-[color:var(--navy)]">
-        {value}
-      </div>
-    </div>
   );
 }
 
