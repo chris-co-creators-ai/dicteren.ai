@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -140,9 +141,12 @@ const KIND_META: Record<
 export function CustomerDetailView({
   summary,
   timeline,
+  children,
 }: {
   summary: Summary;
   timeline: TimelineEntry[];
+  /** Support-cockpit acties, gerenderd tussen de stats en de tijdlijn. */
+  children?: ReactNode;
 }) {
   const trialActive =
     summary.trialStatus === "active" &&
@@ -250,6 +254,9 @@ export function CustomerDetailView({
           </div>
         </div>
       )}
+
+      {/* Support-cockpit acties */}
+      {children}
 
       {/* Timeline */}
       <div className="rounded-xl border border-[color:var(--border-soft)] bg-white">

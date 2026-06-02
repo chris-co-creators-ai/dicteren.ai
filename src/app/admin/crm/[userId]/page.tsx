@@ -5,7 +5,9 @@ import {
   getCustomerSummary,
   getCustomerTimeline,
 } from "@/lib/services/customer-timeline";
+import { getCustomerSupportSnapshot } from "@/lib/services/adminSupport";
 import { CustomerDetailView } from "./customer-detail-view";
+import { SupportActions } from "./support-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +18,10 @@ export default async function AdminCustomerPage({
 }) {
   const { userId } = await params;
 
-  const [summary, timeline] = await Promise.all([
+  const [summary, timeline, support] = await Promise.all([
     getCustomerSummary(userId),
     getCustomerTimeline(userId),
+    getCustomerSupportSnapshot(userId),
   ]);
 
   if (!summary) {
@@ -63,7 +66,9 @@ export default async function AdminCustomerPage({
           title: e.title,
           detail: e.detail,
         }))}
-      />
+      >
+        {support && <SupportActions snapshot={support} />}
+      </CustomerDetailView>
     </div>
   );
 }
