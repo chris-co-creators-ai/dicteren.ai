@@ -3,17 +3,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  AtSign,
   Building2,
   Columns3,
   Eye,
   EyeOff,
   FileSpreadsheet,
   GripVertical,
+  Hash,
   Kanban,
+  Link2,
   List,
   Plus,
   Search,
   Settings2,
+  Sparkles,
+  Type as TypeIcon,
   Trash2,
   User,
   UserPlus,
@@ -621,6 +626,25 @@ export function CrmView({
     refresh();
   }
 
+  // Clay-stijl inline-edit voor prospect-tekstvelden. `name` → het contact,
+  // de rest → de enrichment-PATCH (coerce + total_reach server-side).
+  async function fieldSave(
+    id: string,
+    field: string,
+    value: string | null,
+  ): Promise<void> {
+    const url =
+      field === "name"
+        ? `/api/admin/crm/contacts/${id}`
+        : `/api/admin/crm/contacts/${id}/enrichment`;
+    await fetch(url, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    refresh();
+  }
+
   // Splits selectie in klanten (auth.user) en prospects (crm_contact) zodat
   // de polymorfe members-route beide takken juist wegschrijft.
   function splitSelection() {
@@ -1020,10 +1044,10 @@ export function CrmView({
             <table className="w-full min-w-[80rem] border-separate border-spacing-0 text-sm">
               <thead>
                 <tr
-                  className="text-[color:var(--text-muted)]"
+                  className="text-[color:var(--text-soft)]"
                   style={{ background: "var(--bg)" }}
                 >
-                  <th className="w-10 px-3 py-2.5">
+                  <th className="w-9 border-b border-r border-[color:var(--border-soft)] px-2 text-center">
                     <input
                       type="checkbox"
                       checked={
@@ -1041,18 +1065,27 @@ export function CrmView({
                     const customDef = isCustom
                       ? customColumns.find((c) => c.key === col)
                       : null;
+                    const Icon = columnIcon(col);
                     return (
                       <th
                         key={col}
-                        className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-[0.05em]"
+                        className="h-9 border-b border-r border-[color:var(--border-soft)] px-2 text-left text-xs font-medium"
                       >
-                        {customDef
-                          ? customDef.name
-                          : COLUMN_LABELS[col as ColumnKey] ?? col}
+                        <span className="flex items-center gap-1.5">
+                          <Icon
+                            className="size-3 shrink-0 text-[color:var(--text-soft)]"
+                            strokeWidth={2}
+                          />
+                          <span className="truncate">
+                            {customDef
+                              ? customDef.name
+                              : COLUMN_LABELS[col as ColumnKey] ?? col}
+                          </span>
+                        </span>
                       </th>
                     );
                   })}
-                  <th className="w-10 px-3 py-2.5"></th>
+                  <th className="w-9 border-b border-[color:var(--border-soft)] px-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1078,27 +1111,34 @@ export function CrmView({
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((r) => (
+                  filtered.map((r) => {
+                    const isSel = selected.has(r.id);
+                    return (
                     <tr
                       key={r.id}
-                      className="bg-white"
-                      style={{ borderTop: "1px solid var(--border-soft)" }}
+                      className={cn(
+                        "group",
+                        isSel ? "bg-[color:var(--bg-deep)]" : "bg-white hover:bg-[color:var(--bg)]",
+                      )}
                     >
-                      <td className="px-3 py-3">
+                      <td className="h-8 w-9 border-b border-r border-[color:var(--border-soft)] px-2 text-center align-middle">
                         <input
                           type="checkbox"
-                          checked={selected.has(r.id)}
+                          checked={isSel}
                           onChange={() => toggleRow(r.id)}
                           aria-label={`Select ${r.email}`}
                         />
                       </td>
                       {orderedColumns.map((col) => (
-                        <td key={col} className="px-3 py-3 align-top">
+                        <td
+                          key={col}
+                          className="h-8 max-w-0 truncate border-b border-r border-[color:var(--border-soft)] px-2 align-middle"
+                        >
                           {col.startsWith("custom:") ? (
                             r.kind === "prospect" ? (
                               // Custom-velden zijn klant-attributen; prospects
                               // hebben die niet.
-                              <span className="text-xs text-[color:var(--text-muted)]">
+                              <span className="text-xs text-[color:var(--text-soft)]">
                                 —
                               </span>
                             ) : (
@@ -1132,15 +1172,18 @@ export function CrmView({
                               lists={lists}
                               onUpdate={(p) => rowUpdate(r.id, p)}
                               onOpenNotes={() => setNotesFor(r)}
+                              onFieldSave={(field, value) =>
+                                fieldSave(r.id, field, value)
+                              }
                             />
                           )}
                         </td>
                       ))}
-                      <td className="px-3 py-3 align-top">
+                      <td className="h-8 w-9 border-b border-[color:var(--border-soft)] px-1 text-center align-middle">
                         {r.kind === "prospect" ? (
                           <button
                             onClick={() => setEnrichFor(r)}
-                            className="text-xs font-semibold text-blue-600 hover:underline"
+                            className="text-blue-600 opacity-60 hover:opacity-100"
                             title="Verrijking bewerken"
                           >
                             ✦
@@ -1148,14 +1191,16 @@ export function CrmView({
                         ) : (
                           <Link
                             href={`/admin/crm/${r.id}`}
-                            className="text-xs font-semibold text-blue-600 hover:underline"
+                            className="text-blue-600 opacity-60 hover:opacity-100"
+                            title="Open klant"
                           >
                             →
                           </Link>
                         )}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1742,6 +1787,7 @@ function CellRenderer({
   lists,
   onUpdate,
   onOpenNotes,
+  onFieldSave,
 }: {
   col: ColumnKey;
   row: Customer;
@@ -1754,55 +1800,48 @@ function CellRenderer({
     notes?: string | null;
   }) => void;
   onOpenNotes: () => void;
+  onFieldSave?: (field: string, value: string | null) => void | Promise<void>;
 }) {
+  const isProspect = row.kind === "prospect";
   switch (col) {
     case "customer": {
-      const isProspect = row.kind === "prospect";
-      const inner = (
-        <>
-          <span
-            className="grid size-9 shrink-0 place-items-center rounded-full"
-            style={{ background: "var(--bg-deep)" }}
-          >
-            {isProspect || row.role === "admin" ? (
-              <Building2
-                className="size-4"
-                strokeWidth={1.8}
-                style={{ color: "var(--navy)" }}
-              />
-            ) : (
-              <User
-                className="size-4"
-                strokeWidth={1.8}
-                style={{ color: "var(--navy)" }}
-              />
-            )}
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-sm font-semibold">
-                {row.name}
-              </span>
-              {isProspect && (
-                <span className="shrink-0 rounded-full bg-orange-100 px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase tracking-[0.04em] text-orange-800">
-                  Prospect
-                </span>
-              )}
-            </div>
-            <div className="truncate text-[0.6875rem] text-[color:var(--text-muted)]">
-              {row.email}
-              {isProspect && row.company ? ` · ${row.company}` : ""}
-              {!isProspect && !row.emailVerified && " · niet geverifieerd"}
-            </div>
-          </div>
-        </>
+      const title = [
+        row.email,
+        isProspect ? row.company : null,
+        !isProspect && !row.emailVerified ? "niet geverifieerd" : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      const avatar = (
+        <CompanyFavicon
+          domain={isProspect ? row.enrichment?.companyDomain ?? null : null}
+          isProspect={isProspect}
+        />
       );
-      // Prospect heeft geen user-detailpagina; klant wel.
-      return isProspect ? (
-        <div className="flex items-center gap-3">{inner}</div>
-      ) : (
-        <Link href={`/admin/crm/${row.id}`} className="flex items-center gap-3">
-          {inner}
+      // Prospect-naam is inline bewerkbaar; klant-naam linkt naar de detailpagina.
+      if (isProspect) {
+        return (
+          <div className="flex items-center gap-2" title={title}>
+            {avatar}
+            <span className="min-w-0 flex-1">
+              <EditableText
+                value={row.name}
+                placeholder="Naam"
+                bold
+                onSave={(v) => onFieldSave?.("name", v)}
+              />
+            </span>
+          </div>
+        );
+      }
+      return (
+        <Link
+          href={`/admin/crm/${row.id}`}
+          className="flex items-center gap-2"
+          title={title}
+        >
+          {avatar}
+          <span className="truncate text-sm font-semibold">{row.name}</span>
         </Link>
       );
     }
@@ -1849,56 +1888,48 @@ function CellRenderer({
       );
     }
     case "trial":
-      return row.trialStartedAt ? (
-        <div className="text-xs text-[color:var(--text-muted)]">
-          <div>start {formatDate(row.trialStartedAt)}</div>
-          {row.trialExpiresAt && (
-            <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
-              loopt tot {formatDate(row.trialExpiresAt)}
-            </div>
-          )}
-        </div>
+      return row.trialExpiresAt ? (
+        <span
+          className="block truncate text-xs text-[color:var(--text-muted)]"
+          title={`${row.trialStartedAt ? `start ${formatDate(row.trialStartedAt)} · ` : ""}loopt tot ${formatDate(row.trialExpiresAt)}`}
+        >
+          tot {formatDate(row.trialExpiresAt)}
+        </span>
       ) : (
         <span className="text-[color:var(--text-soft)]">—</span>
       );
     case "mollie":
       return row.mollieCustomerId ? (
-        <div className="font-mono text-[0.6875rem] text-[color:var(--text-muted)]">
-          <div className="truncate" style={{ maxWidth: 110 }}>
-            {row.mollieCustomerId}
-          </div>
-          {row.subscriptionStatus && (
-            <div className="text-[0.625rem] text-[color:var(--text-soft)]">
-              sub {row.subscriptionStatus}
-            </div>
-          )}
-        </div>
+        <span
+          className="block truncate text-xs text-[color:var(--text-muted)]"
+          title={row.mollieCustomerId}
+        >
+          {row.subscriptionStatus ? `sub ${row.subscriptionStatus}` : "klant"}
+        </span>
       ) : (
         <span className="text-[color:var(--text-soft)]">—</span>
       );
     case "discount": {
       const label = formatDiscount(row.discountType, row.discountValue);
-      return (
-        <div className="text-xs">
-          {label && (
-            <div className="font-semibold text-[color:var(--orange-600)]">
-              {label}
-            </div>
-          )}
-          <div className="text-[0.6875rem] text-[color:var(--text-soft)]">
-            {row.licenseSource ?? "—"}
-          </div>
-        </div>
+      return label || row.licenseSource ? (
+        <span
+          className="block truncate text-xs font-semibold text-[color:var(--orange-600)]"
+          title={[label, row.licenseSource].filter(Boolean).join(" · ")}
+        >
+          {label ?? row.licenseSource}
+        </span>
+      ) : (
+        <span className="text-[color:var(--text-soft)]">—</span>
       );
     }
     case "mails":
       return (
-        <div className="text-xs">
-          <div className="font-semibold">{row.emailsSent} verstuurd</div>
-          <div className="text-[0.6875rem] text-[color:var(--text-muted)]">
-            {row.emailsOpened} geopend · {row.emailsClicked} geklikt
-          </div>
-        </div>
+        <span
+          className="block truncate font-mono text-xs text-[color:var(--text-muted)]"
+          title={`${row.emailsSent} verstuurd · ${row.emailsOpened} geopend · ${row.emailsClicked} geklikt`}
+        >
+          {row.emailsSent}✉ {row.emailsOpened}↗
+        </span>
       );
     case "licenses":
       return (
@@ -1916,14 +1947,10 @@ function CellRenderer({
       return row.accountOwner ? (
         <Link
           href={`/admin/affiliates/${row.accountOwner.affiliateId}`}
-          className="inline-flex flex-col text-xs"
+          className="block truncate text-xs font-semibold text-[color:var(--navy)] hover:underline"
+          title={`${row.accountOwner.name} · ${row.accountOwner.code}`}
         >
-          <span className="font-semibold text-[color:var(--navy)]">
-            {row.accountOwner.name}
-          </span>
-          <span className="font-mono text-[0.625rem] text-[color:var(--text-soft)]">
-            {row.accountOwner.code}
-          </span>
+          {row.accountOwner.name}
         </Link>
       ) : (
         <span className="text-[color:var(--text-soft)]">—</span>
@@ -1945,74 +1972,229 @@ function CellRenderer({
       ) : (
         <span className="text-[color:var(--text-soft)]">—</span>
       );
-    case "lists":
+    case "lists": {
+      const rowLists = row.listIds
+        .map((id) => lists.find((x) => x.id === id))
+        .filter(Boolean) as LeadListOption[];
+      const first = rowLists[0];
       return (
-        <div className="flex flex-wrap gap-1">
-          {row.listIds.map((id) => {
-            const l = lists.find((x) => x.id === id);
-            if (!l) return null;
-            return (
-              <span
-                key={id}
-                className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold text-white"
-                style={{ background: LIST_COLOR_BG[l.color] }}
-              >
-                {l.name}
-              </span>
-            );
-          })}
+        <span className="flex items-center gap-1 overflow-hidden">
+          {first && (
+            <span
+              className="truncate rounded px-1.5 py-0.5 text-[0.625rem] font-semibold text-white"
+              style={{ background: LIST_COLOR_BG[first.color] }}
+              title={rowLists.map((l) => l.name).join(", ")}
+            >
+              {first.name}
+            </span>
+          )}
+          {rowLists.length > 1 && (
+            <span className="shrink-0 text-[0.625rem] font-semibold text-[color:var(--text-soft)]">
+              +{rowLists.length - 1}
+            </span>
+          )}
           <button
             onClick={onOpenNotes}
-            className="text-[0.625rem] font-semibold text-[color:var(--text-muted)] hover:underline"
-            title="Notitie"
+            className="shrink-0 text-[0.625rem] text-[color:var(--text-soft)] hover:text-[color:var(--navy)]"
+            title={row.notes ? "Notitie bewerken" : "Notitie toevoegen"}
           >
             {row.notes ? "📝" : "+"}
           </button>
-        </div>
-      );
-    case "niche":
-      return (
-        <span className="text-xs text-[color:var(--text-muted)]">
-          {row.enrichment?.niche ?? "—"}
         </span>
+      );
+    }
+    case "niche":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.enrichment?.niche ?? null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("niche", v)}
+        />
       );
     case "industry":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
       return (
-        <span className="text-xs text-[color:var(--text-muted)]">
-          {row.enrichment?.industry ?? "—"}
-        </span>
+        <EditableText
+          value={row.enrichment?.industry ?? null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("industry", v)}
+        />
       );
     case "companySize":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
       return (
-        <span className="text-xs text-[color:var(--text-muted)]">
-          {row.enrichment?.companySizeRange ??
+        <EditableText
+          value={
+            row.enrichment?.companySizeRange ??
             (row.enrichment?.employeeCount != null
-              ? `${row.enrichment.employeeCount}`
-              : "—")}
-        </span>
+              ? String(row.enrichment.employeeCount)
+              : null)
+          }
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("companySizeRange", v)}
+        />
       );
     case "reach":
       return row.enrichment?.totalReach != null ? (
-        <span className="font-mono text-xs font-semibold text-[color:var(--navy)]">
+        <span
+          className="block truncate font-mono text-xs font-semibold text-[color:var(--navy)]"
+          title={`${row.enrichment.totalReach} totaal bereik`}
+        >
           {formatReach(row.enrichment.totalReach)}
         </span>
       ) : (
         <span className="text-[color:var(--text-soft)]">—</span>
       );
     case "leadScore":
-      return row.enrichment?.leadScore != null ? (
-        <span
-          className="inline-flex min-w-8 justify-center rounded-full px-1.5 py-0.5 text-[0.625rem] font-bold text-white"
-          style={{ background: scoreColor(row.enrichment.leadScore) }}
-        >
-          {row.enrichment.leadScore}
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <span className="flex items-center gap-1.5">
+          {row.enrichment?.leadScore != null && (
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ background: scoreColor(row.enrichment.leadScore) }}
+            />
+          )}
+          <EditableText
+            value={
+              row.enrichment?.leadScore != null
+                ? String(row.enrichment.leadScore)
+                : null
+            }
+            placeholder="—"
+            type="number"
+            onSave={(v) => onFieldSave?.("leadScore", v)}
+          />
         </span>
-      ) : (
-        <span className="text-[color:var(--text-soft)]">—</span>
       );
     default:
       return null;
   }
+}
+
+// Clay-stijl inline-bewerkbare cel: klik = input, Enter/blur slaat op, Esc annuleert.
+function EditableText({
+  value,
+  placeholder = "—",
+  type = "text",
+  bold = false,
+  onSave,
+}: {
+  value: string | null;
+  placeholder?: string;
+  type?: "text" | "number";
+  bold?: boolean;
+  onSave: (v: string | null) => void | Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [local, setLocal] = useState(value ?? "");
+  useEffect(() => {
+    setLocal(value ?? "");
+  }, [value]);
+
+  function commit() {
+    setEditing(false);
+    const t = String(local).trim();
+    if (t === (value ?? "")) return;
+    void onSave(t === "" ? null : t);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type={type}
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setLocal(value ?? "");
+            setEditing(false);
+          }
+        }}
+        className="w-full rounded border border-[color:var(--orange)] bg-white px-1 py-0.5 text-xs outline-none"
+      />
+    );
+  }
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className={cn(
+        "block w-full cursor-text truncate rounded text-left text-xs hover:bg-black/[0.03]",
+        value
+          ? bold
+            ? "font-semibold text-[color:var(--navy)]"
+            : "text-[color:var(--text-muted)]"
+          : "text-[color:var(--text-soft)]",
+      )}
+      title={value ?? ""}
+    >
+      {value || placeholder}
+    </button>
+  );
+}
+
+// Bedrijfslogo via favicon-service op het domein; valt terug op een icoon.
+function CompanyFavicon({
+  domain,
+  isProspect,
+}: {
+  domain: string | null;
+  isProspect: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [domain]);
+
+  if (domain && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`https://www.google.com/s2/favicons?sz=32&domain=${encodeURIComponent(domain)}`}
+        alt=""
+        width={16}
+        height={16}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="size-4 shrink-0 rounded-sm"
+      />
+    );
+  }
+  const Icon = isProspect ? Building2 : User;
+  return (
+    <span className="grid size-4 shrink-0 place-items-center">
+      <Icon
+        className="size-3.5 text-[color:var(--text-soft)]"
+        strokeWidth={1.8}
+      />
+    </span>
+  );
+}
+
+// Type-icoon per kolom (Clay-stijl header). Verrijkings-kolommen krijgen ✦,
+// numerieke #, de rest een tekst-icoon.
+const ENRICHMENT_COLS = new Set([
+  "niche",
+  "industry",
+  "companySize",
+  "reach",
+  "leadScore",
+]);
+function columnIcon(col: string): typeof TypeIcon {
+  if (col.startsWith("custom:")) return Sparkles;
+  if (ENRICHMENT_COLS.has(col)) return Sparkles;
+  if (col === "licenses" || col === "mails") return Hash;
+  if (col === "mollie") return AtSign;
+  if (col === "accountOwner" || col === "discountCode") return Link2;
+  return TypeIcon;
 }
 
 /** Compacte volger-/bereik-notatie: 12500 → "12,5k". */
