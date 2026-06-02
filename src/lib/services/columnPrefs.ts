@@ -28,6 +28,7 @@ export async function getColumnPrefs(userId: string): Promise<ColumnPrefs> {
     return {
       visibleColumns: [...DEFAULT_VISIBLE_COLUMNS],
       columnOrder: [...DEFAULT_VISIBLE_COLUMNS],
+      columnWidths: {},
     };
   }
   const visible = (row.visibleColumns as ColumnKey[]) ?? [];
@@ -36,6 +37,7 @@ export async function getColumnPrefs(userId: string): Promise<ColumnPrefs> {
     visibleColumns:
       visible.length > 0 ? visible : [...DEFAULT_VISIBLE_COLUMNS],
     columnOrder: order.length > 0 ? order : [...DEFAULT_VISIBLE_COLUMNS],
+    columnWidths: (row.columnWidths as Record<string, number>) ?? {},
   };
 }
 
@@ -49,12 +51,14 @@ export async function setColumnPrefs(
       userId,
       visibleColumns: prefs.visibleColumns,
       columnOrder: prefs.columnOrder,
+      columnWidths: prefs.columnWidths ?? {},
     })
     .onConflictDoUpdate({
       target: crmColumnPrefs.userId,
       set: {
         visibleColumns: prefs.visibleColumns,
         columnOrder: prefs.columnOrder,
+        columnWidths: prefs.columnWidths ?? {},
         updatedAt: new Date(),
       },
     });

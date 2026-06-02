@@ -29,6 +29,10 @@ import { CrmTabs, type CrmTabKey } from "./crm-tabs";
 import { cn } from "@/lib/utils";
 import {
   COLUMN_LABELS,
+  COLUMN_WIDTH_DEFAULTS,
+  COLUMN_MIN_WIDTH,
+  COLUMN_MAX_WIDTH,
+  DEFAULT_COLUMN_WIDTH,
   DEFAULT_VISIBLE_COLUMNS,
   type ColumnKey,
   type ColumnPrefs,
@@ -360,6 +364,7 @@ export function CrmView({
   const [addingInline, setAddingInline] = useState(false);
   const [notesFor, setNotesFor] = useState<Customer | null>(null);
   const [enrichFor, setEnrichFor] = useState<Customer | null>(null);
+  const [personFor, setPersonFor] = useState<Customer | null>(null);
 
   // Server-side gepagineerde rijen. `customers` is alleen de eerste pagina;
   // filter-wissels + "meer laden" halen volgende pagina's via de API, zodat
@@ -443,6 +448,15 @@ export function CrmView({
   const [order, setOrder] = useState<string[]>(
     columnPrefs.columnOrder as string[],
   );
+  // Per-kolom breedte (px). Excel/Clay-stijl resize; default per kolom.
+  const [widths, setWidths] = useState<Record<string, number>>(
+    columnPrefs.columnWidths ?? {},
+  );
+
+  /** Effectieve breedte van een kolom: user-override → default-map → fallback. */
+  function colWidth(key: string): number {
+    return widths[key] ?? COLUMN_WIDTH_DEFAULTS[key] ?? DEFAULT_COLUMN_WIDTH;
+  }
 
   // Persistier prefs bij wijziging (debounced via 500ms).
   useEffect(() => {
@@ -453,11 +467,43 @@ export function CrmView({
         body: JSON.stringify({
           visibleColumns: visible,
           columnOrder: order,
+          columnWidths: widths,
         }),
       });
     }, 500);
     return () => clearTimeout(t);
-  }, [visible, order]);
+  }, [visible, order, widths]);
+
+  // Kolom-resize: drag op de rechterrand van een header. Pointer-events zodat
+  // het ook buiten de cel doorloopt. Klemt tussen min/max.
+  const resizeRef = useRef<{ key: string; startX: number; startW: number } | null>(
+    null,
+  );
+  function startResize(key: string, e: React.PointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = { key, startX: e.clientX, startW: colWidth(key) };
+    window.addEventListener("pointermove", onResizeMove);
+    window.addEventListener("pointerup", onResizeEnd);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+  function onResizeMove(e: PointerEvent) {
+    const r = resizeRef.current;
+    if (!r) return;
+    const next = Math.min(
+      COLUMN_MAX_WIDTH,
+      Math.max(COLUMN_MIN_WIDTH, r.startW + (e.clientX - r.startX)),
+    );
+    setWidths((w) => ({ ...w, [r.key]: next }));
+  }
+  function onResizeEnd() {
+    resizeRef.current = null;
+    window.removeEventListener("pointermove", onResizeMove);
+    window.removeEventListener("pointerup", onResizeEnd);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }
 
   // Customers gefilterd op de tab + alle filters.
   const filtered = useMemo(() => {
@@ -1041,13 +1087,28 @@ export function CrmView({
           {/* Tabel */}
           {viewMode === "table" && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[80rem] border-separate border-spacing-0 text-sm">
+            <table
+              className="border-separate border-spacing-0 text-sm"
+              style={{
+                tableLayout: "fixed",
+                width:
+                  72 +
+                  orderedColumns.reduce((sum, c) => sum + colWidth(c), 0),
+              }}
+            >
+              <colgroup>
+                <col style={{ width: 36 }} />
+                {orderedColumns.map((col) => (
+                  <col key={col} style={{ width: colWidth(col) }} />
+                ))}
+                <col style={{ width: 36 }} />
+              </colgroup>
               <thead>
                 <tr
                   className="text-[color:var(--text-soft)]"
                   style={{ background: "var(--bg)" }}
                 >
-                  <th className="w-9 border-b border-r border-[color:var(--border-soft)] px-2 text-center">
+                  <th className="border-b border-r border-[color:var(--border-soft)] px-2 text-center">
                     <input
                       type="checkbox"
                       checked={
@@ -1069,7 +1130,7 @@ export function CrmView({
                     return (
                       <th
                         key={col}
-                        className="h-9 border-b border-r border-[color:var(--border-soft)] px-2 text-left text-xs font-medium"
+                        className="group relative h-9 border-b border-r border-[color:var(--border-soft)] px-2 text-left text-xs font-medium"
                       >
                         <span className="flex items-center gap-1.5">
                           <Icon
@@ -1082,10 +1143,23 @@ export function CrmView({
                               : COLUMN_LABELS[col as ColumnKey] ?? col}
                           </span>
                         </span>
+                        {/* Resize-greep op de rechterrand (Excel/Clay) */}
+                        <span
+                          onPointerDown={(e) => startResize(col, e)}
+                          onDoubleClick={() =>
+                            setWidths((w) => {
+                              const next = { ...w };
+                              delete next[col];
+                              return next;
+                            })
+                          }
+                          title="Sleep om te verbreden — dubbelklik reset"
+                          className="absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none bg-transparent hover:bg-[color:var(--orange)]/40"
+                        />
                       </th>
                     );
                   })}
-                  <th className="w-9 border-b border-[color:var(--border-soft)] px-2"></th>
+                  <th className="border-b border-[color:var(--border-soft)] px-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1132,7 +1206,7 @@ export function CrmView({
                       {orderedColumns.map((col) => (
                         <td
                           key={col}
-                          className="h-8 max-w-0 truncate border-b border-r border-[color:var(--border-soft)] px-2 align-middle"
+                          className="h-8 truncate border-b border-r border-[color:var(--border-soft)] px-2 align-middle"
                         >
                           {col.startsWith("custom:") ? (
                             r.kind === "prospect" ? (
@@ -1172,6 +1246,7 @@ export function CrmView({
                               lists={lists}
                               onUpdate={(p) => rowUpdate(r.id, p)}
                               onOpenNotes={() => setNotesFor(r)}
+                              onOpenProfile={() => setPersonFor(r)}
                               onFieldSave={(field, value) =>
                                 fieldSave(r.id, field, value)
                               }
@@ -1179,7 +1254,7 @@ export function CrmView({
                           )}
                         </td>
                       ))}
-                      <td className="h-8 w-9 border-b border-[color:var(--border-soft)] px-1 text-center align-middle">
+                      <td className="h-8 border-b border-[color:var(--border-soft)] px-1 text-center align-middle">
                         {r.kind === "prospect" ? (
                           <button
                             onClick={() => setEnrichFor(r)}
@@ -1189,13 +1264,13 @@ export function CrmView({
                             ✦
                           </button>
                         ) : (
-                          <Link
-                            href={`/admin/crm/${r.id}`}
+                          <button
+                            onClick={() => setPersonFor(r)}
                             className="text-blue-600 opacity-60 hover:opacity-100"
-                            title="Open klant"
+                            title="Open klant-paneel"
                           >
                             →
-                          </Link>
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -1305,7 +1380,231 @@ export function CrmView({
           }}
         />
       )}
+
+      {personFor && (
+        <PersonSidePanel
+          person={personFor}
+          adminUsers={adminUsers}
+          lists={lists}
+          onClose={() => setPersonFor(null)}
+        />
+      )}
     </>
+  );
+}
+
+// ── Klant-side-panel: clean, getabd overzicht van alle klant-info uit de
+//    bestaande rij-data (geen extra fetch). "Account profiel" linkt door naar
+//    de volledige /admin/crm/[id]-subpagina. ──
+function PersonSidePanel({
+  person,
+  adminUsers,
+  lists,
+  onClose,
+}: {
+  person: Customer;
+  adminUsers: AdminUser[];
+  lists: LeadListOption[];
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<"overzicht" | "commercie" | "email">(
+    "overzicht",
+  );
+  const amName =
+    adminUsers.find((u) => u.id === person.assignedToUserId)?.name ??
+    "Niet toegewezen";
+  const seg = SEGMENT_META[person.segment];
+  const stageLabel =
+    STAGE_OPTIONS.find((s) => s.key === person.crmStage)?.label ??
+    person.crmStage;
+  const tempLabel =
+    TEMP_OPTIONS.find((t) => t.key === person.crmTemperature)?.label ??
+    person.crmTemperature;
+  const personLists = person.listIds
+    .map((id) => lists.find((l) => l.id === id)?.name)
+    .filter(Boolean) as string[];
+
+  const TABS: { key: typeof tab; label: string }[] = [
+    { key: "overzicht", label: "Overzicht" },
+    { key: "commercie", label: "Commercie" },
+    { key: "email", label: "E-mail" },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-black/30"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between border-b border-[color:var(--border-soft)] p-4">
+          <div className="min-w-0">
+            <span
+              className="mb-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold"
+              style={{ background: seg.chipBg, color: seg.chipFg }}
+            >
+              {seg.label}
+            </span>
+            <h2 className="truncate text-base font-bold text-[color:var(--navy)]">
+              {person.name}
+            </h2>
+            <p className="truncate text-xs text-[color:var(--text-soft)]">
+              {person.email}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--bg-deep)]"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="flex gap-1 border-b border-[color:var(--border-soft)] px-3 pt-2">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "rounded-t-lg px-3 py-1.5 text-xs font-semibold",
+                tab === t.key
+                  ? "bg-[color:var(--bg-deep)] text-[color:var(--navy)]"
+                  : "text-[color:var(--text-muted)] hover:text-[color:var(--navy)]",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+          {tab === "overzicht" && (
+            <div className="space-y-1">
+              <InfoRow label="Stage" value={stageLabel} />
+              <InfoRow label="Temperatuur" value={tempLabel} />
+              <InfoRow label="Account manager" value={amName} />
+              <InfoRow
+                label="Reseller"
+                value={person.accountOwner?.name ?? "—"}
+                hint={person.accountOwner?.code}
+              />
+              <InfoRow label="Lid sinds" value={formatDate(person.createdAt)} />
+              <InfoRow
+                label="E-mail geverifieerd"
+                value={person.emailVerified ? "Ja" : "Nee"}
+              />
+              <InfoRow
+                label="Lijsten"
+                value={personLists.length ? personLists.join(", ") : "—"}
+              />
+              {person.notes && (
+                <div className="mt-3 rounded-lg bg-[color:var(--bg)] p-3 text-xs text-[color:var(--text-muted)]">
+                  {person.notes}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "commercie" && (
+            <div className="space-y-1">
+              <InfoRow
+                label="Betaalde licenties"
+                value={String(person.paidLicenseCount)}
+              />
+              <InfoRow
+                label="Trial gestart"
+                value={
+                  person.trialStartedAt
+                    ? formatDate(person.trialStartedAt)
+                    : "—"
+                }
+              />
+              <InfoRow
+                label="Trial loopt tot"
+                value={
+                  person.trialExpiresAt
+                    ? formatDate(person.trialExpiresAt)
+                    : "—"
+                }
+              />
+              <InfoRow
+                label="Licentie-bron"
+                value={person.licenseSource ?? "—"}
+              />
+              <InfoRow
+                label="Korting"
+                value={
+                  formatDiscount(person.discountType, person.discountValue) ??
+                  "—"
+                }
+              />
+              <InfoRow
+                label="Mollie customer"
+                value={person.mollieCustomerId ?? "—"}
+              />
+              <InfoRow
+                label="Abonnement"
+                value={person.subscriptionStatus ?? "—"}
+              />
+              <InfoRow
+                label="Volgende incasso"
+                value={
+                  person.nextBillingAt
+                    ? formatDate(person.nextBillingAt)
+                    : "—"
+                }
+              />
+            </div>
+          )}
+
+          {tab === "email" && (
+            <div className="space-y-1">
+              <InfoRow label="Verstuurd" value={String(person.emailsSent)} />
+              <InfoRow label="Geopend" value={String(person.emailsOpened)} />
+              <InfoRow label="Geklikt" value={String(person.emailsClicked)} />
+              <InfoRow label="Gebounced" value={String(person.emailsBounced)} />
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-[color:var(--border-soft)] p-4">
+          <Link
+            href={`/admin/crm/${person.id}`}
+            className="flex w-full items-center justify-center rounded-lg bg-[color:var(--orange)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--orange-600)]"
+          >
+            Account profiel openen →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string | null;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-[color:var(--border-soft)] py-1.5">
+      <span className="shrink-0 text-[0.6875rem] font-semibold text-[color:var(--text-soft)]">
+        {label}
+      </span>
+      <span className="min-w-0 truncate text-right text-xs text-[color:var(--navy)]">
+        {value}
+        {hint ? (
+          <span className="ml-1 font-mono text-[0.625rem] text-[color:var(--text-soft)]">
+            {hint}
+          </span>
+        ) : null}
+      </span>
+    </div>
   );
 }
 
@@ -1787,6 +2086,7 @@ function CellRenderer({
   lists,
   onUpdate,
   onOpenNotes,
+  onOpenProfile,
   onFieldSave,
 }: {
   col: ColumnKey;
@@ -1800,6 +2100,7 @@ function CellRenderer({
     notes?: string | null;
   }) => void;
   onOpenNotes: () => void;
+  onOpenProfile?: () => void;
   onFieldSave?: (field: string, value: string | null) => void | Promise<void>;
 }) {
   const isProspect = row.kind === "prospect";
@@ -1835,14 +2136,16 @@ function CellRenderer({
         );
       }
       return (
-        <Link
-          href={`/admin/crm/${row.id}`}
-          className="flex items-center gap-2"
+        <button
+          onClick={onOpenProfile}
+          className="flex w-full items-center gap-2 text-left"
           title={title}
         >
           {avatar}
-          <span className="truncate text-sm font-semibold">{row.name}</span>
-        </Link>
+          <span className="truncate text-sm font-semibold text-[color:var(--navy)]">
+            {row.name}
+          </span>
+        </button>
       );
     }
     case "stage":

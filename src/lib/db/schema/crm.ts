@@ -116,6 +116,7 @@ export const crmColumnPrefs = pgTable("crm_column_prefs", {
     .references(() => authUsers.id, { onDelete: "cascade" }),
   visibleColumns: jsonb("visible_columns").notNull().default([]),
   columnOrder: jsonb("column_order").notNull().default([]),
+  columnWidths: jsonb("column_widths"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

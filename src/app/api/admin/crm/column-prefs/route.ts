@@ -21,6 +21,7 @@ export async function PATCH(request: Request) {
   let body: {
     visibleColumns?: ColumnKey[];
     columnOrder?: ColumnKey[];
+    columnWidths?: Record<string, number>;
   };
   try {
     body = await request.json();
@@ -44,6 +45,10 @@ export async function PATCH(request: Request) {
   await setColumnPrefs(session.user.id, {
     visibleColumns: body.visibleColumns,
     columnOrder: body.columnOrder,
+    columnWidths:
+      body.columnWidths && typeof body.columnWidths === "object"
+        ? body.columnWidths
+        : {},
   });
 
   return NextResponse.json({ success: true });
