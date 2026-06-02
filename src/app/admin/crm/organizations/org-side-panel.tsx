@@ -55,6 +55,9 @@ type Org = {
   paymentLinkSentAt: string | null;
   paidAt: string | null;
   lostReason: string | null;
+  industry: string | null;
+  callScript: string | null;
+  resellerNotes: string | null;
 };
 
 type Contact = {
@@ -97,8 +100,11 @@ const STATUSES = [
 
 const TABS = [
   { key: "details", label: "Details" },
+  { key: "belscript", label: "Belscript" },
+  { key: "faq", label: "FAQ" },
   { key: "contacts", label: "Contacten" },
   { key: "payment", label: "Betaling" },
+  { key: "reseller", label: "Reseller" },
   { key: "timeline", label: "Timeline" },
   { key: "tasks", label: "Taken" },
 ] as const;
@@ -110,6 +116,8 @@ type Props = {
   admins: Admin[];
   onClose: () => void;
   onChanged: () => void;
+  /** Docked = altijd-zichtbaar in de Personen-tab (geen modal/backdrop). */
+  docked?: boolean;
 };
 
 function fmtCents(cents: number | null): string {
@@ -137,6 +145,7 @@ export function OrgSidePanel({
   admins,
   onClose,
   onChanged,
+  docked = false,
 }: Props) {
   const [tab, setTab] = useState<TabKey>("details");
   const [org, setOrg] = useState<Org | null>(null);
@@ -185,14 +194,14 @@ export function OrgSidePanel({
     await loadAll();
   }
 
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/40"
-      onClick={onClose}
-    >
+  const panel = (
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="ml-auto h-full w-full max-w-2xl overflow-y-auto bg-white shadow-2xl"
+        onClick={docked ? undefined : (e) => e.stopPropagation()}
+        className={
+          docked
+            ? "flex h-full w-full flex-col overflow-y-auto bg-white"
+            : "ml-auto h-full w-full max-w-2xl overflow-y-auto bg-white shadow-2xl"
+        }
       >
         {/* Header */}
         <div
@@ -265,6 +274,12 @@ export function OrgSidePanel({
             </div>
           ) : tab === "details" ? (
             <DetailsTab org={org} admins={admins} onSave={patchOrg} />
+          ) : tab === "belscript" ? (
+            <BelscriptTab org={org} onSave={patchOrg} />
+          ) : tab === "faq" ? (
+            <FaqTab />
+          ) : tab === "reseller" ? (
+            <ResellerTab org={org} onSave={patchOrg} />
           ) : tab === "contacts" ? (
             <ContactsTab
               orgId={orgId}
@@ -285,6 +300,321 @@ export function OrgSidePanel({
           )}
         </div>
       </div>
+  );
+
+  if (docked) return panel;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose}>
+      {panel}
+    </div>
+  );
+}
+
+// ───── Belscript / FAQ / Reseller tabs ─────
+
+function BelscriptTab({
+  org,
+  onSave,
+}: {
+  org: Org;
+  onSave: (patch: Record<string, unknown>) => Promise<void>;
+}) {
+  const [script, setScript] = useState(org.callScript ?? "");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setScript(org.callScript ?? ""), [org.callScript]);
+
+  function template(): string {
+    const naam = org.name ?? "het bedrijf";
+    const branche = org.industry ?? "jullie branche";
+    return [
+      `BELSCRIPT — ${naam}`,
+      "",
+      "1. Opening",
+      `Hoi, je spreekt met [jouw naam] van Dicteren.ai. Bel ik gelegen?`,
+      "",
+      "2. Aanleiding",
+      `Een paar kantoren in ${branche} gebruiken Dicteren.ai al om dossiers in te spreken in plaats van te typen. Scheelt zo'n 30 minuten per dag per persoon.`,
+      "",
+      "3. Behoefte peilen",
+      "- Hoeveel tijd zijn jullie kwijt aan typen/verslaglegging?",
+      "- Wie zou het gebruiken? Hoeveel mensen?",
+      "- In welk programma werken jullie (zaaksysteem/EPD/Word)?",
+      "",
+      "4. Kernpunten",
+      "- Werkt lokaal op de eigen computer; wij zien de tekst nooit.",
+      "- Typt in elk programma waar je kunt typen.",
+      "- Direct live: code plakken, klaar. Geen IT nodig.",
+      "",
+      "5. Bezwaren — zie FAQ-tab",
+      "",
+      "6. Afsluiting / next step",
+      "Zullen we een korte demo van 15 minuten inplannen op jullie eigen laptop?",
+    ].join("\n");
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave({ callScript: script });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-[color:var(--navy)]">
+          Belscript
+        </h3>
+        <button
+          type="button"
+          onClick={() => setScript(template())}
+          className="rounded-lg border px-2.5 py-1 text-xs font-semibold text-[color:var(--navy)] hover:bg-[color:var(--bg)]"
+          style={{ borderColor: "var(--border)" }}
+        >
+          Genereer standaard script
+        </button>
+      </div>
+      <p className="text-xs text-[color:var(--text-muted)]">
+        Lees op tijdens het bellen, pas aan naar deze klant. Wordt per
+        organisatie bewaard.
+      </p>
+      <textarea
+        value={script}
+        onChange={(e) => setScript(e.target.value)}
+        rows={20}
+        placeholder="Schrijf of genereer een belscript voor deze organisatie..."
+        className="w-full rounded-lg border bg-white p-3 text-sm leading-relaxed outline-none"
+        style={{ borderColor: "var(--border)" }}
+      />
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+        style={{ background: "#FF8441" }}
+      >
+        {saving ? "Opslaan..." : "Script opslaan"}
+      </button>
+    </div>
+  );
+}
+
+const STANDARD_FAQ: { q: string; a: string }[] = [
+  {
+    q: "Werkt het echt lokaal? Wat gebeurt er met onze data?",
+    a: "Ja. De spraakherkenning draait op de computer zelf. Wij krijgen je tekst of audio nooit te zien, alleen factuurgegevens.",
+  },
+  {
+    q: "Werkt het in onze software (zaaksysteem / EPD)?",
+    a: "Dicteren.ai typt in elk programma waar je kunt typen: Word, Outlook, je browser, je zaaksysteem. Sneltoets indrukken, spreken, de tekst verschijnt waar je cursor staat.",
+  },
+  {
+    q: "Wat kost het?",
+    a: "Persoonlijk vanaf 12 euro per maand of 96 euro per jaar. Zakelijk vanaf 120 euro per seat per jaar, met staffelkorting vanaf 5 seats.",
+  },
+  {
+    q: "Werkt het met dialect?",
+    a: "Het werkt op standaard-Nederlands en lichte accenten. Sterke dialecten (Brabants, Limburgs, Fries) worden minder goed herkend.",
+  },
+  {
+    q: "Hoe snel zijn we live?",
+    a: "Direct. Download de app, plak de licentiecode, klaar. Geen installatie door IT nodig.",
+  },
+  {
+    q: "Kunnen we het eerst proberen?",
+    a: "Ja, 14 dagen gratis, geen creditcard nodig.",
+  },
+];
+
+type CustomFaq = {
+  id: string;
+  question: string;
+  answer: string;
+  createdByName: string | null;
+};
+
+function FaqTab() {
+  const [items, setItems] = useState<CustomFaq[]>([]);
+  const [q, setQ] = useState("");
+  const [a, setA] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    const res = await fetch("/api/admin/crm/faq");
+    const data = await res.json().catch(() => null);
+    if (data?.success) setItems(data.items);
+  }
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function add() {
+    if (!q.trim() || !a.trim()) return;
+    setSaving(true);
+    try {
+      await fetch("/api/admin/crm/faq", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: q, answer: a }),
+      });
+      setQ("");
+      setA("");
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(id: string) {
+    await fetch(`/api/admin/crm/faq/${id}`, { method: "DELETE" });
+    await load();
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="mb-2 text-sm font-bold text-[color:var(--navy)]">
+          Standaardvragen
+        </h3>
+        <div className="space-y-2">
+          {STANDARD_FAQ.map((f, i) => (
+            <details
+              key={i}
+              className="rounded-lg border bg-white p-3"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <summary className="cursor-pointer text-sm font-semibold">
+                {f.q}
+              </summary>
+              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
+                {f.a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-bold text-[color:var(--navy)]">
+          Eigen vragen ({items.length})
+        </h3>
+        <div className="space-y-2">
+          {items.map((f) => (
+            <details
+              key={f.id}
+              className="group rounded-lg border bg-white p-3"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <summary className="flex cursor-pointer items-center justify-between gap-2 text-sm font-semibold">
+                <span>{f.question}</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void remove(f.id);
+                  }}
+                  className="shrink-0 text-xs text-[color:var(--red)] opacity-0 hover:underline group-hover:opacity-100"
+                >
+                  verwijderen
+                </button>
+              </summary>
+              <p className="mt-2 text-sm text-[color:var(--text-muted)]">
+                {f.answer}
+              </p>
+              {f.createdByName && (
+                <p className="mt-1 text-[0.625rem] text-[color:var(--text-soft)]">
+                  toegevoegd door {f.createdByName}
+                </p>
+              )}
+            </details>
+          ))}
+        </div>
+      </div>
+
+      <div
+        className="space-y-2 rounded-lg border bg-[color:var(--bg)] p-3"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <h4 className="text-xs font-bold uppercase text-[color:var(--text-muted)]">
+          Eigen vraag toevoegen
+        </h4>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Vraag van de klant"
+          className="w-full rounded-md border bg-white px-2 py-1.5 text-sm"
+          style={{ borderColor: "var(--border)" }}
+        />
+        <textarea
+          value={a}
+          onChange={(e) => setA(e.target.value)}
+          rows={3}
+          placeholder="Jouw antwoord"
+          className="w-full rounded-md border bg-white px-2 py-1.5 text-sm"
+          style={{ borderColor: "var(--border)" }}
+        />
+        <button
+          type="button"
+          onClick={add}
+          disabled={saving}
+          className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+          style={{ background: "var(--navy)" }}
+        >
+          {saving ? "Opslaan..." : "Toevoegen"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ResellerTab({
+  org,
+  onSave,
+}: {
+  org: Org;
+  onSave: (patch: Record<string, unknown>) => Promise<void>;
+}) {
+  const [notes, setNotes] = useState(org.resellerNotes ?? "");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setNotes(org.resellerNotes ?? ""), [org.resellerNotes]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave({ resellerNotes: notes });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-bold text-[color:var(--navy)]">
+        Reseller-notities
+      </h3>
+      <p className="text-xs text-[color:var(--text-muted)]">
+        Afspraken en context over de reseller die deze deal aanbracht
+        (commissie, kortingscode, contactpersoon).
+      </p>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        rows={14}
+        placeholder="Notities over de reseller-relatie..."
+        className="w-full rounded-lg border bg-white p-3 text-sm leading-relaxed outline-none"
+        style={{ borderColor: "var(--border)" }}
+      />
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+        style={{ background: "#FF8441" }}
+      >
+        {saving ? "Opslaan..." : "Notities opslaan"}
+      </button>
     </div>
   );
 }

@@ -97,6 +97,10 @@ export const crmOrganizations = pgTable(
     brancheVereniging: text("branche_vereniging"),
     aantalVestigingen: integer("aantal_vestigingen"),
     hoofdkantoor: text("hoofdkantoor"),
+    // Interactief belscript per org (migratie 0032), editbaar in het side-panel.
+    callScript: text("call_script"),
+    // Reseller-notities (relatie met de affiliate die deze deal aanbracht).
+    resellerNotes: text("reseller_notes"),
 
     // CRM-metadata
     source: crmOrgSource("source").notNull().default("am_outreach"),
@@ -376,6 +380,27 @@ export const crmSignals = pgTable(
     index("crm_signals_contact_status_idx").on(t.contactId, t.status),
   ],
 );
+
+// Gedeelde FAQ-knowledgebase voor AM's: objection-handling + eigen Q&A.
+// Standaardvragen leven als config-constante; deze tabel houdt de door staff
+// toegevoegde vragen (migratie 0032).
+export const crmFaq = pgTable("crm_faq", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  category: text("category"),
+  createdByUserId: uuid("created_by_user_id").references(() => authUsers.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type CrmFaq = typeof crmFaq.$inferSelect;
 
 export type CrmOrganization = typeof crmOrganizations.$inferSelect;
 export type NewCrmOrganization = typeof crmOrganizations.$inferInsert;

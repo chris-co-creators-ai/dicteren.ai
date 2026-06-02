@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { CrmTabs, type CrmTabKey } from "./crm-tabs";
+import { OrgSidePanel } from "./organizations/org-side-panel";
 import { cn } from "@/lib/utils";
 import {
   COLUMN_LABELS,
@@ -366,6 +367,9 @@ export function CrmView({
   const [notesFor, setNotesFor] = useState<Customer | null>(null);
   const [enrichFor, setEnrichFor] = useState<Customer | null>(null);
   const [personFor, setPersonFor] = useState<Customer | null>(null);
+  // Altijd-zichtbaar org-side-panel rechts: de organisatie van het geselecteerde
+  // prospect-contact. Zo kan de AM direct notuleren + data inzien.
+  const [dockedOrgId, setDockedOrgId] = useState<string | null>(null);
 
   // Server-side gepagineerde rijen. `customers` is alleen de eerste pagina;
   // filter-wissels + "meer laden" halen volgende pagina's via de API, zodat
@@ -1083,9 +1087,10 @@ export function CrmView({
             />
           )}
 
-          {/* Tabel */}
+          {/* Tabel + altijd-zichtbaar org-side-panel rechts */}
           {viewMode === "table" && (
-          <div className="overflow-x-auto">
+          <div className="flex gap-4">
+          <div className="min-w-0 flex-1 overflow-x-auto">
             <table
               className="border-separate border-spacing-0 text-sm"
               style={{
@@ -1101,7 +1106,7 @@ export function CrmView({
                 {orderedColumns.map((col) => (
                   <col key={col} style={{ width: colWidth(col) }} />
                 ))}
-                <col style={{ width: 36 }} />
+                <col style={{ width: 60 }} />
                 {/* Filler: slokt resterende breedte zodat er geen dode witruimte
                     rechts staat (Excel/Clay). Geen width = krijgt de rest. */}
                 <col />
@@ -1260,13 +1265,26 @@ export function CrmView({
                       ))}
                       <td className="h-8 border-b border-[color:var(--border-soft)] px-1 text-center align-middle">
                         {r.kind === "prospect" ? (
-                          <button
-                            onClick={() => setEnrichFor(r)}
-                            className="text-blue-600 opacity-60 hover:opacity-100"
-                            title="Verrijking bewerken"
-                          >
-                            ✦
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() =>
+                                r.organizationId &&
+                                setDockedOrgId(r.organizationId)
+                              }
+                              disabled={!r.organizationId}
+                              className="text-blue-600 opacity-60 hover:opacity-100 disabled:opacity-20"
+                              title="Open bedrijf-panel (notuleren, belscript, FAQ)"
+                            >
+                              →
+                            </button>
+                            <button
+                              onClick={() => setEnrichFor(r)}
+                              className="text-blue-600 opacity-60 hover:opacity-100"
+                              title="Verrijking bewerken"
+                            >
+                              ✦
+                            </button>
+                          </div>
                         ) : (
                           <button
                             onClick={() => setPersonFor(r)}
@@ -1284,6 +1302,24 @@ export function CrmView({
                 )}
               </tbody>
             </table>
+          </div>
+          <aside className="sticky top-4 hidden h-[calc(100vh-150px)] w-[420px] shrink-0 overflow-hidden rounded-xl border border-[color:var(--border-soft)] bg-white xl:block">
+            {dockedOrgId ? (
+              <OrgSidePanel
+                key={dockedOrgId}
+                docked
+                orgId={dockedOrgId}
+                admins={adminUsers}
+                onClose={() => setDockedOrgId(null)}
+                onChanged={refresh}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center p-6 text-center text-sm text-[color:var(--text-muted)]">
+                Klik op → bij een prospect om het bedrijf, belscript, FAQ en
+                activiteit hier te zien en te notuleren.
+              </div>
+            )}
+          </aside>
           </div>
 
           )}

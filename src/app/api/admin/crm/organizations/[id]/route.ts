@@ -109,6 +109,8 @@ export async function PATCH(
     "brancheVereniging",
     "aantalVestigingen",
     "hoofdkantoor",
+    "callScript",
+    "resellerNotes",
   ];
   // Alleen admin mag account_owner_id veranderen (overdracht naar andere AM)
   if (guard.isAdmin) allowed.push("accountOwnerId");
