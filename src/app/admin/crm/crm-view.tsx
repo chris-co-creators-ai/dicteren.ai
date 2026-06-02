@@ -1599,7 +1599,7 @@ function PersonSidePanel({
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="scroll-visible min-h-0 flex-1 overflow-y-auto p-4">
           {tab === "overzicht" && (
             <div className="space-y-1">
               <InfoRow label="Stage" value={stageLabel} />

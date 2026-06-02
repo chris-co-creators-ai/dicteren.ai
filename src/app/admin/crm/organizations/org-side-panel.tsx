@@ -199,13 +199,13 @@ export function OrgSidePanel({
         onClick={docked ? undefined : (e) => e.stopPropagation()}
         className={
           docked
-            ? "flex h-full w-full flex-col overflow-y-auto bg-white"
-            : "ml-auto h-full w-full max-w-2xl overflow-y-auto bg-white shadow-2xl"
+            ? "flex h-full w-full flex-col bg-white"
+            : "ml-auto flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl"
         }
       >
-        {/* Header */}
+        {/* Header — vast bovenin */}
         <div
-          className="sticky top-0 z-10 border-b bg-white px-4 py-2.5"
+          className="shrink-0 border-b bg-white px-4 py-2.5"
           style={{ borderColor: "var(--border)" }}
         >
           <div className="flex items-start justify-between gap-3">
@@ -266,39 +266,42 @@ export function OrgSidePanel({
           </div>
         </div>
 
-        {/* Body */}
-        <div className="px-4 py-3">
-          {loading || !org ? (
-            <div className="py-12 text-center text-sm text-[color:var(--text-muted)]">
-              Laden...
-            </div>
-          ) : tab === "details" ? (
-            <DetailsTab org={org} admins={admins} onSave={patchOrg} />
-          ) : tab === "belscript" ? (
-            <BelscriptTab org={org} onSave={patchOrg} />
-          ) : tab === "faq" ? (
-            <FaqTab />
-          ) : tab === "reseller" ? (
-            <ResellerTab org={org} onSave={patchOrg} />
-          ) : tab === "contacts" ? (
-            <ContactsTab
-              orgId={orgId}
-              contacts={contacts}
-              onChanged={loadAll}
-            />
-          ) : tab === "payment" ? (
-            <PaymentTab org={org} onChanged={loadAll} />
-          ) : tab === "timeline" ? (
-            <TimelineTab
-              events={events}
-              orgId={orgId}
-              orgName={org.name}
-              onLogged={loadAll}
-            />
-          ) : (
-            <TasksTab orgId={orgId} tasks={tasks} onChanged={loadAll} />
-          )}
-        </div>
+        {/* Body — Details regelt z'n eigen scroll + vaste Opslaan-voet;
+            de overige tabs scrollen in dit middenvlak */}
+        {loading || !org ? (
+          <div className="flex-1 px-4 py-12 text-center text-sm text-[color:var(--text-muted)]">
+            Laden...
+          </div>
+        ) : tab === "details" ? (
+          <DetailsTab org={org} admins={admins} onSave={patchOrg} />
+        ) : (
+          <div className="scroll-visible min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            {tab === "belscript" ? (
+              <BelscriptTab org={org} onSave={patchOrg} />
+            ) : tab === "faq" ? (
+              <FaqTab />
+            ) : tab === "reseller" ? (
+              <ResellerTab org={org} onSave={patchOrg} />
+            ) : tab === "contacts" ? (
+              <ContactsTab
+                orgId={orgId}
+                contacts={contacts}
+                onChanged={loadAll}
+              />
+            ) : tab === "payment" ? (
+              <PaymentTab org={org} onChanged={loadAll} />
+            ) : tab === "timeline" ? (
+              <TimelineTab
+                events={events}
+                orgId={orgId}
+                orgName={org.name}
+                onLogged={loadAll}
+              />
+            ) : (
+              <TasksTab orgId={orgId} tasks={tasks} onChanged={loadAll} />
+            )}
+          </div>
+        )}
       </div>
   );
 
@@ -746,7 +749,8 @@ function DetailsTab({
   }
 
   return (
-    <div className="space-y-2 text-sm">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="scroll-visible min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3 text-sm">
       <Section title="Bedrijf">
         <TextField label="Naam" value={f.name} onChange={(v) => setF({ ...f, name: v })} />
         <div className="grid grid-cols-2 gap-2">
@@ -858,8 +862,10 @@ function DetailsTab({
           <TextField label="Reden" value={f.lostReason ?? ""} onChange={(v) => setF({ ...f, lostReason: v })} />
         </Section>
       )}
+      </div>
 
-      <div className="sticky bottom-0 -mx-4 -mb-3 border-t bg-white px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
+      {/* Vaste voet — Opslaan altijd zichtbaar, ongeacht scrollpositie */}
+      <div className="shrink-0 border-t bg-white px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
         <button
           type="button"
           onClick={handleSave}
