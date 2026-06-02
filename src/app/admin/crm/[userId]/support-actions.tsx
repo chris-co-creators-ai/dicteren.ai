@@ -133,7 +133,15 @@ function fmtDate(iso: string | null): string {
   });
 }
 
-export function SupportActions({ snapshot }: { snapshot: SupportSnapshot }) {
+export function SupportActions({
+  snapshot,
+  onAction,
+}: {
+  snapshot: SupportSnapshot;
+  /** Side-panel-hergebruik: herlaad de lokaal-gefetchte snapshot na een actie
+   *  (de cockpit-pagina leunt op router.refresh(), het panel niet). */
+  onAction?: () => void;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -159,6 +167,7 @@ export function SupportActions({ snapshot }: { snapshot: SupportSnapshot }) {
       if (res.ok && data.success !== false) {
         setMsg({ kind: "ok", text: okText });
         startTransition(() => router.refresh());
+        onAction?.();
       } else {
         setMsg({
           kind: "err",

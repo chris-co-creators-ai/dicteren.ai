@@ -27,6 +27,10 @@ import {
   X,
 } from "lucide-react";
 import { CrmTabs, type CrmTabKey } from "./crm-tabs";
+import {
+  SupportActions,
+  type SupportSnapshot,
+} from "./[userId]/support-actions";
 import { OrgSidePanel } from "./organizations/org-side-panel";
 import { cn } from "@/lib/utils";
 import {
@@ -1510,6 +1514,28 @@ function PersonSidePanel({
     }[]
   >([]);
   const [emailsLoaded, setEmailsLoaded] = useState(false);
+  // Commercie-tab: support-snapshot (licenties/orders/subs/mails/orgs +
+  // acties) pas fetchen bij tab-open. refetch-flag forceert herladen na een
+  // actie (status-override, verleng, refund, ...).
+  const [snapshot, setSnapshot] = useState<SupportSnapshot | null>(null);
+  const [snapLoaded, setSnapLoaded] = useState(false);
+  const [snapNonce, setSnapNonce] = useState(0);
+
+  useEffect(() => {
+    if (tab !== "commercie") return;
+    let active = true;
+    fetch(`/api/admin/customers/${person.id}/support-snapshot`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (active && d.success) setSnapshot(d.snapshot);
+      })
+      .finally(() => {
+        if (active) setSnapLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tab, person.id, snapNonce]);
 
   useEffect(() => {
     if (tab !== "email" || emailsLoaded) return;
@@ -1782,7 +1808,8 @@ function PersonSidePanel({
           )}
 
           {tab === "commercie" && (
-            <div className="space-y-1">
+            <div className="space-y-4">
+              <div className="space-y-1">
               <InfoRow
                 label="Betaalde licenties"
                 value={String(person.paidLicenseCount)}
@@ -1830,6 +1857,22 @@ function PersonSidePanel({
                     : "—"
                 }
               />
+              </div>
+
+              {!snapLoaded ? (
+                <p className="py-6 text-center text-xs text-[color:var(--text-soft)]">
+                  Acties laden…
+                </p>
+              ) : snapshot ? (
+                <SupportActions
+                  snapshot={snapshot}
+                  onAction={() => setSnapNonce((n) => n + 1)}
+                />
+              ) : (
+                <p className="py-6 text-center text-xs text-[color:var(--text-soft)]">
+                  Geen account-data voor deze klant.
+                </p>
+              )}
             </div>
           )}
 
