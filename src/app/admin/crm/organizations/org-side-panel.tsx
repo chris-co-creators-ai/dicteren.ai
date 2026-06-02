@@ -1057,9 +1057,42 @@ function ContactsTab({
 // Deelbare 14-dagen zakelijke-trial-link. De AM kopieert 'm en stuurt 'm naar
 // een prospect of reseller; die vult zelf bedrijfsgegevens in en de lead landt
 // bij deze AM (am=accountOwnerId). reseller=1 zet de bron op reseller.
-function TrialLinkShare({ amUserId }: { amUserId: string | null }) {
+function TrialLinkShare({
+  amUserId,
+  orgId,
+}: {
+  amUserId: string | null;
+  orgId: string;
+}) {
   const [reseller, setReseller] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mailBusy, setMailBusy] = useState(false);
+  const [mailMsg, setMailMsg] = useState<string | null>(null);
+
+  async function mailToContact() {
+    setMailBusy(true);
+    setMailMsg(null);
+    try {
+      const res = await fetch(
+        `/api/admin/crm/organizations/${orgId}/trial-link`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ reseller }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      setMailMsg(
+        res.ok && data.success
+          ? `Trial-link gemaild naar ${data.to}.`
+          : data.error ?? "Mailen mislukt",
+      );
+    } catch (e) {
+      setMailMsg((e as Error).message);
+    } finally {
+      setMailBusy(false);
+    }
+  }
   const origin =
     typeof window !== "undefined"
       ? window.location.origin
@@ -1116,6 +1149,20 @@ function TrialLinkShare({ amUserId }: { amUserId: string | null }) {
           {copied ? "Gekopieerd" : "Kopieer"}
         </button>
       </div>
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={mailToContact}
+          disabled={mailBusy}
+          className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+          style={{ background: "#FF8441" }}
+        >
+          {mailBusy ? "Mailen…" : "Mail naar primair contact"}
+        </button>
+        {mailMsg && (
+          <span className="text-xs text-[color:var(--text-muted)]">{mailMsg}</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -1170,7 +1217,7 @@ function PaymentTab({
 
   return (
     <div className="space-y-2.5 text-sm">
-      <TrialLinkShare amUserId={org.accountOwnerId} />
+      <TrialLinkShare amUserId={org.accountOwnerId} orgId={org.id} />
       {org.paidAt ? (
         <div
           className="rounded-lg border p-3"

@@ -260,6 +260,69 @@ export async function sendLicenseEmail(params: {
   });
 }
 
+// ───── Betaal-link op maat (door een account-manager verstuurd) ─────
+
+export async function sendConsumerPaymentLinkEmail(params: {
+  to: string;
+  name?: string;
+  planLabel: string;
+  amountCents: number;
+  checkoutUrl: string;
+  userId?: string;
+  orderId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  const amount = new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+  }).format(params.amountCents / 100);
+  const hi = params.name ? `Hoi ${params.name},` : "Hoi,";
+  const html = `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;color:#0A2A73;line-height:1.5;">
+    <p>${hi}</p>
+    <p>Hier is je betaal-link voor <strong>Dicteren.ai ${params.planLabel}</strong> (${amount}).</p>
+    <p><a href="${params.checkoutUrl}" style="display:inline-block;background:#FF8F43;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;">Naar de betaling</a></p>
+    <p style="font-size:13px;color:#5b6b86;">Na betaling krijg je je licentiecode per mail. Vragen? Mail <a href="mailto:info@dicteren.ai" style="color:#0A2A73;">info@dicteren.ai</a>.</p>
+  </div>`;
+  const text = `${hi}\n\nHier is je betaal-link voor Dicteren.ai ${params.planLabel} (${amount}):\n${params.checkoutUrl}\n\nNa betaling krijg je je licentiecode per mail. Vragen? info@dicteren.ai`;
+  return sendEmail({
+    to: params.to,
+    subject: `Je betaal-link voor Dicteren.ai ${params.planLabel}`,
+    html,
+    text,
+    tags: [
+      { name: "category", value: "other" },
+      ...(params.orderId ? [{ name: "order_id", value: params.orderId }] : []),
+    ],
+    log: {
+      category: "other",
+      userId: params.userId ?? null,
+      orderId: params.orderId ?? null,
+    },
+  });
+}
+
+export async function sendBusinessTrialInviteEmail(params: {
+  to: string;
+  name?: string;
+  trialUrl: string;
+}): Promise<ServiceResult<SendResult>> {
+  const hi = params.name ? `Hoi ${params.name},` : "Hoi,";
+  const html = `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;color:#0A2A73;line-height:1.5;">
+    <p>${hi}</p>
+    <p>Je kunt Dicteren.ai 14 dagen gratis zakelijk uitproberen. Vul je bedrijfsgegevens in en je test direct — geen betaling nodig.</p>
+    <p><a href="${params.trialUrl}" style="display:inline-block;background:#FF8F43;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;">Start 14 dagen gratis</a></p>
+    <p style="font-size:13px;color:#5b6b86;">Vragen? Mail <a href="mailto:info@dicteren.ai" style="color:#0A2A73;">info@dicteren.ai</a>.</p>
+  </div>`;
+  const text = `${hi}\n\nProbeer Dicteren.ai 14 dagen gratis zakelijk. Vul je bedrijfsgegevens in en test direct:\n${params.trialUrl}\n\nVragen? info@dicteren.ai`;
+  return sendEmail({
+    to: params.to,
+    subject: "Probeer Dicteren.ai 14 dagen gratis (zakelijk)",
+    html,
+    text,
+    tags: [{ name: "category", value: "other" }],
+    log: { category: "other" },
+  });
+}
+
 // ───── Welcome (after sign-up) ─────────────────────────────────────
 
 export async function sendWelcomeEmail(params: {

@@ -5,12 +5,13 @@
 // Toont per klant de actionable entiteiten en de bijspring-knoppen die op de
 // fase-2-routes draaien. Alle acties: optimistische status-melding + refresh.
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Briefcase,
   Building2,
+  CreditCard,
   Key,
   Monitor,
   RefreshCw,
@@ -223,6 +224,66 @@ export function SupportActions({
     }
   }
 
+  // ── Betaal-link op maat (consument-plan + optionele korting), via Resend ──
+  const [payPlans, setPayPlans] = useState<
+    { slug: string; label: string; priceCents: number }[]
+  >([]);
+  const [payPlanSlug, setPayPlanSlug] = useState("");
+  const [payDiscount, setPayDiscount] = useState("");
+  const [payBusy, setPayBusy] = useState(false);
+  const [payLink, setPayLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/plans/consumer")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) {
+          setPayPlans(d.plans);
+          if (d.plans[0]) setPayPlanSlug(d.plans[0].slug);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function sendPaymentLink() {
+    if (!payPlanSlug) {
+      setMsg({ kind: "err", text: "Kies een plan" });
+      return;
+    }
+    setPayBusy(true);
+    setMsg(null);
+    setPayLink(null);
+    try {
+      const res = await fetch(
+        `/api/admin/customers/${snapshot.user.id}/payment-link`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            planSlug: payPlanSlug,
+            discountCode: payDiscount.trim() || null,
+          }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setPayLink(data.data.checkoutUrl);
+        setMsg({
+          kind: "ok",
+          text: data.data.emailSent
+            ? "Betaal-link gemaild naar de klant."
+            : "Betaal-link aangemaakt (mail mislukt — kopieer de link).",
+        });
+      } else {
+        setMsg({ kind: "err", text: data.error ?? `Mislukt (${res.status})` });
+      }
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as Error).message });
+    } finally {
+      setPayBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       {msg && (
@@ -295,6 +356,56 @@ export function SupportActions({
             Upgrade naar zakelijk
           </BtnPrimary>
         </div>
+      </Section>
+
+      {/* Betaal-link op maat */}
+      <Section icon={CreditCard} title="Betaal-link sturen">
+        <p className="mb-3 text-xs text-[color:var(--text-muted)]">
+          Mollie-betaal-link voor een plan, met optionele kortingscode. Gaat per
+          mail naar de klant; betaling zet auto-renew op.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+              Plan
+            </span>
+            <select
+              value={payPlanSlug}
+              onChange={(e) => setPayPlanSlug(e.target.value)}
+              className="rounded-md border border-[color:var(--border-soft)] px-2.5 py-1.5 text-sm"
+            >
+              {payPlans.map((p) => (
+                <option key={p.slug} value={p.slug}>
+                  {p.label} (€{(p.priceCents / 100).toFixed(2)})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+              Kortingscode
+            </span>
+            <input
+              value={payDiscount}
+              onChange={(e) => setPayDiscount(e.target.value)}
+              placeholder="optioneel"
+              className="w-32 rounded-md border border-[color:var(--border-soft)] px-2.5 py-1.5 text-sm"
+            />
+          </label>
+          <BtnPrimary busy={payBusy} onClick={sendPaymentLink}>
+            Stuur betaal-link
+          </BtnPrimary>
+        </div>
+        {payLink && (
+          <a
+            href={payLink}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 block truncate text-xs text-blue-600 underline"
+          >
+            {payLink}
+          </a>
+        )}
       </Section>
 
       {/* Licenties + apparaten */}

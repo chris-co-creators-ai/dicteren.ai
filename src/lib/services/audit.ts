@@ -15,6 +15,7 @@ export type AuditAction =
   | "order.paid"
   | "order.failed"
   | "order.refunded"
+  | "order.payment_link_sent"
   | "subscription.creation_failed"
   | "checkout.started"
   | "checkout.completed"
