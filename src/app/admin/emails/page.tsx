@@ -1,11 +1,11 @@
 import { listEmailLogs, emailKpis } from "@/lib/services/commerce";
-import { assertAdminOnly } from "@/lib/auth/session";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import { EmailsView } from "./emails-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminEmailsPage() {
-  await assertAdminOnly();
+  await assertStaffPageAccess("/admin/emails");
   const [rows, kpis] = await Promise.all([listEmailLogs(300), emailKpis()]);
 
   return (

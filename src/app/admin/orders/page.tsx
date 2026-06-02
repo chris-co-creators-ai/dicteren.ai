@@ -1,12 +1,12 @@
 import { listOrders, commerceKpis } from "@/lib/services/commerce";
 import { formatMollieAmount } from "@/lib/services/mollie";
-import { assertAdminOnly } from "@/lib/auth/session";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import { OrdersTable } from "./orders-table";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOrdersPage() {
-  await assertAdminOnly();
+  await assertStaffPageAccess("/admin/orders");
   const [rows, kpis] = await Promise.all([listOrders(200), commerceKpis()]);
   return (
     <OrdersTable

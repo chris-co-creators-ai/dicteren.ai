@@ -47,7 +47,7 @@ const NAV: NavItem[] = [
   { href: "/admin/taken", label: "Taken", icon: ListChecks, roles: BOTH },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: BOTH },
   { href: "/admin/crm", label: "CRM", icon: Users, roles: BOTH },
-  { href: "/admin/users", label: "Users", icon: UserCog, roles: ADMIN_ONLY },
+  { href: "/admin/users", label: "Users", icon: UserCog, roles: BOTH },
   {
     href: "/admin/messages",
     label: "Berichten",
@@ -55,10 +55,10 @@ const NAV: NavItem[] = [
     badgeKey: "messages",
     roles: BOTH,
   },
-  { href: "/admin/licenses", label: "Licenties", icon: Key, roles: ADMIN_ONLY },
-  { href: "/admin/organizations", label: "Organisaties", icon: Building2, roles: ADMIN_ONLY },
-  { href: "/admin/orders", label: "Orders", icon: Receipt, roles: ADMIN_ONLY },
-  { href: "/admin/invoices", label: "Facturen", icon: Tag, roles: ADMIN_ONLY },
+  { href: "/admin/licenses", label: "Licenties", icon: Key, roles: BOTH },
+  { href: "/admin/organizations", label: "Organisaties", icon: Building2, roles: BOTH },
+  { href: "/admin/orders", label: "Orders", icon: Receipt, roles: BOTH },
+  { href: "/admin/invoices", label: "Facturen", icon: Tag, roles: BOTH },
   { href: "/admin/pricing", label: "Prijzen & marge", icon: Calculator, roles: BOTH },
   { href: "/admin/discounts", label: "Kortingen", icon: Scale, roles: BOTH },
   {
@@ -69,9 +69,9 @@ const NAV: NavItem[] = [
     roles: BOTH,
   },
   { href: "/admin/partners", label: "Partners", icon: HeartHandshake, roles: BOTH },
-  { href: "/admin/emails", label: "E-mails", icon: Mail, roles: ADMIN_ONLY },
+  { href: "/admin/emails", label: "E-mails", icon: Mail, roles: BOTH },
   { href: "/admin/support", label: "Support", icon: Bell, roles: BOTH },
-  { href: "/admin/settings", label: "Instellingen", icon: Settings, roles: ADMIN_ONLY },
+  { href: "/admin/settings", label: "Instellingen", icon: Settings, roles: BOTH },
 ];
 
 function initials(name: string) {

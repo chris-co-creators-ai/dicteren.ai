@@ -1,5 +1,5 @@
 import { AdminTopbar } from "@/components/admin/admin-topbar";
-import { assertAdminOnly } from "@/lib/auth/session";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import { listAdminUsers } from "@/lib/services/adminUsers";
 import { UsersClient } from "./users-client";
 
@@ -11,7 +11,7 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<{ show_staff?: string }>;
 }) {
-  await assertAdminOnly();
+  await assertStaffPageAccess("/admin/users");
   const { show_staff } = await searchParams;
   const includeStaff = show_staff === "1";
   const users = await listAdminUsers({ includeStaff });

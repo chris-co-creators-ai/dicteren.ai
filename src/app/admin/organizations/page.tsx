@@ -1,12 +1,12 @@
 import { listOrganizations } from "@/lib/services/identity";
 import { getOrgSeatSnapshotBulk } from "@/lib/services/orgSeats";
-import { assertAdminOnly } from "@/lib/auth/session";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import { OrganizationsView } from "./organizations-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOrganizationsPage() {
-  await assertAdminOnly();
+  await assertStaffPageAccess("/admin/organizations");
   const orgs = await listOrganizations();
   const snapshots = await getOrgSeatSnapshotBulk(orgs.map((o) => o.id));
 
