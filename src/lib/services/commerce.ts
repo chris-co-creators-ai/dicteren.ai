@@ -563,7 +563,7 @@ export async function expiringSoon(days = 30): Promise<number> {
 
 export type OverviewKpis = {
   activeLicenses: number;
-  betaCodes: number;
+  trialCodes: number;
   activationsToday: number;
   activationsLast24h: number;
   expiringSoon: number;
@@ -576,7 +576,7 @@ export async function overviewKpis(): Promise<OverviewKpis> {
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const [
     [{ activeLicenses }],
-    [{ betaCodes }],
+    [{ trialCodes }],
     [{ act24 }],
     [{ openOrders }],
     [{ revAll }],
@@ -589,9 +589,9 @@ export async function overviewKpis(): Promise<OverviewKpis> {
       .from(licenses)
       .where(eq(licenses.status, "active")),
     db
-      .select({ betaCodes: count() })
+      .select({ trialCodes: count() })
       .from(licenses)
-      .where(eq(licenses.type, "beta")),
+      .where(eq(licenses.status, "trial")),
     db
       .select({ act24: count() })
       .from(licenseActivations)
@@ -616,7 +616,7 @@ export async function overviewKpis(): Promise<OverviewKpis> {
 
   return {
     activeLicenses: Number(activeLicenses),
-    betaCodes: Number(betaCodes),
+    trialCodes: Number(trialCodes),
     activationsToday: actToday,
     activationsLast24h: Number(act24),
     expiringSoon: Number(expiring),

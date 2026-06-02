@@ -19,7 +19,7 @@ type TrialResponse =
         id: string;
         code: string;
         expiresAt: string;
-        type: "beta";
+        type: "consumer";
       };
       isExisting: boolean;
     }
@@ -58,7 +58,7 @@ export async function POST(request: Request): Promise<NextResponse<TrialResponse
       id: result.license.id,
       code: result.license.code,
       expiresAt: result.license.expiresAt!.toISOString(),
-      type: "beta",
+      type: "consumer",
     },
     isExisting: result.isExisting,
   });

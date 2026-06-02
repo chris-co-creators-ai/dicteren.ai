@@ -32,13 +32,11 @@ import { getActualB2BMrrTimeline } from "@/lib/services/revenueTimeline";
 export const dynamic = "force-dynamic";
 
 const TYPE_LABEL: Record<string, string> = {
-  beta: "Beta (gratis)",
   consumer: "Persoonlijk",
   team: "Zakelijk",
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  beta: "var(--aqua)",
   consumer: "var(--orange)",
   team: "var(--navy)",
 };
@@ -161,9 +159,9 @@ export default async function AdminOverviewPage() {
       trend: kpis.expiringSoon > 5 ? "down" : "flat",
     },
     {
-      label: "Beta-codes",
-      value: kpis.betaCodes.toLocaleString("nl-NL"),
-      delta: "Type=beta in DB",
+      label: "Trials",
+      value: kpis.trialCodes.toLocaleString("nl-NL"),
+      delta: "Status=trial",
       trend: "flat",
     },
     {

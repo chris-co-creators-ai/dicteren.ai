@@ -45,16 +45,16 @@ const PLANS: Record<
   year: { price: 96, sub: "per jaar", save: "bespaar 33%", label: "Per jaar" },
 };
 
-const COMPARE: { feature: string; beta: boolean | string; persoonlijk: boolean | string; zakelijk: boolean | string }[] = [
-  { feature: "Lokaal Nederlands V3-model", beta: true, persoonlijk: true, zakelijk: true },
-  { feature: "Mac & Windows", beta: true, persoonlijk: true, zakelijk: true },
-  { feature: "Aantal apparaten", beta: "1", persoonlijk: "2", zakelijk: "per gebruiker" },
-  { feature: "Nieuwe modelversies", beta: false, persoonlijk: true, zakelijk: true },
-  { feature: "Prioriteits-support", beta: false, persoonlijk: true, zakelijk: true },
-  { feature: "Admin-dashboard", beta: false, persoonlijk: false, zakelijk: true },
-  { feature: "Seat-management", beta: false, persoonlijk: false, zakelijk: true },
-  { feature: "Volumekorting vanaf 5 seats", beta: false, persoonlijk: false, zakelijk: true },
-  { feature: "Facturatie & inkoop-PO", beta: false, persoonlijk: false, zakelijk: true },
+const COMPARE: { feature: string; trial: boolean | string; persoonlijk: boolean | string; zakelijk: boolean | string }[] = [
+  { feature: "Lokaal Nederlands V3-model", trial: true, persoonlijk: true, zakelijk: true },
+  { feature: "Mac & Windows", trial: true, persoonlijk: true, zakelijk: true },
+  { feature: "Aantal apparaten", trial: "1", persoonlijk: "2", zakelijk: "per gebruiker" },
+  { feature: "Nieuwe modelversies", trial: false, persoonlijk: true, zakelijk: true },
+  { feature: "Prioriteits-support", trial: false, persoonlijk: true, zakelijk: true },
+  { feature: "Admin-dashboard", trial: false, persoonlijk: false, zakelijk: true },
+  { feature: "Seat-management", trial: false, persoonlijk: false, zakelijk: true },
+  { feature: "Volumekorting vanaf 5 seats", trial: false, persoonlijk: false, zakelijk: true },
+  { feature: "Facturatie & inkoop-PO", trial: false, persoonlijk: false, zakelijk: true },
 ];
 
 // Pricing tiers + custom-quote drempel komen uit services/pricingTiers.
@@ -542,7 +542,7 @@ export function PrijzenClient({ pricing }: { pricing: PricingSnapshot }) {
                   <td className="px-4 py-4 text-sm font-medium">
                     {row.feature}
                   </td>
-                  <CompareCell value={row.beta} />
+                  <CompareCell value={row.trial} />
                   <CompareCell value={row.persoonlijk} />
                   <CompareCell value={row.zakelijk} />
                 </tr>
@@ -559,10 +559,10 @@ export function PrijzenClient({ pricing }: { pricing: PricingSnapshot }) {
               <ul className="flex flex-col gap-2.5">
                 {COMPARE.map((row) => {
                   const key = (plan === "Trial"
-                    ? "beta"
+                    ? "trial"
                     : plan === "Persoonlijk"
                       ? "persoonlijk"
-                      : "zakelijk") as "beta" | "persoonlijk" | "zakelijk";
+                      : "zakelijk") as "trial" | "persoonlijk" | "zakelijk";
                   const value = row[key];
                   return (
                     <li

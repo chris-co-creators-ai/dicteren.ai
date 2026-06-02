@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, ne, notInArray } from "drizzle-orm";
+import { and, eq, inArray, like, ne, notInArray } from "drizzle-orm";
 import { db, dbAuth } from "@/lib/db";
 import {
   authUsers,
@@ -300,9 +300,10 @@ export async function fulfillPaidOrder(args: {
       insertedCodes.push(code);
     }
 
-    // Trial → betaald: zet de trial/beta-licentie(s) van de koper op 'expired'
-    // zodra hij een betaalde licentie krijgt. Anders draait de klant met twee
-    // actieve licenties (trial + paid) en telt analytics dubbel.
+    // Trial → betaald: zet de trial-licentie(s) van de koper op 'expired' zodra
+    // hij een betaalde licentie krijgt. Trial = code-prefix DIC-TRIAL- (geen
+    // apart "beta"-type meer). Anders draait de klant met twee actieve
+    // licenties (trial + paid) en telt analytics dubbel.
     if (order.userId) {
       await tx
         .update(licenses)
@@ -310,7 +311,7 @@ export async function fulfillPaidOrder(args: {
         .where(
           and(
             eq(licenses.userId, order.userId),
-            eq(licenses.type, "beta"),
+            like(licenses.code, "DIC-TRIAL-%"),
             inArray(licenses.status, ["trial", "active"] as const),
           ),
         );

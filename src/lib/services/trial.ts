@@ -67,7 +67,10 @@ export async function claimTrialForUser(args: {
         code: "trial_revoked",
       };
     }
-    if (existing.status === "active" && !isExpired(existing.expiresAt)) {
+    if (
+      (existing.status === "trial" || existing.status === "active") &&
+      !isExpired(existing.expiresAt)
+    ) {
       return { success: true, license: existing, isExisting: true };
     }
     // expired / canceled / refunded → no second chance
@@ -89,8 +92,10 @@ export async function claimTrialForUser(args: {
     .values({
       code,
       codeHash,
-      type: "beta",
-      status: "active",
+      // Trials zijn een consument-licentie met status "trial" — geen apart
+      // "beta"-type meer. De code-prefix DIC-TRIAL- blijft de discriminator.
+      type: "consumer",
+      status: "trial",
       userId: args.userId,
       seats: 1,
       maxActivationsPerSeat: TRIAL_DEFAULTS.maxActivations,

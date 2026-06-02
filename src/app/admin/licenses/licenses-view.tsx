@@ -50,7 +50,6 @@ const STATUS_META: Record<UiStatus, { label: string; chip: string; dot: string }
 };
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
-  beta: { label: "Beta", color: "var(--navy-500)" },
   consumer: { label: "Persoonlijk", color: "var(--orange-600)" },
   team: { label: "Zakelijk", color: "var(--navy)" },
 };
@@ -61,7 +60,7 @@ function uiStatusFor(l: License): UiStatus {
   if (l.status === "expired" || l.status === "canceled") return "expired";
   if (l.status === "active" && l.activationCount === 0) return "unused";
   if (l.status === "trial" && l.activationCount === 0) return "unused";
-  if (l.status === "active") return "active";
+  if (l.status === "active" || l.status === "trial") return "active";
   return "expired";
 }
 
@@ -365,7 +364,7 @@ function DetailDrawer({
   } | null>(null);
 
   const canReplace =
-    license.type !== "beta" &&
+    !license.code.startsWith("DIC-TRIAL-") &&
     license.status !== "revoked" &&
     license.status !== "refunded";
 

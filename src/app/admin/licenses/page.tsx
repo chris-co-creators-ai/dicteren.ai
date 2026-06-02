@@ -17,6 +17,7 @@ export default async function AdminLicensesPage() {
   ]);
 
   const totalByType = (t: string) => distribution.find((d) => d.type === t)?.count ?? 0;
+  const trialCount = rows.filter((r) => r.status === "trial").length;
   const expiringSoon = rows.filter((r) => {
     if (!r.expiresAt || r.status !== "active") return false;
     const ms = new Date(r.expiresAt).getTime() - Date.now();
@@ -44,9 +45,9 @@ export default async function AdminLicensesPage() {
           detail: `${kpis.licensesActive} actief`,
         },
         {
-          label: "Beta",
-          value: String(totalByType("beta")),
-          detail: "Beta-toegang",
+          label: "Trials",
+          value: String(trialCount),
+          detail: "Proefperiodes",
         },
         {
           label: "Persoonlijk",
