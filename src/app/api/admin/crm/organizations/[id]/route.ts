@@ -99,6 +99,16 @@ export async function PATCH(
     "proposedPlanSlug",
     "discountCode",
     "lostReason",
+    // Uitgebreide bedrijfsattributen (migratie 0031), inline-editbaar in de grid.
+    "industry",
+    "niche",
+    "specialisatie",
+    "companySize",
+    "revenueRange",
+    "totalReach",
+    "brancheVereniging",
+    "aantalVestigingen",
+    "hoofdkantoor",
   ];
   // Alleen admin mag account_owner_id veranderen (overdracht naar andere AM)
   if (guard.isAdmin) allowed.push("accountOwnerId");

@@ -85,6 +85,19 @@ export const crmOrganizations = pgTable(
     province: text("province"),
     countryCode: text("country_code").default("NL"),
 
+    // Uitgebreide bedrijfsattributen — inline-editbaar in de Organisaties-grid.
+    // Company-enrichment leeft hier op org-niveau (niet op het contact) zodat de
+    // grid zelfstandig is. Migratie 0031.
+    industry: text("industry"),
+    niche: text("niche"),
+    specialisatie: text("specialisatie"),
+    companySize: text("company_size"),
+    revenueRange: text("revenue_range"),
+    totalReach: integer("total_reach"),
+    brancheVereniging: text("branche_vereniging"),
+    aantalVestigingen: integer("aantal_vestigingen"),
+    hoofdkantoor: text("hoofdkantoor"),
+
     // CRM-metadata
     source: crmOrgSource("source").notNull().default("am_outreach"),
     status: crmOrgStatus("status").notNull().default("lead"),
