@@ -21,8 +21,10 @@ import {
 import { formatMollieAmount } from "@/lib/services/mollie";
 import { listOpenPartnerTasks } from "@/lib/services/partnerTasks";
 import { listOpenOrgTasksForUser } from "@/lib/services/crmDeals";
+import { listActorCrmActivity } from "@/lib/services/crmActivity";
 import { OpenTasksWidget } from "./open-tasks-widget";
 import { MyOrgTasksWidget } from "./my-org-tasks-widget";
+import { MyActivityWidget } from "./my-activity-widget";
 import { RevenueRoadmap } from "./revenue-roadmap";
 import { ActualRevenueTimeline } from "./actual-revenue-timeline";
 import { getActualB2BMrrTimeline } from "@/lib/services/revenueTimeline";
@@ -136,6 +138,11 @@ export default async function AdminOverviewPage() {
         }),
       ])
     : [[], [], []];
+
+  // Eigen CRM-activiteit van de ingelogde AM/admin (transparantie-feed).
+  const myActivity = session?.user.id
+    ? await listActorCrmActivity(session.user.id, 12)
+    : [];
 
   const greetingName = session?.user.name?.split(" ")[0] ?? "Christian";
   const now = new Date();
@@ -332,6 +339,16 @@ export default async function AdminOverviewPage() {
           }))}
         />
 
+        <div className="grid gap-4 lg:grid-cols-2">
+        <MyActivityWidget
+          items={myActivity.map((a) => ({
+            id: a.id,
+            kind: a.kind,
+            createdAt: a.createdAt,
+            orgId: a.orgId,
+            orgName: a.orgName,
+          }))}
+        />
         <div className="brand-card overflow-hidden p-0">
           <div className="flex items-center border-b border-[color:var(--border-soft)] p-4">
             <h3 className="text-sm font-bold">Recente activiteit</h3>
@@ -395,6 +412,7 @@ export default async function AdminOverviewPage() {
               })}
             </ul>
           )}
+        </div>
         </div>
       </div>
     </>
