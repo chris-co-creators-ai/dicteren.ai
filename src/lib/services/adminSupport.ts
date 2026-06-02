@@ -14,8 +14,9 @@
 // G5 (seatbeheer namens org) hergebruikt orgSeats.ts + orderUpgrade.ts.
 
 import "server-only";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { hashLicenseCode, normalizeLicenseCode } from "./license";
 import {
   authMembers,
   authOrganizations,
@@ -621,4 +622,95 @@ export async function retrySubscriptionForLicense(args: {
   });
 
   return { success: true, mollieSubscriptionId: sub.data.subscriptionId };
+}
+
+// ───── Zoek-ingang voor de support-cockpit ─────────────────────────
+
+export type SupportSearchMatch = {
+  userId: string;
+  name: string;
+  email: string;
+  matchedOn: string;
+};
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Resolve een vrije zoekterm naar klant(en) voor de cockpit. Probeert e-mail/
+ *  naam (partial), licentiecode, order-id en apparaat-fingerprint. */
+export async function findCustomersForSupport(
+  query: string,
+): Promise<SupportSearchMatch[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const matches = new Map<string, SupportSearchMatch>();
+
+  const addUser = async (userId: string | null, matchedOn: string) => {
+    if (!userId || matches.has(userId)) return;
+    const [u] = await db
+      .select({ id: authUsers.id, name: authUsers.name, email: authUsers.email })
+      .from(authUsers)
+      .where(eq(authUsers.id, userId))
+      .limit(1);
+    if (u) matches.set(u.id, { userId: u.id, name: u.name, email: u.email, matchedOn });
+  };
+
+  // E-mail / naam (partial).
+  const users = await db
+    .select({ id: authUsers.id, name: authUsers.name, email: authUsers.email })
+    .from(authUsers)
+    .where(
+      or(ilike(authUsers.email, `%${q}%`), ilike(authUsers.name, `%${q}%`)),
+    )
+    .limit(15);
+  for (const u of users) {
+    matches.set(u.id, {
+      userId: u.id,
+      name: u.name,
+      email: u.email,
+      matchedOn: "e-mail of naam",
+    });
+  }
+
+  // Licentiecode (volledige code → hash-match).
+  if (/^dic/i.test(q.replace(/[\s-]/g, ""))) {
+    try {
+      const hash = hashLicenseCode(normalizeLicenseCode(q));
+      const [lic] = await db
+        .select({ userId: licenses.userId })
+        .from(licenses)
+        .where(eq(licenses.codeHash, hash))
+        .limit(1);
+      if (lic?.userId) await addUser(lic.userId, "licentiecode");
+    } catch {
+      // ongeldige code-vorm → overslaan
+    }
+  }
+
+  // Order-id (uuid).
+  if (UUID_RE.test(q)) {
+    const [o] = await db
+      .select({ userId: orders.userId })
+      .from(orders)
+      .where(eq(orders.id, q))
+      .limit(1);
+    if (o?.userId) await addUser(o.userId, "order-id");
+  }
+
+  // Apparaat-fingerprint.
+  if (/^fp_/i.test(q)) {
+    const [row] = await db
+      .select({ userId: licenses.userId })
+      .from(devices)
+      .innerJoin(
+        licenseActivations,
+        eq(licenseActivations.deviceId, devices.id),
+      )
+      .innerJoin(licenses, eq(licenses.id, licenseActivations.licenseId))
+      .where(eq(devices.fingerprint, q))
+      .limit(1);
+    if (row?.userId) await addUser(row.userId, "apparaat");
+  }
+
+  return Array.from(matches.values());
 }

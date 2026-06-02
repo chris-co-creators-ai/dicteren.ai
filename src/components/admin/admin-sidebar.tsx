@@ -68,7 +68,7 @@ const NAV: NavItem[] = [
   },
   { href: "/admin/partners", label: "Partners", icon: HeartHandshake, roles: BOTH },
   { href: "/admin/emails", label: "E-mails", icon: Mail, roles: ADMIN_ONLY },
-  { href: "/admin/support", label: "Support", icon: Bell, roles: ADMIN_ONLY },
+  { href: "/admin/support", label: "Support", icon: Bell, roles: BOTH },
   { href: "/admin/settings", label: "Instellingen", icon: Settings, roles: ADMIN_ONLY },
 ];
 
