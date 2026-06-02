@@ -2458,10 +2458,14 @@ function CellRenderer({
       return row.accountOwner ? (
         <Link
           href={`/admin/affiliates/${row.accountOwner.affiliateId}`}
-          className="block truncate text-xs font-semibold text-[color:var(--navy)] hover:underline"
-          title={`${row.accountOwner.name} · ${row.accountOwner.code}`}
+          className="inline-flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[0.625rem] font-semibold hover:underline"
+          style={{
+            background: "color-mix(in srgb, #7c3aed 14%, white)",
+            color: "#7c3aed",
+          }}
+          title={`Reseller: ${row.accountOwner.name} · ${row.accountOwner.code}`}
         >
-          {row.accountOwner.name}
+          <span className="truncate">⟁ {row.accountOwner.name}</span>
         </Link>
       ) : (
         <span className="text-[color:var(--text-soft)]">—</span>
@@ -2504,13 +2508,9 @@ function CellRenderer({
               +{rowLists.length - 1}
             </span>
           )}
-          <button
-            onClick={onOpenNotes}
-            className="shrink-0 text-[0.625rem] text-[color:var(--text-soft)] hover:text-[color:var(--navy)]"
-            title={row.notes ? "Notitie bewerken" : "Notitie toevoegen"}
-          >
-            {row.notes ? "📝" : "+"}
-          </button>
+          {rowLists.length === 0 && (
+            <span className="text-[color:var(--text-soft)]">—</span>
+          )}
         </span>
       );
     }
