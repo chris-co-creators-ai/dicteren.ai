@@ -1,12 +1,12 @@
 import { listPartnerOrgs, partnerOrgsKpis } from "@/lib/services";
-import { requireAdminOrManager } from "@/lib/auth/session";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import { PartnersCrmView } from "./partners-crm-view";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Partners · Admin · Dicteren.ai" };
 
 export default async function AdminPartnersPage() {
-  const session = await requireAdminOrManager();
+  const session = await assertStaffPageAccess("/admin/partners");
   const [orgs, kpis] = await Promise.all([
     listPartnerOrgs(),
     partnerOrgsKpis(),

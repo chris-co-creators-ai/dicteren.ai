@@ -1,4 +1,5 @@
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import {
   contactMessageKpis,
   listContactMessages,
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Berichten · Admin" };
 
 export default async function AdminMessagesPage() {
+  await assertStaffPageAccess("/admin/messages");
   const [messages, kpis, admins] = await Promise.all([
     listContactMessages({}),
     contactMessageKpis(),

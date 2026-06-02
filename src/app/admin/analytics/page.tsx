@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import {
   funnelEventCounts,
   activationsLastNDays,
@@ -61,6 +62,7 @@ function formatDate(d: Date | null): string {
 }
 
 export default async function AdminAnalyticsPage() {
+  await assertStaffPageAccess("/admin/analytics");
   const [
     funnel,
     activations,

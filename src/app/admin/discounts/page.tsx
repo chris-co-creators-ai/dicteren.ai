@@ -1,5 +1,6 @@
 import { eq, desc } from "drizzle-orm";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { affiliates, discountCodes } from "@/lib/db/schema";
 import { listAffiliates } from "@/lib/services/affiliate";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Kortingen · Admin" };
 
 export default async function AdminDiscountsPage() {
+  await assertStaffPageAccess("/admin/discounts");
   const [discountsWithAff, affiliateList] = await Promise.all([
     db
       .select({

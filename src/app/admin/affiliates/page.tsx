@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { assertStaffPageAccess } from "@/lib/auth/session";
 import { listAffiliates } from "@/lib/services/affiliate";
 import { AffiliatesIndexClient } from "./affiliates-index-client";
 
@@ -15,6 +16,7 @@ function eur(cents: number): string {
 }
 
 export default async function AdminAffiliatesPage() {
+  await assertStaffPageAccess("/admin/affiliates");
   const affiliates = await listAffiliates();
 
   const totalEarned = affiliates.reduce((s, a) => s + a.totalEarnedCents, 0);
