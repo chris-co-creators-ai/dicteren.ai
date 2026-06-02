@@ -1104,7 +1104,7 @@ export function CrmView({
           {/* Tabel + altijd-zichtbaar org-side-panel rechts */}
           {viewMode === "table" && (
           <div className="flex gap-4">
-          <div className="min-w-0 flex-1 overflow-x-auto">
+          <div className="scroll-visible min-w-0 flex-1 overflow-x-auto">
             <table
               className="border-separate border-spacing-0 text-sm"
               style={{
@@ -1120,10 +1120,10 @@ export function CrmView({
                 {orderedColumns.map((col) => (
                   <col key={col} style={{ width: colWidth(col) }} />
                 ))}
-                <col style={{ width: 60 }} />
-                {/* Filler: slokt resterende breedte zodat er geen dode witruimte
-                    rechts staat (Excel/Clay). Geen width = krijgt de rest. */}
+                {/* Filler vóór de actie-kolom: vangt de slack op zodat de
+                    sticky actie-kolom rechts blijft plakken zonder gat. */}
                 <col />
+                <col style={{ width: 60 }} />
               </colgroup>
               <thead>
                 <tr
@@ -1181,8 +1181,8 @@ export function CrmView({
                       </th>
                     );
                   })}
-                  <th className="border-b border-r border-[color:var(--border-soft)] px-2"></th>
                   <th className="border-b border-[color:var(--border-soft)]"></th>
+                  <th className="sticky right-0 z-20 border-b border-l border-[color:var(--border-soft)] bg-[color:var(--bg)] px-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1287,7 +1287,8 @@ export function CrmView({
                           )}
                         </td>
                       ))}
-                      <td className="h-8 border-b border-[color:var(--border-soft)] px-1 text-center align-middle">
+                      <td className="border-b border-[color:var(--border-soft)]" />
+                      <td className="sticky right-0 z-10 h-8 border-b border-l border-[color:var(--border-soft)] bg-inherit px-1 text-center align-middle">
                         {r.kind === "prospect" ? (
                           <div className="flex items-center justify-center gap-1">
                             <button
@@ -1316,7 +1317,6 @@ export function CrmView({
                           </button>
                         )}
                       </td>
-                      <td className="border-b border-[color:var(--border-soft)]" />
                     </tr>
                     );
                   })
