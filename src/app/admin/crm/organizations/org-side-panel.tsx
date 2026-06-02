@@ -205,7 +205,7 @@ export function OrgSidePanel({
       >
         {/* Header */}
         <div
-          className="sticky top-0 z-10 border-b bg-white px-6 py-4"
+          className="sticky top-0 z-10 border-b bg-white px-4 py-2.5"
           style={{ borderColor: "var(--border)" }}
         >
           <div className="flex items-start justify-between gap-3">
@@ -248,7 +248,7 @@ export function OrgSidePanel({
           </div>
 
           {/* Tabs */}
-          <div className="mt-4 flex gap-1 overflow-x-auto">
+          <div className="mt-2.5 flex gap-1 overflow-x-auto">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -267,7 +267,7 @@ export function OrgSidePanel({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5">
+        <div className="px-4 py-3">
           {loading || !org ? (
             <div className="py-12 text-center text-sm text-[color:var(--text-muted)]">
               Laden...
@@ -746,7 +746,7 @@ function DetailsTab({
   }
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-2 text-sm">
       <Section title="Bedrijf">
         <TextField label="Naam" value={f.name} onChange={(v) => setF({ ...f, name: v })} />
         <div className="grid grid-cols-2 gap-2">
@@ -784,7 +784,7 @@ function DetailsTab({
             <select
               value={f.province ?? ""}
               onChange={(e) => setF({ ...f, province: e.target.value || null })}
-              className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+              className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
               style={{ borderColor: "var(--border)" }}
             >
               <option value="">—</option>
@@ -805,7 +805,7 @@ function DetailsTab({
           <select
             value={f.accountOwnerId ?? ""}
             onChange={(e) => setF({ ...f, accountOwnerId: e.target.value || null })}
-            className="mt-1 w-full rounded-lg border bg-white px-3 py-2"
+            className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
             style={{ borderColor: "var(--border)" }}
           >
             <option value="">— Niet toegewezen —</option>
@@ -823,7 +823,7 @@ function DetailsTab({
             value={f.notes ?? ""}
             onChange={(e) => setF({ ...f, notes: e.target.value })}
             rows={3}
-            className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+            className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
             style={{ borderColor: "var(--border)" }}
           />
         </label>
@@ -859,7 +859,7 @@ function DetailsTab({
         </Section>
       )}
 
-      <div className="sticky bottom-0 -mx-6 -mb-5 border-t bg-white px-6 py-3" style={{ borderColor: "var(--border)" }}>
+      <div className="sticky bottom-0 -mx-4 -mb-3 border-t bg-white px-4 py-2.5" style={{ borderColor: "var(--border)" }}>
         <button
           type="button"
           onClick={handleSave}
@@ -925,7 +925,7 @@ function ContactsTab({
   }
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-2 text-sm">
       {contacts.map((c) => (
         <div
           key={c.id}
@@ -1097,10 +1097,10 @@ function PaymentTab({
   }
 
   return (
-    <div className="space-y-4 text-sm">
+    <div className="space-y-2.5 text-sm">
       {org.paidAt ? (
         <div
-          className="rounded-lg border p-4"
+          className="rounded-lg border p-3"
           style={{ background: "#F0FDF4", borderColor: "#86EFAC" }}
         >
           <div className="flex items-center gap-2 font-bold text-green-700">
@@ -1115,7 +1115,7 @@ function PaymentTab({
         </div>
       ) : org.paymentLinkUrl ? (
         <div
-          className="rounded-lg border p-4"
+          className="rounded-lg border p-3"
           style={{ background: "#FFFBEB", borderColor: "#FCD34D" }}
         >
           <div className="flex items-center gap-2 font-bold text-yellow-800">
@@ -1133,7 +1133,7 @@ function PaymentTab({
         </div>
       ) : (
         <div
-          className="rounded-lg border p-4 text-xs text-[color:var(--text-muted)]"
+          className="rounded-lg border p-3 text-xs text-[color:var(--text-muted)]"
           style={{ borderColor: "var(--border)" }}
         >
           Nog geen betaal-link verzonden.
@@ -1141,11 +1141,11 @@ function PaymentTab({
       )}
 
       <div
-        className="rounded-lg border bg-white p-4"
+        className="rounded-lg border bg-white p-3"
         style={{ borderColor: "var(--border)" }}
       >
         <h4 className="text-xs font-bold text-[color:var(--navy)]">Deal-info</h4>
-        <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">
+        <dl className="mt-1.5 grid grid-cols-2 gap-1.5 text-xs">
           <dt className="text-[color:var(--text-muted)]">Seats</dt>
           <dd>{org.proposedSeats ?? "—"}</dd>
           <dt className="text-[color:var(--text-muted)]">Bedrag</dt>
@@ -1236,7 +1236,7 @@ function TimelineTab({
   onLogged: () => void;
 }) {
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-2 text-sm">
       <div className="flex justify-end">
         <LogInteractionSheet
           orgId={orgId}
@@ -1402,7 +1402,7 @@ function TasksTab({
   const done = tasks.filter((t) => t.completedAt);
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-2 text-sm">
       <div
         className="rounded-lg border bg-white p-3"
         style={{ borderColor: "var(--border)" }}
@@ -1415,7 +1415,7 @@ function TasksTab({
               <select
                 value={kind}
                 onChange={(e) => setKind(e.target.value)}
-                className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
                 style={{ borderColor: "var(--border)" }}
               >
                 <option value="follow_up">Opvolgen</option>
@@ -1431,7 +1431,7 @@ function TasksTab({
                 type="date"
                 value={dueAt}
                 onChange={(e) => setDueAt(e.target.value)}
-                className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+                className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
                 style={{ borderColor: "var(--border)" }}
               />
             </label>
@@ -1510,10 +1510,10 @@ function Section({
 }) {
   return (
     <div
-      className="space-y-2 rounded-lg border bg-white p-3"
+      className="space-y-1.5 rounded-lg border bg-white p-2.5"
       style={{ borderColor: "var(--border)" }}
     >
-      <h4 className="text-xs font-bold uppercase tracking-wide text-[color:var(--text-muted)]">
+      <h4 className="text-[0.6875rem] font-bold uppercase tracking-wide text-[color:var(--text-muted)]">
         {title}
       </h4>
       {children}
@@ -1539,7 +1539,7 @@ function TextField({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+        className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
         style={{ borderColor: "var(--border)" }}
       />
     </label>
@@ -1566,7 +1566,7 @@ function NumberField({
         onChange={(e) =>
           onChange(e.target.value === "" ? null : Number(e.target.value))
         }
-        className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
+        className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
         style={{ borderColor: "var(--border)" }}
       />
     </label>
