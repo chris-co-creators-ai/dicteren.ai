@@ -376,6 +376,13 @@ export function PrijzenClient({ pricing }: { pricing: PricingSnapshot }) {
               </Link>
             )}
 
+            <Link
+              href="/zakelijk/trial"
+              className="mt-2 block w-full text-center text-sm font-semibold text-[color:var(--navy)] underline-offset-2 hover:underline"
+            >
+              Of probeer eerst 14 dagen gratis
+            </Link>
+
             <ul className="mt-5 flex flex-col gap-2.5">
               {[
                 "Teamlicenties · 2 apparaten per gebruiker",

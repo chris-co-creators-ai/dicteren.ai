@@ -50,6 +50,10 @@ export const RATE_LIMITS = {
   "checkout:consumer": { limit: 10, windowSeconds: 60 },
   "checkout:organization": { limit: 10, windowSeconds: 60 },
 
+  // Zakelijke trial: 1 trial per user (server-dedup), dit dekt mass-account-
+  // spam af. 5/dag/user is ruim voor legitieme dubbel-klik/retry.
+  "zakelijk:trial": { limit: 5, windowSeconds: 86_400 },
+
   // Cancel-spam beperken — Mollie DELETE is goedkope op API maar log-noise
   // in audit-feed bij abuse.
   "subscription:cancel": { limit: 5, windowSeconds: 60 },

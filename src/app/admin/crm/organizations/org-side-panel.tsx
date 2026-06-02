@@ -1054,6 +1054,72 @@ function ContactsTab({
 
 // ───── Payment tab ─────
 
+// Deelbare 14-dagen zakelijke-trial-link. De AM kopieert 'm en stuurt 'm naar
+// een prospect of reseller; die vult zelf bedrijfsgegevens in en de lead landt
+// bij deze AM (am=accountOwnerId). reseller=1 zet de bron op reseller.
+function TrialLinkShare({ amUserId }: { amUserId: string | null }) {
+  const [reseller, setReseller] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : "https://www.dicteren.ai";
+  const link =
+    `${origin}/zakelijk/trial` +
+    (amUserId ? `?am=${amUserId}` : "") +
+    (reseller ? `${amUserId ? "&" : "?"}reseller=1` : "");
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard kan geblokkeerd zijn — gebruiker selecteert handmatig */
+    }
+  }
+
+  return (
+    <div
+      className="rounded-lg border bg-white p-3"
+      style={{ borderColor: "var(--border)" }}
+    >
+      <h4 className="text-xs font-bold text-[color:var(--navy)]">
+        14-dagen trial-link delen
+      </h4>
+      <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+        Stuur naar een prospect of reseller. Ze vullen zelf hun
+        bedrijfsgegevens in en testen direct — de lead komt bij jou in het CRM.
+      </p>
+      <label className="mt-2 flex items-center gap-1.5 text-xs">
+        <input
+          type="checkbox"
+          checked={reseller}
+          onChange={(e) => setReseller(e.target.checked)}
+        />
+        Voor een reseller
+      </label>
+      <div className="mt-2 flex gap-2">
+        <input
+          readOnly
+          value={link}
+          onFocus={(e) => e.currentTarget.select()}
+          className="min-w-0 flex-1 rounded-md border bg-[color:var(--bg)] px-2 py-1.5 text-xs"
+          style={{ borderColor: "var(--border)" }}
+        />
+        <button
+          type="button"
+          onClick={copy}
+          className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+          style={{ background: "var(--navy)" }}
+        >
+          {copied ? "Gekopieerd" : "Kopieer"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PaymentTab({
   org,
   onChanged,
@@ -1104,6 +1170,7 @@ function PaymentTab({
 
   return (
     <div className="space-y-2.5 text-sm">
+      <TrialLinkShare amUserId={org.accountOwnerId} />
       {org.paidAt ? (
         <div
           className="rounded-lg border p-3"
