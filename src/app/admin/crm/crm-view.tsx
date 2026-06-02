@@ -2607,20 +2607,58 @@ function CellRenderer({
         </span>
       );
     case "jobTitle":
-      return <EnrichmentTextCell value={row.enrichment?.jobTitle ?? null} />;
-    case "seniority":
-      return <EnrichmentTextCell value={row.enrichment?.seniority ?? null} />;
-    case "city":
-      return <EnrichmentTextCell value={row.enrichment?.city ?? null} />;
-    case "companyName":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
       return (
-        <EnrichmentTextCell
+        <EditableText
+          value={row.enrichment?.jobTitle ?? null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("jobTitle", v)}
+        />
+      );
+    case "seniority":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.enrichment?.seniority ?? null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("seniority", v)}
+        />
+      );
+    case "city":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.enrichment?.city ?? null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("city", v)}
+        />
+      );
+    case "companyName":
+      if (!isProspect)
+        return <EnrichmentTextCell value={row.company ?? null} />;
+      return (
+        <EditableText
           value={row.enrichment?.companyName ?? row.company ?? null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("companyName", v)}
         />
       );
     case "revenueRange":
-      return <EnrichmentTextCell value={row.enrichment?.revenueRange ?? null} />;
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.enrichment?.revenueRange ?? null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("revenueRange", v)}
+        />
+      );
     case "companyDomain": {
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
       const d = row.enrichment?.companyDomain ?? null;
       return d ? (
         <a
@@ -2633,10 +2671,16 @@ function CellRenderer({
           {d.replace(/^https?:\/\//, "")}
         </a>
       ) : (
-        <span className="text-[color:var(--text-soft)]">—</span>
+        <EditableText
+          value={null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("companyDomain", v)}
+        />
       );
     }
     case "linkedinUrl": {
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
       const u = row.enrichment?.linkedinUrl ?? null;
       return u ? (
         <a
@@ -2649,7 +2693,11 @@ function CellRenderer({
           {u.replace(/^https?:\/\/(www\.)?linkedin\.com\//, "")}
         </a>
       ) : (
-        <span className="text-[color:var(--text-soft)]">—</span>
+        <EditableText
+          value={null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("linkedinUrl", v)}
+        />
       );
     }
     default:
