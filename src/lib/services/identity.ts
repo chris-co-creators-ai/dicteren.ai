@@ -8,6 +8,7 @@ import {
   isNull,
   like,
   ne,
+  notInArray,
   notLike,
   or,
   sql,
@@ -36,6 +37,20 @@ const NOT_RACE_DUPLICATE = or(
   isNull(licenses.notes),
   notLike(licenses.notes, "%Race-condition duplicate%"),
 );
+
+/** Rollen die staff zijn — geen klanten/leads. Staff hoort in
+ *  /admin/settings/staff, nooit in de CRM-/klantlijsten of -KPI's. */
+export const STAFF_ROLES = ["admin", "account_manager"] as const;
+
+/** Drizzle-conditie: alleen échte klanten (geen staff). Een NULL-rol telt als
+ *  klant — anders zou `NOT IN (...)` NULL-rijen óók wegfilteren (SQL-valkuil). */
+export const IS_CUSTOMER = or(
+  isNull(authUsers.role),
+  notInArray(authUsers.role, [...STAFF_ROLES]),
+);
+
+/** Rauwe SQL-variant van IS_CUSTOMER voor de UNION-CTE in crmList.ts. */
+export const IS_CUSTOMER_SQL = sql`(u.role IS NULL OR u.role NOT IN ('admin','account_manager'))`;
 
 /**
  * Identity service — single source of truth for users/orgs/members reads.
@@ -67,6 +82,7 @@ export async function listCustomers(): Promise<CustomerRow[]> {
       createdAt: authUsers.createdAt,
     })
     .from(authUsers)
+    .where(IS_CUSTOMER)
     .orderBy(desc(authUsers.createdAt));
 
   if (users.length === 0) return [];
@@ -179,7 +195,7 @@ export async function identityKpis() {
     [{ verifiedCount }],
     [{ totalOrgs }],
   ] = await Promise.all([
-    db.select({ totalUsers: count() }).from(authUsers),
+    db.select({ totalUsers: count() }).from(authUsers).where(IS_CUSTOMER),
     db
       .select({ adminCount: count() })
       .from(authUsers)
@@ -187,7 +203,7 @@ export async function identityKpis() {
     db
       .select({ verifiedCount: count() })
       .from(authUsers)
-      .where(eq(authUsers.emailVerified, true)),
+      .where(and(eq(authUsers.emailVerified, true), IS_CUSTOMER)),
     db.select({ totalOrgs: count() }).from(authOrganizations),
   ]);
   return { totalUsers, adminCount, verifiedCount, totalOrgs };
@@ -278,7 +294,7 @@ export async function listCustomerFunnel(opts?: {
       createdAt: authUsers.createdAt,
     })
     .from(authUsers)
-    .where(idFilter)
+    .where(and(idFilter, IS_CUSTOMER))
     .orderBy(desc(authUsers.createdAt));
 
   if (users.length === 0) return [];

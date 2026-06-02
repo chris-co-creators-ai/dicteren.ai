@@ -69,6 +69,7 @@ const PEOPLE_CTE = sql`
       u."createdAt"                    AS created_at
     FROM auth."user" u
     LEFT JOIN public.customer_attributes ca ON ca.user_id = u.id
+    WHERE (u.role IS NULL OR u.role NOT IN ('admin','account_manager'))
     UNION ALL
     SELECT
       c.id::text,

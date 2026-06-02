@@ -4,6 +4,7 @@
 import "server-only";
 import { and, count, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { IS_CUSTOMER } from "@/lib/services/identity";
 import {
   affiliateCommissions,
   affiliates as affiliatesTable,
@@ -78,7 +79,8 @@ export async function getTrialConversionRate(): Promise<{
 }> {
   const [{ totalUsers }] = await db
     .select({ totalUsers: sql<number>`count(*)::int` })
-    .from(authUsers);
+    .from(authUsers)
+    .where(IS_CUSTOMER);
 
   const trialRows = await db
     .select({ userId: licenses.userId })
