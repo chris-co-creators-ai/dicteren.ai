@@ -9,6 +9,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  Briefcase,
   Building2,
   Key,
   Monitor,
@@ -171,6 +172,48 @@ export function SupportActions({ snapshot }: { snapshot: SupportSnapshot }) {
     }
   }
 
+  // ── Upgrade consument → zakelijke deal ──
+  const [upBusy, setUpBusy] = useState(false);
+  const [company, setCompany] = useState("");
+  const [kvk, setKvk] = useState("");
+  const [seats, setSeats] = useState("5");
+  const [planSlug, setPlanSlug] = useState("org-yearly");
+
+  async function upgradeToBusiness() {
+    if (!company.trim()) {
+      setMsg({ kind: "err", text: "Vul een bedrijfsnaam in" });
+      return;
+    }
+    setUpBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(
+        `/api/admin/crm/${snapshot.user.id}/upgrade-to-business`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyName: company.trim(),
+            kvk: kvk.trim() || null,
+            seats: seats.trim() || null,
+            planSlug: planSlug.trim() || null,
+          }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success && data.organizationId) {
+        // Spring naar het org-panel (Betaling-tab pakt de AM zelf).
+        router.push(`/admin/crm?tab=organizations&open=${data.organizationId}`);
+      } else {
+        setMsg({ kind: "err", text: data.error ?? `Mislukt (${res.status})` });
+        setUpBusy(false);
+      }
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as Error).message });
+      setUpBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       {msg && (
@@ -187,6 +230,63 @@ export function SupportActions({ snapshot }: { snapshot: SupportSnapshot }) {
           {msg.text}
         </div>
       )}
+
+      {/* Upgrade naar zakelijk */}
+      <Section icon={Briefcase} title="Upgrade naar zakelijk">
+        <p className="mb-3 text-xs text-[color:var(--text-muted)]">
+          Maakt een zakelijke deal aan met deze klant als primair contact en
+          springt naar de Betaling-tab voor de betaal-link.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+              Bedrijfsnaam *
+            </span>
+            <input
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="Bedrijfsnaam B.V."
+              className="w-52 rounded-md border border-[color:var(--border-soft)] px-2.5 py-1.5 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+              KvK
+            </span>
+            <input
+              value={kvk}
+              onChange={(e) => setKvk(e.target.value)}
+              placeholder="optioneel"
+              className="w-28 rounded-md border border-[color:var(--border-soft)] px-2.5 py-1.5 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+              Seats
+            </span>
+            <input
+              type="number"
+              min={1}
+              value={seats}
+              onChange={(e) => setSeats(e.target.value)}
+              className="w-20 rounded-md border border-[color:var(--border-soft)] px-2.5 py-1.5 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[0.6875rem] font-semibold text-[color:var(--text-muted)]">
+              Plan
+            </span>
+            <input
+              value={planSlug}
+              onChange={(e) => setPlanSlug(e.target.value)}
+              className="w-32 rounded-md border border-[color:var(--border-soft)] px-2.5 py-1.5 text-sm"
+            />
+          </label>
+          <BtnPrimary busy={upBusy} onClick={upgradeToBusiness}>
+            Upgrade naar zakelijk
+          </BtnPrimary>
+        </div>
+      </Section>
 
       {/* Licenties + apparaten */}
       <Section icon={Key} title={`Licenties (${snapshot.licenses.length})`}>
