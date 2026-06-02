@@ -10,7 +10,7 @@
 // listCustomerFunnel join.
 
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { licenses } from "@/lib/db/schema";
 import type { LicenseType } from "@/lib/types";
@@ -112,13 +112,14 @@ export async function grantFreeMonthsLicense(args: {
   };
 }
 
-/** Telt actieve grant-licenses per user voor admin-context. */
+/** Telt admin-grant-licenses (lifetime + free-months) per user. Filtert op
+ *  source zodat gewone betaalde/trial-licenties NIET meetellen. */
 export async function countAdminGrantsForUser(userId: string): Promise<number> {
   const rows = await db
     .select({ id: licenses.id })
     .from(licenses)
-    .where(eq(licenses.userId, userId));
-  return rows.filter(
-    (r) => r.id !== null,
-  ).length;
+    .where(
+      and(eq(licenses.userId, userId), eq(licenses.source, "admin-grant")),
+    );
+  return rows.length;
 }

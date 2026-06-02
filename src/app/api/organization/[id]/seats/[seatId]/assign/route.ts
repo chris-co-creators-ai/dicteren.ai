@@ -102,6 +102,20 @@ export async function POST(
       { status: 410 },
     );
   }
+  // Een delta-seat uit een seat-uitbreiding blijft 'pending_payment' tot de
+  // pro-rata betaald is. Niet toewijzen voor de betaling binnen is — anders
+  // krijgt een lid een actieve code zonder dat ervoor betaald is.
+  if (seat.status === "pending_payment") {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Deze seat wacht nog op betalingsbevestiging. Probeer het zo opnieuw.",
+        code: "SEAT_PENDING_PAYMENT",
+      },
+      { status: 409 },
+    );
+  }
 
   // Direct insert in auth.invitation — skip Better Auth's API om de
   // sendInvitationEmail-callback te vermijden (we sturen handmatig met code).

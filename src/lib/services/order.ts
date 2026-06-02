@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, inArray, ne, notInArray } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, dbAuth } from "@/lib/db";
 import {
   authUsers,
   licenses,
@@ -187,15 +187,18 @@ export async function fulfillPaidOrder(args: {
     .limit(1);
   const order = orderRows[0];
   if (!order) return null;
-  if (order.status === "paid") return null;
 
-  // Move order to paid (will be visible immediately so retried webhooks no-op)
-  const updated = await db
-    .update(orders)
-    .set({ status: "paid", paidAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(orders.id, order.id), ne(orders.status, "paid")))
-    .returning({ id: orders.id });
-  if (updated.length === 0) return null; // raced with another webhook
+  // Idempotentie op het ECHTE invariant: bestaat er al een licentie voor deze
+  // order? Zo ja → al gefulfilled, no-op. We guarden bewust NIET meer op
+  // order.status === "paid": een order die op "paid" staat maar zonder licentie
+  // is een halve fulfillment (crash tussen status-flip en licentie-insert in de
+  // oude, transactieloze versie). Die moeten we juist herstellen, niet skippen.
+  const preExisting = await db
+    .select({ id: licenses.id })
+    .from(licenses)
+    .where(eq(licenses.orderId, order.id))
+    .limit(1);
+  if (preExisting.length > 0) return null;
 
   const plan = order.planId ? (await getPlanByIdInternal(order.planId)) : null;
   if (!plan) throw new Error(`Plan missing for order ${order.id}`);
@@ -222,87 +225,114 @@ export async function fulfillPaidOrder(args: {
   const isTeam = licenseType === "team";
   const seatCount = isTeam ? Math.max(1, order.quantity) : 1;
 
-  const [paymentRow] = await db
-    .insert(payments)
-    .values({
-      orderId: order.id,
-      molliePaymentId: args.molliePaymentId,
-      status: "paid",
-      amountCents: args.paidAmountCents,
-      currency: order.currency,
-      rawWebhookPayload: args.rawWebhookPayload as object,
-    })
-    .returning({ id: payments.id });
+  // Atomische fulfillment: order→paid + payment + N licenties + trial-expire in
+  // één transactie. Crasht het ertussenin, dan rolt alles terug en blijft de
+  // order op "pending" — de webhook-retry (of de admin-fulfill-knop) herstelt.
+  // We gebruiken dbAuth (neon-serverless/websocket) want db (neon-http) kan geen
+  // transacties. De UPDATE op orders neemt een row-lock: een parallelle webhook
+  // blokkeert daar tot wij committen en ziet daarna onze licenties → geen
+  // dubbele uitgifte.
+  const result = await dbAuth.transaction(async (tx) => {
+    // Row-lock + (her)bevestig paid. Geen status-guard: bij herstel staat de
+    // order al op paid, dat is prima.
+    await tx
+      .update(orders)
+      .set({ status: "paid", paidAt: new Date(), updatedAt: new Date() })
+      .where(eq(orders.id, order.id));
 
-  const insertedIds: string[] = [];
-  const insertedCodes: string[] = [];
+    // Dubbel-check binnen de transactie, na de row-lock: een parallelle webhook
+    // die net committe heeft nu licenties aangemaakt → wij stoppen.
+    const existing = await tx
+      .select({ id: licenses.id })
+      .from(licenses)
+      .where(eq(licenses.orderId, order.id))
+      .limit(1);
+    if (existing.length > 0) return null;
 
-  for (let i = 0; i < seatCount; i++) {
-    const code = generateLicenseCode(licenseType);
-    const codeHash = hashLicenseCode(code);
-    // Eerste seat van team-order: assign aan order.userId (de owner).
-    // Rest blijft unassigned tot owner ze toewijst via invite.
-    const isFirstTeamSeat = isTeam && i === 0;
-    const assignToUserId = isTeam ? (isFirstTeamSeat ? order.userId : null) : order.userId;
-    const status = isTeam
-      ? isFirstTeamSeat
-        ? "active"
-        : "unassigned"
-      : "active";
-
-    const [row] = await db
-      .insert(licenses)
+    const [paymentRow] = await tx
+      .insert(payments)
       .values({
-        code,
-        codeHash,
-        type: licenseType,
-        status,
-        customerEmail: null,
-        userId: assignToUserId,
-        organizationId: order.organizationId,
         orderId: order.id,
-        planId: plan.id,
-        seats: 1,
-        maxActivationsPerSeat: 2,
-        assignedAt: assignToUserId ? new Date() : null,
-        issuedAt: new Date(),
-        expiresAt,
+        molliePaymentId: args.molliePaymentId,
+        status: "paid",
+        amountCents: args.paidAmountCents,
+        currency: order.currency,
+        rawWebhookPayload: args.rawWebhookPayload as object,
       })
-      .returning({ id: licenses.id });
-    insertedIds.push(row.id);
-    insertedCodes.push(code);
-  }
+      .returning({ id: payments.id });
 
-  // Trial → betaald: zet de trial/beta-licentie(s) van de koper op 'expired'
-  // zodra hij een betaalde licentie krijgt. Anders draait de klant met twee
-  // actieve licenties (trial + paid) en telt analytics dubbel.
-  if (order.userId) {
-    await db
-      .update(licenses)
-      .set({ status: "expired", updatedAt: new Date() })
-      .where(
-        and(
-          eq(licenses.userId, order.userId),
-          eq(licenses.type, "beta"),
-          inArray(licenses.status, ["trial", "active"] as const),
-        ),
-      );
-  }
+    const insertedIds: string[] = [];
+    const insertedCodes: string[] = [];
 
-  return {
-    licenseId: insertedIds[0],
-    licenseCode: insertedCodes[0],
-    licenseIds: insertedIds,
-    licenseCodes: insertedCodes,
-    orderId: order.id,
-    organizationId: order.organizationId,
-    userId: order.userId,
-    paymentId: paymentRow.id,
-    seats: seatCount,
-    discountCodeId: order.discountCodeId ?? null,
-    expiresAt,
-    plan,
-  };
+    for (let i = 0; i < seatCount; i++) {
+      const code = generateLicenseCode(licenseType);
+      const codeHash = hashLicenseCode(code);
+      // Eerste seat van team-order: assign aan order.userId (de owner).
+      // Rest blijft unassigned tot owner ze toewijst via invite.
+      const isFirstTeamSeat = isTeam && i === 0;
+      const assignToUserId = isTeam ? (isFirstTeamSeat ? order.userId : null) : order.userId;
+      const status = isTeam
+        ? isFirstTeamSeat
+          ? "active"
+          : "unassigned"
+        : "active";
+
+      const [row] = await tx
+        .insert(licenses)
+        .values({
+          code,
+          codeHash,
+          type: licenseType,
+          status,
+          customerEmail: null,
+          userId: assignToUserId,
+          organizationId: order.organizationId,
+          orderId: order.id,
+          planId: plan.id,
+          seats: 1,
+          maxActivationsPerSeat: 2,
+          assignedAt: assignToUserId ? new Date() : null,
+          issuedAt: new Date(),
+          expiresAt,
+        })
+        .returning({ id: licenses.id });
+      insertedIds.push(row.id);
+      insertedCodes.push(code);
+    }
+
+    // Trial → betaald: zet de trial/beta-licentie(s) van de koper op 'expired'
+    // zodra hij een betaalde licentie krijgt. Anders draait de klant met twee
+    // actieve licenties (trial + paid) en telt analytics dubbel.
+    if (order.userId) {
+      await tx
+        .update(licenses)
+        .set({ status: "expired", updatedAt: new Date() })
+        .where(
+          and(
+            eq(licenses.userId, order.userId),
+            eq(licenses.type, "beta"),
+            inArray(licenses.status, ["trial", "active"] as const),
+          ),
+        );
+    }
+
+    return {
+      licenseId: insertedIds[0],
+      licenseCode: insertedCodes[0],
+      licenseIds: insertedIds,
+      licenseCodes: insertedCodes,
+      orderId: order.id,
+      organizationId: order.organizationId,
+      userId: order.userId,
+      paymentId: paymentRow.id,
+      seats: seatCount,
+      discountCodeId: order.discountCodeId ?? null,
+      expiresAt,
+      plan,
+    };
+  });
+
+  return result;
 }
 
 /**
@@ -509,24 +539,54 @@ export async function markSubscriptionPastDue(args: {
     .from(subscriptions)
     .where(eq(subscriptions.mollieSubscriptionId, args.mollieSubscriptionId))
     .limit(1);
-  if (!sub || !sub.licenseId) return null;
-
-  const [license] = await db
-    .select()
-    .from(licenses)
-    .where(eq(licenses.id, sub.licenseId))
-    .limit(1);
-  if (!license) return null;
-  // Already refunded/revoked overrides past_due (those are terminal).
-  if (license.status === "refunded" || license.status === "revoked") return null;
+  if (!sub) return null;
 
   const graceUntil = new Date();
   graceUntil.setDate(graceUntil.getDate() + PAST_DUE_GRACE_DAYS);
+
+  // Doel-licenties: team-sub raakt ALLE live team-seats van de org (spiegelt
+  // renewSubscriptionLicense, dat ook alle seats verlengt). Consumer = de ene
+  // gekoppelde licentie. Zonder dit zou bij een gefaalde team-incasso alleen de
+  // owner-seat past_due worden en de rest gewoon doordraaien.
+  let targets: { id: string; expiresAt: Date | null; userId: string | null }[] = [];
+  if (sub.organizationId) {
+    targets = await db
+      .select({
+        id: licenses.id,
+        expiresAt: licenses.expiresAt,
+        userId: licenses.userId,
+      })
+      .from(licenses)
+      .where(
+        and(
+          eq(licenses.organizationId, sub.organizationId),
+          eq(licenses.type, "team"),
+        ),
+      );
+  } else if (sub.licenseId) {
+    const [l] = await db
+      .select({
+        id: licenses.id,
+        expiresAt: licenses.expiresAt,
+        userId: licenses.userId,
+      })
+      .from(licenses)
+      .where(eq(licenses.id, sub.licenseId))
+      .limit(1);
+    if (l) targets = [l];
+  }
+  if (targets.length === 0) return null;
+
+  // Alle team-seats delen dezelfde expiresAt; bereken één keer en verkort nooit
+  // een al-langere geldigheid.
+  const first = targets[0];
   const newExpiresAt =
-    license.expiresAt && license.expiresAt.getTime() > graceUntil.getTime()
-      ? license.expiresAt
+    first.expiresAt && first.expiresAt.getTime() > graceUntil.getTime()
+      ? first.expiresAt
       : graceUntil;
 
+  // Flip alle live seats naar past_due; revoked/refunded blijven terminaal.
+  const liveIds = targets.map((t) => t.id);
   await db
     .update(licenses)
     .set({
@@ -534,14 +594,22 @@ export async function markSubscriptionPastDue(args: {
       expiresAt: newExpiresAt,
       updatedAt: new Date(),
     })
-    .where(eq(licenses.id, license.id));
+    .where(
+      and(
+        inArray(licenses.id, liveIds),
+        notInArray(licenses.status, ["revoked", "refunded"] as const),
+      ),
+    );
 
   await db
     .update(subscriptions)
     .set({ status: "past_due", updatedAt: new Date() })
     .where(eq(subscriptions.id, sub.id));
 
-  return { licenseId: license.id, graceUntil: newExpiresAt };
+  // Representatieve licentie voor mail/audit: kies een toegewezen seat (heeft
+  // userId → getContactByLicenseId vindt de owner-mail), anders de eerste.
+  const representative = targets.find((t) => t.userId) ?? first;
+  return { licenseId: representative.id, graceUntil: newExpiresAt };
 }
 
 /** Look up subscription + license by Mollie subscription id. */
