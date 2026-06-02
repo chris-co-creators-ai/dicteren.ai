@@ -1,12 +1,14 @@
-// Dicteren.ai — Bulk-toewijzing van prospects aan een AM (admin-only).
+// Dicteren.ai — Bulk-toewijzing/overdracht van prospects aan een AM.
 //   { contactIds: string[], assignToUserId: string | null }
+// Admin: elke prospect. Account manager: alleen z'n eigen leads (server-side
+// gescoped op org.account_owner_id = self) overdragen aan een collega-AM.
 
 import { NextResponse } from "next/server";
-import { requireStaffApi } from "@/lib/auth/session";
+import { requireScopedAm } from "@/lib/auth/session";
 import { assignContacts } from "@/lib/services/crmAssign";
 
 export async function POST(request: Request) {
-  const guard = await requireStaffApi({ adminOnly: true });
+  const guard = await requireScopedAm();
   if (guard.response) return guard.response;
 
   let body: { contactIds?: string[]; assignToUserId?: string | null };
@@ -24,6 +26,7 @@ export async function POST(request: Request) {
     contactIds,
     assignToUserId: body.assignToUserId ?? null,
     actorUserId: guard.session.user.id,
+    ownerScopeUserId: guard.isAdmin ? null : guard.ownerUserId,
   });
   return NextResponse.json({ success: true, ...result });
 }

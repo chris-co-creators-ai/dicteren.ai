@@ -1,7 +1,12 @@
 import "server-only";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { crmContacts, leadListMembers, leadLists } from "@/lib/db/schema";
+import {
+  crmContacts,
+  crmOrganizations,
+  leadListMembers,
+  leadLists,
+} from "@/lib/db/schema";
 import { logEvent } from "@/lib/services/audit";
 
 // Dicteren.ai — Toewijzing van prospects/lijsten aan een AM.
@@ -10,24 +15,64 @@ import { logEvent } from "@/lib/services/audit";
 // toegewezen prospect verlaat de admin-pool (assigned IS NULL) en verschijnt in
 // de CRM van die AM. null = terug naar de pool.
 
-/** Wijs een set prospects (crm_contacts) toe aan een AM (of null = pool). */
+/** Wijs een set prospects (crm_contacts) toe aan een AM (of null = pool).
+ *
+ *  ownerScopeUserId: voor een account_manager → alleen contacten waarvan de
+ *  gekoppelde org van die AM is (een AM draagt alleen z'n eigen leads over).
+ *  null = admin, geen filter.
+ *
+ *  Bij overdracht verschuift óók de org-eigenaar (account_owner_id) mee, anders
+ *  blijft de prospect in de personen-scope van de oude AM hangen (die leest
+ *  org.account_owner_id). */
 export async function assignContacts(args: {
   contactIds: string[];
   assignToUserId: string | null;
   actorUserId: string;
+  ownerScopeUserId?: string | null;
 }): Promise<{ assigned: number }> {
   if (args.contactIds.length === 0) return { assigned: 0 };
+
+  let ids = args.contactIds;
+  if (args.ownerScopeUserId) {
+    const owned = await db
+      .select({ id: crmContacts.id })
+      .from(crmContacts)
+      .leftJoin(
+        crmOrganizations,
+        eq(crmOrganizations.id, crmContacts.crmOrganizationId),
+      )
+      .where(
+        and(
+          inArray(crmContacts.id, args.contactIds),
+          eq(crmOrganizations.accountOwnerId, args.ownerScopeUserId),
+        ),
+      );
+    ids = owned.map((o) => o.id);
+  }
+  if (ids.length === 0) return { assigned: 0 };
 
   const updated = await db
     .update(crmContacts)
     .set({ assignedToUserId: args.assignToUserId, updatedAt: new Date() })
-    .where(inArray(crmContacts.id, args.contactIds))
-    .returning({ id: crmContacts.id });
+    .where(inArray(crmContacts.id, ids))
+    .returning({ id: crmContacts.id, orgId: crmContacts.crmOrganizationId });
+
+  const orgIds = [
+    ...new Set(
+      updated.map((u) => u.orgId).filter((x): x is string => Boolean(x)),
+    ),
+  ];
+  if (orgIds.length > 0) {
+    await db
+      .update(crmOrganizations)
+      .set({ accountOwnerId: args.assignToUserId, updatedAt: new Date() })
+      .where(inArray(crmOrganizations.id, orgIds));
+  }
 
   await logEvent({
     action: "admin.action",
     entityType: "crm_contact",
-    entityId: args.contactIds[0],
+    entityId: ids[0],
     actorId: args.actorUserId,
     metadata: {
       action: "assign_prospects",
