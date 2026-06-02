@@ -20,7 +20,7 @@ import { CrmContainer } from "./crm-container";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ tab?: string }>;
+type SearchParams = Promise<{ tab?: string; open?: string }>;
 
 export default async function AdminCrmPage({
   searchParams,
@@ -36,9 +36,11 @@ export default async function AdminCrmPage({
     action: "crm_list.create",
   });
 
-  const { tab } = await searchParams;
+  const { tab, open } = await searchParams;
+  // ?open=<crmOrgId> (deeplink vanuit /admin/taken) → forceer de Organisaties-tab
+  // en open meteen het org-side-panel.
   const initialTab: "people" | "organizations" =
-    tab === "organizations" ? "organizations" : "people";
+    open || tab === "organizations" ? "organizations" : "people";
 
   // Scope: account_managers zien alleen hun eigen leads; admin ziet alles.
   // (account_owner_id-filter — anders lekt de CRM-lijst andermans pijplijn.)
@@ -108,6 +110,7 @@ export default async function AdminCrmPage({
       initialTab={initialTab}
       orgsProps={{
         currentUserId: session.user.id,
+        initialOpenOrgId: open ?? null,
         organizations: orgs.map((o) => ({
           id: o.id,
           name: o.name,

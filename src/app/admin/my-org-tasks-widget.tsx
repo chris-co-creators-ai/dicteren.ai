@@ -195,7 +195,7 @@ function TaskItem({ task, tone }: { task: Task; tone: "red" | "orange" | "navy" 
         </div>
         <div className="mt-0.5 text-[0.6875rem] text-[color:var(--text-muted)]">
           <Link
-            href={`/admin/organizations/${task.orgId}`}
+            href={`/admin/crm?tab=organizations&open=${task.orgId}`}
             className="font-semibold hover:text-[color:var(--navy)] hover:underline"
           >
             {task.orgName}

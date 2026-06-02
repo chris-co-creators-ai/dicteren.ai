@@ -13,6 +13,7 @@ import {
   Home,
   Inbox,
   Key,
+  ListChecks,
   Mail,
   Menu,
   Receipt,
@@ -45,6 +46,7 @@ const NAV: NavItem[] = [
   { href: "/admin", label: "Overzicht", icon: Home, roles: BOTH },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: BOTH },
   { href: "/admin/crm", label: "CRM", icon: Users, roles: BOTH },
+  { href: "/admin/taken", label: "Taken", icon: ListChecks, roles: BOTH },
   { href: "/admin/users", label: "Users", icon: UserCog, roles: ADMIN_ONLY },
   {
     href: "/admin/messages",

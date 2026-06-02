@@ -92,6 +92,8 @@ type Props = {
   admins: { id: string; name: string; email: string }[];
   activeTab: "people" | "organizations";
   onTabChange: (k: "people" | "organizations") => void;
+  /** Deeplink: open meteen dit org-side-panel (vanuit /admin/taken). */
+  initialOpenOrgId?: string | null;
 };
 
 function fmtCents(cents: number | null): string {
@@ -110,6 +112,7 @@ export function OrganizationsView({
   admins,
   activeTab,
   onTabChange,
+  initialOpenOrgId,
 }: Props) {
   const router = useRouter();
   const [view, setView] = useState<"list" | "kanban">("list");
@@ -119,7 +122,9 @@ export function OrganizationsView({
   const [amFilter, setAmFilter] = useState<string>("");
   const [brancheFilter, setBrancheFilter] = useState<string>("");
   const [newModalOpen, setNewModalOpen] = useState(false);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(
+    initialOpenOrgId ?? null,
+  );
 
   // Inline-edit van willekeurig org-veld; server valideert (FSM-gate op status).
   async function patchField(orgId: string, field: string, value: unknown) {
