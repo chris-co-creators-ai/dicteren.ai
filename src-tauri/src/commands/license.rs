@@ -2,8 +2,7 @@
 //! `managers::license` so the frontend gets typed bindings via specta.
 
 use crate::managers::license::{
-    activate, current_state, delete_token, fetch_status, load_token, start_trial,
-    LicenseInfo,
+    activate, current_state, delete_token, fetch_status, load_token, LicenseInfo,
 };
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
@@ -26,13 +25,6 @@ pub async fn get_license_state() -> LicenseInfo {
 #[specta::specta]
 pub async fn activate_license(license_code: String) -> Result<LicenseInfo, String> {
     activate(license_code.trim()).await.map_err(|e| e.to_string())
-}
-
-/// Start an anonymous 14-day trial. Per device-fingerprint, permanent.
-#[tauri::command]
-#[specta::specta]
-pub async fn start_trial_command() -> Result<LicenseInfo, String> {
-    start_trial().await.map_err(|e| e.to_string())
 }
 
 /// Force a server-side status fetch. Updates the cached token (no counter bump).

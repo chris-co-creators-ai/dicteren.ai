@@ -420,7 +420,6 @@ pub fn run(cli_args: CliArgs) {
             commands::history::update_recording_retention_period,
             commands::license::get_license_state,
             commands::license::activate_license,
-            commands::license::start_trial_command,
             commands::license::refresh_license_state,
             commands::license::has_license_token,
             commands::license::clear_license_token,

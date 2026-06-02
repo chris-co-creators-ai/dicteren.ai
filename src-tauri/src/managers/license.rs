@@ -228,27 +228,6 @@ struct ActivateResponse {
     license: Option<ActivateLicenseSection>,
 }
 
-#[derive(Debug, Serialize)]
-struct TrialPayload {
-    #[serde(rename = "deviceFingerprint")]
-    device_fingerprint: String,
-    platform: &'static str,
-    #[serde(rename = "appVersion")]
-    app_version: &'static str,
-}
-
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct TrialResponse {
-    success: bool,
-    error: Option<String>,
-    code: Option<String>,
-    token: Option<String>,
-    license: Option<ActivateLicenseSection>,
-    #[serde(rename = "isExisting")]
-    is_existing: Option<bool>,
-}
-
 #[derive(Debug, Deserialize)]
 struct StatusLicenseSection {
     status: String,
@@ -309,64 +288,6 @@ pub async fn activate(license_code: &str) -> Result<LicenseInfo> {
         let msg = body
             .error
             .unwrap_or_else(|| format!("Activatie mislukt ({status_code})"));
-        return Err(anyhow!(msg));
-    }
-
-    let token = body
-        .token
-        .ok_or_else(|| anyhow!("Server gaf geen token terug"))?;
-    let license = body
-        .license
-        .ok_or_else(|| anyhow!("Server gaf geen licentiestatus terug"))?;
-
-    save_token(&token)?;
-
-    let status = parse_status(&license.status);
-    Ok(LicenseInfo {
-        is_unlocked: status_unlocks(&status),
-        status,
-        license_type: parse_type(&license.type_),
-        expires_at: license.expires_at,
-        last_verified_at: Some(chrono::Utc::now().to_rfc3339()),
-        plan_label: None,
-        period: None,
-        source: None,
-        discount_type: None,
-        discount_value: None,
-        subscription_status: None,
-        next_billing_at: None,
-    })
-}
-
-/// POST /api/license/trial — anonymous 14-day trial.
-/// Returns Ok(info) on success (new or reactivated) or Err with the
-/// server-provided NL message when the trial is already used.
-pub async fn start_trial() -> Result<LicenseInfo> {
-    let fp = device_fingerprint()?;
-    let payload = TrialPayload {
-        device_fingerprint: fp.clone(),
-        platform: platform_label(),
-        app_version: APP_VERSION,
-    };
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()?;
-
-    let url = format!("{}/api/license/trial", api_base());
-    let res = client.post(&url).json(&payload).send().await?;
-    let status_code = res.status();
-    let body: TrialResponse = res
-        .json()
-        .await
-        .context("Failed to parse trial response")?;
-
-    if !body.success || !status_code.is_success() {
-        let msg = body
-            .error
-            .unwrap_or_else(|| format!("Trial-start mislukt ({status_code})"));
-        // Bubble the server's code so the UI can show the right message.
-        let _code = body.code.unwrap_or_default();
         return Err(anyhow!(msg));
     }
 
