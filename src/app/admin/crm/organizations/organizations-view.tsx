@@ -12,6 +12,7 @@ import {
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { SourceBadge } from "@/components/admin/SourceBadge";
 import { deriveCustomerSource } from "@/lib/services/customerSource";
+import { toast } from "sonner";
 import { CrmTabs } from "../crm-tabs";
 import { OrgSidePanel } from "./org-side-panel";
 import { NewOrgPanel } from "./new-org-panel";
@@ -130,7 +131,14 @@ export function OrganizationsView({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
-    if (res.ok) router.refresh();
+    if (res.ok) {
+      router.refresh();
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    // FSM-gate: vereiste velden ontbreken → toon welke, draai de move terug.
+    toast.error(data?.message ?? "Statuswijziging niet toegestaan");
+    router.refresh();
   }
 
   return (

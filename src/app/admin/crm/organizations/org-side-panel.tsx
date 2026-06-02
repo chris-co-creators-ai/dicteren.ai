@@ -23,6 +23,7 @@ import {
   type ActivityDirection,
 } from "@/lib/config/crmActivity";
 import { NL_PROVINCES } from "@/lib/services/nlProvinces";
+import { toast } from "sonner";
 
 type Admin = { id: string; name: string; email: string };
 
@@ -176,7 +177,12 @@ export function OrgSidePanel({
     if (res.ok) {
       await loadAll();
       onChanged();
+      return;
     }
+    const data = await res.json().catch(() => null);
+    // FSM-gate of andere serverfout → toon de reden, herlaad de echte staat.
+    toast.error(data?.message ?? "Wijziging niet opgeslagen");
+    await loadAll();
   }
 
   return (

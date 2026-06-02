@@ -11,6 +11,7 @@ import {
   getCrmOrganization,
   updateCrmOrganization,
 } from "@/lib/services/crmDeals";
+import { checkStageGate } from "@/lib/services/stageGates";
 
 type Params = Promise<{ id: string }>;
 
@@ -104,6 +105,31 @@ export async function PATCH(
 
   for (const key of allowed) {
     if (key in body) patch[key] = body[key];
+  }
+
+  // FSM-gate: vooruit in de pijplijn mag alleen met de verplichte velden.
+  if (typeof patch.status === "string") {
+    const current = await getCrmOrganization(id);
+    if (current) {
+      // Rang uit de huidige status; velden uit de merge (alles-tegelijk werkt).
+      const merged = {
+        ...current,
+        ...patch,
+        status: current.status,
+      } as typeof current;
+      const gate = await checkStageGate(merged, patch.status);
+      if (!gate.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "stage_gate",
+            missing: gate.missing,
+            message: `Vul eerst: ${gate.missing.map((m) => m.label).join(", ")}`,
+          },
+          { status: 422 },
+        );
+      }
+    }
   }
 
   const updated = await updateCrmOrganization({
