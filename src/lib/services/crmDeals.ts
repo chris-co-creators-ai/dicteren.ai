@@ -6,7 +6,7 @@
 // routeren.
 
 import "server-only";
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   crmContacts,
@@ -498,7 +498,13 @@ export async function listOpenOrgTasksForUser(args: {
     )
     .where(
       and(
-        eq(crmOrganizations.accountOwnerId, args.userId),
+        // Een taak is "van mij" als ik de org bezit OF de taak zelf aanmaakte.
+        // Zo verdwijnt een taak die je op een andermans/ongetoewezen org maakt
+        // niet uit je eigen /taken-lijst.
+        or(
+          eq(crmOrganizations.accountOwnerId, args.userId),
+          eq(crmOrgTasks.createdByUserId, args.userId),
+        ),
         isNull(crmOrgTasks.completedAt),
         isNull(crmOrgTasks.deletedAt),
       ),
