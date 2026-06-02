@@ -15,6 +15,7 @@ import { deriveCustomerSource } from "@/lib/services/customerSource";
 import { CrmTabs } from "../crm-tabs";
 import { OrgSidePanel } from "./org-side-panel";
 import { NewOrgPanel } from "./new-org-panel";
+import { NL_PROVINCES } from "@/lib/services/nlProvinces";
 
 const STATUSES = [
   { key: "lead", label: "Nieuw", color: "#94a3b8" },
@@ -49,6 +50,7 @@ export type OrgRow = {
   nextAction: string | null;
   nextActionAt: string | null;
   city: string | null;
+  province: string | null;
   kvk: string | null;
   updatedAt: string;
   createdAt: string;
@@ -90,12 +92,14 @@ export function OrganizationsView({
   const [view, setView] = useState<"list" | "kanban">("kanban");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [provinceFilter, setProvinceFilter] = useState<string>("");
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return initialOrgs.filter((o) => {
       if (statusFilter && o.status !== statusFilter) return false;
+      if (provinceFilter && o.province !== provinceFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -108,7 +112,7 @@ export function OrganizationsView({
       }
       return true;
     });
-  }, [initialOrgs, search, statusFilter]);
+  }, [initialOrgs, search, statusFilter, provinceFilter]);
 
   const byStatus = useMemo(() => {
     const m = new Map<string, OrgRow[]>();
@@ -170,6 +174,19 @@ export function OrganizationsView({
           {STATUSES.map((s) => (
             <option key={s.key} value={s.key}>
               {s.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={provinceFilter}
+          onChange={(e) => setProvinceFilter(e.target.value)}
+          className="rounded-lg border bg-white px-3 py-2 text-sm"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <option value="">Alle provincies</option>
+          {NL_PROVINCES.map((p) => (
+            <option key={p} value={p}>
+              {p}
             </option>
           ))}
         </select>

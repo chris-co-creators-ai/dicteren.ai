@@ -125,6 +125,7 @@ export default async function AdminCrmPage({
           nextAction: o.nextAction,
           nextActionAt: o.nextActionAt?.toISOString() ?? null,
           city: o.city,
+          province: o.province,
           kvk: o.kvk,
           updatedAt: o.updatedAt.toISOString(),
           createdAt: o.createdAt.toISOString(),
