@@ -103,7 +103,7 @@ export async function listCrmOrganizations(
     .groupBy(crmOrgTasks.crmOrganizationId);
   const taskCountByOrg = new Map<string, number>();
   for (const r of taskCountRows) {
-    taskCountByOrg.set(r.orgId, r.count);
+    if (r.orgId) taskCountByOrg.set(r.orgId, r.count);
   }
 
   return rows.map((r) => {
@@ -371,6 +371,19 @@ export async function listTasksForOrg(
         eq(crmOrgTasks.crmOrganizationId, orgId),
         isNull(crmOrgTasks.deletedAt),
       ),
+    )
+    .orderBy(desc(crmOrgTasks.createdAt));
+}
+
+/** Taken van één klant (auth.user) — polymorfe crm_org_tasks via auth_user_id. */
+export async function listTasksForCustomer(
+  userId: string,
+): Promise<CrmOrgTask[]> {
+  return db
+    .select()
+    .from(crmOrgTasks)
+    .where(
+      and(eq(crmOrgTasks.authUserId, userId), isNull(crmOrgTasks.deletedAt)),
     )
     .orderBy(desc(crmOrgTasks.createdAt));
 }

@@ -1414,12 +1414,17 @@ function PersonSidePanel({
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<
-    "overzicht" | "activiteit" | "commercie" | "email"
+    "overzicht" | "activiteit" | "taken" | "commercie" | "email"
   >("overzicht");
   const [timeline, setTimeline] = useState<
     { id: string; at: string; kind: string; title: string; detail: string | null }[]
   >([]);
   const [tlLoaded, setTlLoaded] = useState(false);
+  const [tasks, setTasks] = useState<
+    { id: string; title: string; kind: string; dueAt: string | null; completedAt: string | null }[]
+  >([]);
+  const [newTask, setNewTask] = useState("");
+  const [savingTask, setSavingTask] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -1435,6 +1440,42 @@ function PersonSidePanel({
       active = false;
     };
   }, [person.id]);
+
+  async function loadTasks() {
+    const r = await fetch(`/api/admin/crm/customers/${person.id}/tasks`);
+    const d = await r.json();
+    if (d.success) setTasks(d.data);
+  }
+  useEffect(() => {
+    void loadTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [person.id]);
+
+  async function addTask() {
+    const title = newTask.trim();
+    if (!title) return;
+    setSavingTask(true);
+    try {
+      await fetch(`/api/admin/crm/customers/${person.id}/tasks`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      setNewTask("");
+      await loadTasks();
+    } finally {
+      setSavingTask(false);
+    }
+  }
+
+  async function completeTask(id: string) {
+    await fetch(`/api/admin/crm/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: "done" }),
+    });
+    await loadTasks();
+  }
 
   const amName =
     adminUsers.find((u) => u.id === person.assignedToUserId)?.name ??
@@ -1453,6 +1494,7 @@ function PersonSidePanel({
   const TABS: { key: typeof tab; label: string }[] = [
     { key: "overzicht", label: "Overzicht" },
     { key: "activiteit", label: "Activiteit" },
+    { key: "taken", label: "Taken" },
     { key: "commercie", label: "Commercie" },
     { key: "email", label: "E-mail" },
   ];
@@ -1568,6 +1610,69 @@ function PersonSidePanel({
                       <span className="shrink-0 text-[0.625rem] text-[color:var(--text-soft)]">
                         {formatDate(e.at)}
                       </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {tab === "taken" && (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void addTask();
+                  }}
+                  placeholder="Nieuwe taak…"
+                  className="flex-1 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-1.5 text-sm outline-none focus:border-[color:var(--orange)]"
+                />
+                <button
+                  onClick={addTask}
+                  disabled={savingTask || !newTask.trim()}
+                  className="shrink-0 rounded-lg bg-[color:var(--orange)] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  +
+                </button>
+              </div>
+              {tasks.length === 0 ? (
+                <p className="py-4 text-center text-xs text-[color:var(--text-soft)]">
+                  Nog geen taken voor deze klant.
+                </p>
+              ) : (
+                <ul className="space-y-0">
+                  {tasks.map((t, i) => (
+                    <li
+                      key={t.id}
+                      className={cn(
+                        "flex items-center gap-2 py-2",
+                        i > 0 && "border-t border-[color:var(--border-soft)]",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!t.completedAt}
+                        disabled={!!t.completedAt}
+                        onChange={() => completeTask(t.id)}
+                        className="shrink-0"
+                      />
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate text-xs",
+                          t.completedAt
+                            ? "text-[color:var(--text-soft)] line-through"
+                            : "text-[color:var(--navy)]",
+                        )}
+                      >
+                        {t.title}
+                      </span>
+                      {t.dueAt && (
+                        <span className="shrink-0 text-[0.625rem] text-[color:var(--text-soft)]">
+                          {formatDate(t.dueAt)}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

@@ -258,9 +258,14 @@ export const crmOrgTasks = pgTable(
   "crm_org_tasks",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    crmOrganizationId: uuid("crm_organization_id")
-      .notNull()
-      .references(() => crmOrganizations.id, { onDelete: "cascade" }),
+    // Polymorf: een taak hangt aan een org OF aan een klant (auth.user).
+    crmOrganizationId: uuid("crm_organization_id").references(
+      () => crmOrganizations.id,
+      { onDelete: "cascade" },
+    ),
+    authUserId: uuid("auth_user_id").references(() => authUsers.id, {
+      onDelete: "cascade",
+    }),
     title: text("title").notNull(),
     kind: text("kind").notNull().default("other"),
     dueAt: timestamp("due_at", { withTimezone: true }),
