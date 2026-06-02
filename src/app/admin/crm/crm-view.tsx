@@ -2554,9 +2554,69 @@ function CellRenderer({
           />
         </span>
       );
+    case "jobTitle":
+      return <EnrichmentTextCell value={row.enrichment?.jobTitle ?? null} />;
+    case "seniority":
+      return <EnrichmentTextCell value={row.enrichment?.seniority ?? null} />;
+    case "city":
+      return <EnrichmentTextCell value={row.enrichment?.city ?? null} />;
+    case "companyName":
+      return (
+        <EnrichmentTextCell
+          value={row.enrichment?.companyName ?? row.company ?? null}
+        />
+      );
+    case "revenueRange":
+      return <EnrichmentTextCell value={row.enrichment?.revenueRange ?? null} />;
+    case "companyDomain": {
+      const d = row.enrichment?.companyDomain ?? null;
+      return d ? (
+        <a
+          href={d.startsWith("http") ? d : `https://${d}`}
+          target="_blank"
+          rel="noreferrer"
+          className="block truncate text-xs text-blue-600 hover:underline"
+          title={d}
+        >
+          {d.replace(/^https?:\/\//, "")}
+        </a>
+      ) : (
+        <span className="text-[color:var(--text-soft)]">—</span>
+      );
+    }
+    case "linkedinUrl": {
+      const u = row.enrichment?.linkedinUrl ?? null;
+      return u ? (
+        <a
+          href={u.startsWith("http") ? u : `https://${u}`}
+          target="_blank"
+          rel="noreferrer"
+          className="block truncate text-xs text-blue-600 hover:underline"
+          title={u}
+        >
+          {u.replace(/^https?:\/\/(www\.)?linkedin\.com\//, "")}
+        </a>
+      ) : (
+        <span className="text-[color:var(--text-soft)]">—</span>
+      );
+    }
     default:
       return null;
   }
+}
+
+/** Read-only enrichment-tekstcel (single-line, truncate, tooltip). */
+function EnrichmentTextCell({ value }: { value: string | null }) {
+  return value ? (
+    <span
+      className="block truncate text-xs text-[color:var(--text-muted)]"
+      title={value}
+    >
+      {value}
+    </span>
+  ) : (
+    <span className="text-[color:var(--text-soft)]">—</span>
+  );
 }
 
 // Clay-stijl inline-bewerkbare cel: klik = input, Enter/blur slaat op, Esc annuleert.
@@ -2669,13 +2729,24 @@ const ENRICHMENT_COLS = new Set([
   "companySize",
   "reach",
   "leadScore",
+  "jobTitle",
+  "seniority",
+  "city",
+  "companyName",
+  "revenueRange",
 ]);
 function columnIcon(col: string): typeof TypeIcon {
   if (col.startsWith("custom:")) return Sparkles;
   if (ENRICHMENT_COLS.has(col)) return Sparkles;
   if (col === "licenses" || col === "mails") return Hash;
   if (col === "mollie") return AtSign;
-  if (col === "accountOwner" || col === "discountCode") return Link2;
+  if (
+    col === "accountOwner" ||
+    col === "discountCode" ||
+    col === "companyDomain" ||
+    col === "linkedinUrl"
+  )
+    return Link2;
   return TypeIcon;
 }
 

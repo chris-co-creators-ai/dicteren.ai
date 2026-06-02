@@ -22,7 +22,14 @@ export type ColumnKey =
   | "industry"
   | "companySize"
   | "reach"
-  | "leadScore";
+  | "leadScore"
+  | "jobTitle"
+  | "seniority"
+  | "city"
+  | "companyName"
+  | "companyDomain"
+  | "linkedinUrl"
+  | "revenueRange";
 
 export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
   "customer",
@@ -61,6 +68,13 @@ export const COLUMN_LABELS: Record<ColumnKey, string> = {
   companySize: "Bedrijfsgrootte",
   reach: "Bereik",
   leadScore: "Score",
+  jobTitle: "Functietitel",
+  seniority: "Senioriteit",
+  city: "Stad",
+  companyName: "Bedrijfsnaam",
+  companyDomain: "Domein",
+  linkedinUrl: "LinkedIn",
+  revenueRange: "Omzet",
 };
 
 export type ColumnPrefs = {
@@ -92,6 +106,13 @@ export const COLUMN_WIDTH_DEFAULTS: Record<string, number> = {
   companySize: 130,
   reach: 90,
   leadScore: 90,
+  jobTitle: 170,
+  seniority: 110,
+  city: 120,
+  companyName: 170,
+  companyDomain: 160,
+  linkedinUrl: 160,
+  revenueRange: 130,
 };
 
 export const COLUMN_MIN_WIDTH = 60;
