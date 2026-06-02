@@ -26,7 +26,6 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { CrmTabs, type CrmTabKey } from "./crm-tabs";
 import { OrgSidePanel } from "./organizations/org-side-panel";
 import { cn } from "@/lib/utils";
@@ -767,31 +766,29 @@ export function CrmView({
 
   return (
     <>
-      <AdminTopbar />
-
-      <div className="flex flex-col gap-3 px-5 py-4 lg:px-7">
+      <div className="flex flex-col gap-2.5 px-5 py-3 lg:px-7">
         {/* Titel links, compacte view-toggle (Personen / Organisaties) rechts */}
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold tracking-tight text-[color:var(--navy)]">
+          <h1 className="text-base font-bold tracking-tight text-[color:var(--navy)]">
             CRM
           </h1>
           <CrmTabs active={activeTab} onChange={onTabChange} />
         </div>
 
-        {/* KPI's als dichte strook — geen losse kaarten (data-dense cockpit) */}
+        {/* KPI-strook — elk KPI op één regel: label · waarde · detail */}
         <div className="flex flex-wrap overflow-hidden rounded-lg border border-[color:var(--border-soft)] bg-white">
           {kpis.map((kpi) => (
             <div
               key={kpi.label}
-              className="flex min-w-[150px] flex-1 flex-col gap-0.5 border-r border-[color:var(--border-soft)] px-4 py-2 last:border-r-0"
+              className="flex flex-1 items-baseline gap-1.5 whitespace-nowrap border-r border-[color:var(--border-soft)] px-3 py-1.5 last:border-r-0"
             >
-              <span className="text-[0.6875rem] font-medium text-[color:var(--text-muted)]">
+              <span className="text-xs text-[color:var(--text-muted)]">
                 {kpi.label}
               </span>
-              <span className="text-lg font-bold leading-none tracking-tight tabular-nums text-[color:var(--navy)]">
+              <span className="text-sm font-bold tabular-nums text-[color:var(--navy)]">
                 {kpi.value}
               </span>
-              <span className="text-[0.625rem] text-[color:var(--text-soft)]">
+              <span className="truncate text-[0.625rem] text-[color:var(--text-soft)]">
                 {kpi.detail}
               </span>
             </div>
@@ -1328,7 +1325,7 @@ export function CrmView({
             </table>
           </div>
           {dockedOrgId && (
-            <aside className="sticky top-4 hidden h-[calc(100vh-150px)] w-[420px] shrink-0 overflow-hidden rounded-xl border border-[color:var(--border-soft)] bg-white xl:block">
+            <aside className="sticky top-3 hidden h-[calc(100vh-90px)] w-[420px] shrink-0 overflow-hidden rounded-xl border border-[color:var(--border-soft)] bg-white xl:block">
               <OrgSidePanel
                 key={dockedOrgId}
                 docked

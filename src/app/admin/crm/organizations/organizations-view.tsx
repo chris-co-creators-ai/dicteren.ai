@@ -9,7 +9,6 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { SourceBadge } from "@/components/admin/SourceBadge";
 import { deriveCustomerSource } from "@/lib/services/customerSource";
 import { toast } from "sonner";
@@ -188,17 +187,16 @@ export function OrganizationsView({
 
   return (
     <>
-      <AdminTopbar />
-      <main className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-4 lg:px-7">
+      <main className="mx-auto flex max-w-7xl flex-col gap-2.5 px-5 py-3 lg:px-7">
         {/* Titel links, view-toggle rechts — consistent met de Personen-tab */}
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold tracking-tight text-[color:var(--navy)]">
+          <h1 className="text-base font-bold tracking-tight text-[color:var(--navy)]">
             CRM
           </h1>
           <CrmTabs active={activeTab} onChange={onTabChange} />
         </div>
 
-        {/* KPI's als dichte strook — geen losse kaarten */}
+        {/* KPI-strook — elk KPI op één regel */}
         <div
           className="flex flex-wrap overflow-hidden rounded-lg border bg-white"
           style={{ borderColor: "var(--border)" }}
@@ -212,13 +210,13 @@ export function OrganizationsView({
           ].map((kpi) => (
             <div
               key={kpi.label}
-              className="flex min-w-[140px] flex-1 flex-col gap-0.5 border-r px-4 py-2 last:border-r-0"
+              className="flex flex-1 items-baseline gap-1.5 whitespace-nowrap border-r px-3 py-1.5 last:border-r-0"
               style={{ borderColor: "var(--border-soft)" }}
             >
-              <span className="text-[0.6875rem] font-medium text-[color:var(--text-muted)]">
+              <span className="text-xs text-[color:var(--text-muted)]">
                 {kpi.label}
               </span>
-              <span className="text-lg font-bold leading-none tracking-tight tabular-nums text-[color:var(--navy)]">
+              <span className="text-sm font-bold tabular-nums text-[color:var(--navy)]">
                 {kpi.value}
               </span>
             </div>
