@@ -307,6 +307,28 @@ function formatDiscount(
   return `${type}: ${value}`;
 }
 
+// Kleur-tint per Resend-mailstatus voor de E-mail-tab chip.
+function emailStatusTone(status: string): { background: string; color: string } {
+  switch (status) {
+    case "delivered":
+    case "opened":
+    case "clicked":
+      return {
+        background: "color-mix(in srgb, var(--green) 14%, white)",
+        color: "var(--green)",
+      };
+    case "bounced":
+    case "failed":
+    case "complained":
+      return {
+        background: "color-mix(in srgb, var(--red) 14%, white)",
+        color: "var(--red)",
+      };
+    default:
+      return { background: "var(--surface-2)", color: "var(--text-muted)" };
+  }
+}
+
 type PeopleCursor = { createdAt: string; id: string };
 
 export function CrmView({
@@ -1476,6 +1498,34 @@ function PersonSidePanel({
   >([]);
   const [newTask, setNewTask] = useState("");
   const [savingTask, setSavingTask] = useState(false);
+  // E-mail-tab: pas fetchen als de tab geopend wordt (per-tab lazy), niet bij
+  // panel-open. Gecachet binnen deze open-sessie.
+  const [emails, setEmails] = useState<
+    {
+      id: string;
+      subject: string;
+      category: string;
+      status: string;
+      sentAt: string;
+    }[]
+  >([]);
+  const [emailsLoaded, setEmailsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "email" || emailsLoaded) return;
+    let active = true;
+    fetch(`/api/admin/customers/${person.id}/emails`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (active && d.success) setEmails(d.emails);
+      })
+      .finally(() => {
+        if (active) setEmailsLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tab, emailsLoaded, person.id]);
 
   useEffect(() => {
     let active = true;
@@ -1784,11 +1834,72 @@ function PersonSidePanel({
           )}
 
           {tab === "email" && (
-            <div className="space-y-1">
-              <InfoRow label="Verstuurd" value={String(person.emailsSent)} />
-              <InfoRow label="Geopend" value={String(person.emailsOpened)} />
-              <InfoRow label="Geklikt" value={String(person.emailsClicked)} />
-              <InfoRow label="Gebounced" value={String(person.emailsBounced)} />
+            <div className="space-y-3">
+              <div className="grid grid-cols-4 gap-1.5 text-center">
+                {([
+                  ["Verstuurd", person.emailsSent, false],
+                  ["Geopend", person.emailsOpened, false],
+                  ["Geklikt", person.emailsClicked, false],
+                  ["Bounced", person.emailsBounced, person.emailsBounced > 0],
+                ] as [string, number, boolean][]).map(([label, val, alert]) => (
+                  <div
+                    key={label}
+                    className="rounded-md border border-[color:var(--border-soft)] py-1.5"
+                  >
+                    <div
+                      className="text-sm font-bold tabular-nums"
+                      style={{ color: alert ? "var(--red)" : "var(--navy)" }}
+                    >
+                      {val}
+                    </div>
+                    <div className="text-[0.5625rem] text-[color:var(--text-soft)]">
+                      {label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {!emailsLoaded ? (
+                <p className="py-6 text-center text-xs text-[color:var(--text-soft)]">
+                  Mails laden…
+                </p>
+              ) : emails.length === 0 ? (
+                <p className="py-6 text-center text-xs text-[color:var(--text-soft)]">
+                  Nog geen mails via Resend naar deze klant.
+                </p>
+              ) : (
+                <ul className="space-y-0">
+                  {emails.map((m, i) => (
+                    <li
+                      key={m.id}
+                      className={cn(
+                        "flex items-start gap-2 py-2",
+                        i > 0 && "border-t border-[color:var(--border-soft)]",
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-semibold text-[color:var(--navy)]">
+                          {m.subject}
+                        </div>
+                        <div className="text-[0.625rem] text-[color:var(--text-soft)]">
+                          {m.category}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span
+                          className="inline-block rounded-full px-1.5 py-0.5 text-[0.5625rem] font-semibold"
+                          style={emailStatusTone(m.status)}
+                        >
+                          {m.status}
+                        </span>
+                        <div className="mt-0.5 text-[0.625rem] text-[color:var(--text-soft)]">
+                          {formatDate(m.sentAt)}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </div>
