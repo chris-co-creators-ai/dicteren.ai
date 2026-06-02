@@ -37,6 +37,7 @@ import {
   type ColumnKey,
   type ColumnPrefs,
 } from "@/lib/services/columnPrefsShared";
+import { MKB_BRANCHES } from "@/lib/services/mkbBranches";
 import { KanbanView } from "./kanban-view";
 import { AddProspectModal } from "./add-prospect-modal";
 import { CsvImportModal } from "./csv-import-modal";
@@ -907,13 +908,11 @@ export function CrmView({
               }))}
             />
             {/* GTM-targeting op prospect-verrijking */}
-            <input
-              type="text"
-              value={industryFilter}
-              onChange={(e) => setIndustryFilter(e.target.value)}
-              placeholder="Branche…"
-              className="w-32 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-2 text-sm outline-none focus:border-[color:var(--orange)]"
-              style={{ background: "var(--bg)" }}
+            <FilterSelect
+              value={industryFilter || "all"}
+              onChange={(v) => setIndustryFilter(v === "all" ? "" : v)}
+              label="Alle branches"
+              options={MKB_BRANCHES.map((b) => ({ value: b, label: b }))}
             />
             <FilterSelect
               value={sizeFilter}
@@ -1892,7 +1891,7 @@ function EnrichmentPanel({
             <EnrichField label="Bedrijfsnaam" value={form.companyName} onChange={(v) => set("companyName", v)} />
             <EnrichField label="Domein" value={form.companyDomain} onChange={(v) => set("companyDomain", v)} />
             <EnrichField label="Niche" value={form.niche} onChange={(v) => set("niche", v)} />
-            <EnrichField label="Branche" value={form.industry} onChange={(v) => set("industry", v)} />
+            <EnrichSelect label="Branche" value={form.industry} onChange={(v) => set("industry", v)} options={[...MKB_BRANCHES]} />
             <EnrichSelect label="Bedrijfsgrootte" value={form.companySizeRange} onChange={(v) => set("companySizeRange", v)} options={SIZE_OPTIONS} />
             <EnrichField label="Aantal medewerkers" value={form.employeeCount} onChange={(v) => set("employeeCount", v)} type="number" />
             <EnrichField label="Omzet-range" value={form.revenueRange} onChange={(v) => set("revenueRange", v)} />
@@ -2493,11 +2492,18 @@ function CellRenderer({
       if (!isProspect)
         return <span className="text-[color:var(--text-soft)]">—</span>;
       return (
-        <EditableText
-          value={row.enrichment?.industry ?? null}
-          placeholder="—"
-          onSave={(v) => onFieldSave?.("industry", v)}
-        />
+        <select
+          value={row.enrichment?.industry ?? ""}
+          onChange={(e) => onFieldSave?.("industry", e.target.value || null)}
+          className="w-full cursor-pointer truncate rounded bg-transparent text-xs text-[color:var(--text-muted)] outline-none hover:bg-black/[0.03]"
+        >
+          <option value="">—</option>
+          {MKB_BRANCHES.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
       );
     case "companySize":
       if (!isProspect)
