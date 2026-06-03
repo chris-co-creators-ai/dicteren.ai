@@ -31,8 +31,9 @@ const PLATFORM_LABEL: Record<string, string> = {
   "darwin-arm64": "Mac (Apple Silicon)",
   "darwin-x86_64": "Mac (Intel)",
   "windows-x86_64": "Windows",
-  "linux-x86_64": "Linux",
-  "linux-arm64": "Linux (ARM)",
+  // Linux wordt niet extern gecommuniceerd: toon een neutraal label.
+  "linux-x86_64": "Computer",
+  "linux-arm64": "Computer",
 };
 
 const STATUS_META: Record<
