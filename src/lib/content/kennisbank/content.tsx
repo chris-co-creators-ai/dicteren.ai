@@ -6,7 +6,7 @@ import {
 } from "@/components/help/MockOnboarding";
 import { MockPermissions } from "@/components/help/MockPermissions";
 import { MockTrayMac, MockTrayWindows } from "@/components/help/MockTrayIcon";
-import { MockDicteerStates } from "@/components/help/MockDicteerStates";
+import { MockOpnameBalkje } from "@/components/help/MockOpnameBalkje";
 import { MockShortcutKeys } from "@/components/help/MockShortcut";
 import { MockActivation } from "@/components/help/MockActivation";
 import { MockCustomWords } from "@/components/help/MockCustomWords";
@@ -401,20 +401,23 @@ export const categories: KbCategory[] = [
       {
         slug: "weet-dat-het-luistert",
         title: "Hoe weet ik dat het luistert?",
-        summary: "Het opname-balkje verandert van uiterlijk: het wacht, luistert of schrijft.",
+        summary: "Tijdens het dicteren zie je onderin het opname-balkje met de tekst Aan het luisteren.",
         audience: "both",
         body: (
           <>
             <p>
-              Tijdens het dicteren zie je het opname-balkje op je scherm. Het
-              verandert van uiterlijk, zodat je ziet wat er gebeurt.
+              Tijdens het dicteren zie je onderin je scherm het opname-balkje.
+              Links staat het Dicteren.ai-logo. In het midden staat "Aan het
+              luisteren…" terwijl je praat. Daarnaast bewegen golfbalkjes mee met
+              je stem. Rechts loopt de tijd mee.
             </p>
             <div className="my-5">
-              <MockDicteerStates />
+              <MockOpnameBalkje />
             </div>
             <p>
-              Grijs betekent dat het wacht. Wordt het oranje, dan luistert het en
-              praat je. Na het loslaten verwerkt het je woorden.
+              Laat je de sneltoets los? Dan verandert de tekst in "Dicteren.."
+              terwijl je woorden op het scherm verschijnen. Is het opname-balkje
+              weg? Dan staat het uit en hoort niemand je.
             </p>
           </>
         ),

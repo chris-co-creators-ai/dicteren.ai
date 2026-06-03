@@ -126,7 +126,7 @@ const FAQS: Array<{ q: string; a: string; defaultOpen?: boolean }> = [
   },
   {
     q: "Op welke besturingssystemen werkt Dicteren.ai?",
-    a: "macOS, Windows en Linux. Voor macOS heb je toegankelijkheidsrechten nodig zodat de sneltoets werkt. De app leidt je er bij de eerste start doorheen.",
+    a: "macOS en Windows. Voor macOS heb je toegankelijkheidsrechten nodig zodat de sneltoets werkt. De app leidt je er bij de eerste start doorheen.",
   },
   {
     q: "Hoeveel kost Dicteren.ai?",
@@ -750,7 +750,7 @@ export default function WisprFlowAlternativePage() {
               {
                 step: "1",
                 title: "Download de app",
-                body: "Voor Mac, Windows of Linux. Het taalmodel komt mee, ongeveer 450 MB. Geen account nodig voor de proefperiode.",
+                body: "Voor Mac of Windows. Het taalmodel komt mee, ongeveer 450 MB. Geen account nodig voor de proefperiode.",
               },
               {
                 step: "2",

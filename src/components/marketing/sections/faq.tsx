@@ -24,7 +24,7 @@ const FAQS = [
   },
   {
     q: "Op welke besturingssystemen werkt het?",
-    a: "macOS, Windows en Linux. Voor macOS heb je toegankelijkheidsrechten nodig zodat de sneltoets werkt; daar leidt de app je doorheen.",
+    a: "macOS en Windows. Voor macOS heb je toegankelijkheidsrechten nodig zodat de sneltoets werkt; daar leidt de app je doorheen.",
   },
 ];
 

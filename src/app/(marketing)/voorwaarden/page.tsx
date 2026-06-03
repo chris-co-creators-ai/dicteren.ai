@@ -48,8 +48,8 @@ export default function VoorwaardenPage() {
           <section>
             <h2 className="text-xl font-bold">3. De dienst</h2>
             <p className="mt-3">
-              Dicteren.ai bestaat uit een desktopapplicatie voor macOS,
-              Windows en Linux waarmee je via een sneltoets kunt dicteren in
+              Dicteren.ai bestaat uit een desktopapplicatie voor macOS en
+              Windows waarmee je via een sneltoets kunt dicteren in
               elke andere applicatie. Het taalmodel wordt eenmalig
               gedownload en werkt vervolgens op je eigen computer.
             </p>
