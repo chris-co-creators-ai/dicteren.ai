@@ -401,29 +401,21 @@ export const categories: KbCategory[] = [
       {
         slug: "weet-dat-het-luistert",
         title: "Hoe weet ik dat het luistert?",
-        summary: "Een klein bolletje verandert van kleur: grijs, oranje, aqua.",
+        summary: "Het opname-balkje verandert van uiterlijk: het wacht, luistert of schrijft.",
         audience: "both",
         body: (
           <>
             <p>
-              Je ziet een klein bolletje op je scherm dat van kleur verandert. Dit
-              zijn de drie toestanden:
+              Tijdens het dicteren zie je het opname-balkje op je scherm. Het
+              verandert van uiterlijk, zodat je ziet wat er gebeurt.
             </p>
             <div className="my-5">
               <MockDicteerStates />
             </div>
-            <ul className="ml-5 list-disc space-y-1">
-              <li>
-                <strong>Grijs:</strong> wacht, niets aan de hand.
-              </li>
-              <li>
-                <strong>Oranje:</strong> luistert, praat maar.
-              </li>
-              <li>
-                <strong>Aqua/blauw met cirkeltje:</strong> bezig met opschrijven,
-                even wachten.
-              </li>
-            </ul>
+            <p>
+              Grijs betekent dat het wacht. Wordt het oranje, dan luistert het en
+              praat je. Na het loslaten verwerkt het je woorden.
+            </p>
           </>
         ),
       },
