@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Download as DownloadIcon,
   Key,
+  Lock,
   Mic,
   Monitor,
   RefreshCw,
@@ -24,6 +25,10 @@ type Os = "mac" | "win";
  */
 const MAC_DMG_URL =
   "https://github.com/dicterenai/dicteren.ai/releases/download/v0.8.4/Dicteren.ai_0.8.4_aarch64.dmg";
+
+// Mac-download tijdelijk vergrendeld (DMG nog niet genotariseerd). Zet op false
+// om de knop weer te openen zodra de notarisatie rond is.
+const MAC_LOCKED = true;
 
 const OS_INFO: Record<
   Os,
@@ -132,7 +137,7 @@ export default function DownloadPage() {
 
         <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:flex-wrap">
           {os === "mac" ? (
-            MAC_DMG_URL ? (
+            MAC_DMG_URL && !MAC_LOCKED ? (
               <a href={MAC_DMG_URL} className="btn btn-primary btn-lg">
                 <DownloadIcon className="size-4" />
                 Download voor macOS
@@ -143,8 +148,8 @@ export default function DownloadPage() {
                 disabled
                 aria-disabled
               >
-                <DownloadIcon className="size-4" />
-                Mac-build wordt geüpload
+                <Lock className="size-4" />
+                macOS · binnenkort beschikbaar
               </button>
             )
           ) : (
