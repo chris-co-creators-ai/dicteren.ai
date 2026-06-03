@@ -18,12 +18,14 @@ import {
 } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  devices,
   licenseActivations,
   licenses,
   plans,
   subscriptions,
   type License,
 } from "@/lib/db/schema";
+import { revokeActivation } from "@/lib/services/orgSeats";
 
 /** Trial-rij geschikt voor /account hero. Null als geen actieve trial. */
 export type UserTrial = {
@@ -174,6 +176,77 @@ export async function listUserLicenses(
 }
 
 /** Paid licenses (exclude trials). Voor /account hero "Licenties" count. */
+/** Eén geactiveerd apparaat op een eigen licentie (voor /account/licenses). */
+export type UserDevice = {
+  licenseId: string;
+  activationId: string;
+  platform: string | null;
+  appVersion: string | null;
+  lastSeenAt: string | null;
+  activatedAt: string;
+};
+
+/** Actieve apparaten op de eigen licenties van deze user, voor self-service
+ *  beheer. Scope: alleen licenties waar licenses.user_id = userId. */
+export async function listUserDevices(userId: string): Promise<UserDevice[]> {
+  const rows = await db
+    .select({
+      licenseId: licenseActivations.licenseId,
+      activationId: licenseActivations.id,
+      platform: devices.platform,
+      appVersion: devices.appVersion,
+      lastSeenAt: devices.lastSeenAt,
+      activatedAt: licenseActivations.activatedAt,
+    })
+    .from(licenseActivations)
+    .innerJoin(licenses, eq(licenses.id, licenseActivations.licenseId))
+    .innerJoin(devices, eq(devices.id, licenseActivations.deviceId))
+    .where(
+      and(
+        eq(licenses.userId, userId),
+        eq(licenseActivations.isActive, true),
+      ),
+    )
+    .orderBy(desc(devices.lastSeenAt));
+  return rows.map((r) => ({
+    licenseId: r.licenseId,
+    activationId: r.activationId,
+    platform: r.platform,
+    appVersion: r.appVersion,
+    lastSeenAt: r.lastSeenAt ? r.lastSeenAt.toISOString() : null,
+    activatedAt: r.activatedAt.toISOString(),
+  }));
+}
+
+/** Self-service: koppel een apparaat los van een EIGEN licentie. Ownership-
+ *  scope hard: de activatie moet op een licentie van deze user zitten, anders
+ *  403. Vrijgekomen slot kan direct opnieuw geactiveerd worden. */
+export async function deactivateOwnActivation(args: {
+  userId: string;
+  activationId: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const [owned] = await db
+    .select({ id: licenseActivations.id })
+    .from(licenseActivations)
+    .innerJoin(licenses, eq(licenses.id, licenseActivations.licenseId))
+    .where(
+      and(
+        eq(licenseActivations.id, args.activationId),
+        eq(licenses.userId, args.userId),
+      ),
+    )
+    .limit(1);
+  if (!owned) {
+    return { ok: false, error: "Apparaat niet gevonden of niet van jou." };
+  }
+  await revokeActivation({
+    activationId: args.activationId,
+    actorUserId: args.userId,
+    reason: "self-service",
+  });
+  return { ok: true };
+}
+
 export async function listUserPaidLicenses(
   userId: string,
 ): Promise<UserLicense[]> {

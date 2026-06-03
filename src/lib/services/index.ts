@@ -102,6 +102,7 @@ export {
 export {
   getUserTrial,
   listUserLicenses,
+  listUserDevices,
   listUserPaidLicenses,
   getUserActiveSubscription,
   getUserSubscriptionView,

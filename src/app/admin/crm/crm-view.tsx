@@ -1491,7 +1491,7 @@ function PersonSidePanel({
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<
-    "overzicht" | "activiteit" | "taken" | "commercie" | "email"
+    "overzicht" | "activiteit" | "taken" | "commercie" | "apparaten" | "email"
   >("overzicht");
   const [timeline, setTimeline] = useState<
     { id: string; at: string; kind: string; title: string; detail: string | null }[]
@@ -1522,7 +1522,7 @@ function PersonSidePanel({
   const [snapNonce, setSnapNonce] = useState(0);
 
   useEffect(() => {
-    if (tab !== "commercie") return;
+    if (tab !== "commercie" && tab !== "apparaten") return;
     let active = true;
     fetch(`/api/admin/customers/${person.id}/support-snapshot`)
       .then((r) => r.json())
@@ -1623,6 +1623,7 @@ function PersonSidePanel({
     { key: "activiteit", label: "Activiteit" },
     { key: "taken", label: "Taken" },
     { key: "commercie", label: "Commercie" },
+    { key: "apparaten", label: "Apparaten" },
     { key: "email", label: "E-mail" },
   ];
 
@@ -1873,6 +1874,70 @@ function PersonSidePanel({
                   Geen account-data voor deze klant.
                 </p>
               )}
+            </div>
+          )}
+
+          {tab === "apparaten" && (
+            <div className="space-y-3">
+              {!snapLoaded ? (
+                <p className="py-6 text-center text-xs text-[color:var(--text-soft)]">
+                  Laden…
+                </p>
+              ) : !snapshot || snapshot.licenses.length === 0 ? (
+                <p className="py-6 text-center text-xs text-[color:var(--text-soft)]">
+                  Geen licenties/apparaten voor deze klant.
+                </p>
+              ) : (
+                snapshot.licenses.map((l) => {
+                  const active = l.activations.filter((a) => a.isActive);
+                  return (
+                    <div
+                      key={l.id}
+                      className="rounded-lg border border-[color:var(--border-soft)] p-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <code className="truncate font-mono text-xs font-bold text-[color:var(--navy)]">
+                          {l.code}
+                        </code>
+                        <span className="shrink-0 text-[0.625rem] text-[color:var(--text-muted)]">
+                          {l.activeDeviceCount}/{l.deviceLimit} apparaten
+                        </span>
+                      </div>
+                      <div className="text-[0.625rem] text-[color:var(--text-soft)]">
+                        {l.planLabel ?? l.type} · {l.status}
+                      </div>
+                      {active.length === 0 ? (
+                        <p className="mt-1 text-[0.625rem] text-[color:var(--text-soft)]">
+                          Geen actief apparaat.
+                        </p>
+                      ) : (
+                        <ul className="mt-2 space-y-0">
+                          {active.map((a, i) => (
+                            <li
+                              key={a.activationId}
+                              className={cn(
+                                "flex items-center gap-2 py-1.5",
+                                i > 0 &&
+                                  "border-t border-[color:var(--border-soft)]",
+                              )}
+                            >
+                              <span className="min-w-0 flex-1 truncate text-xs">
+                                {a.platform ?? "onbekend apparaat"}
+                              </span>
+                              <span className="shrink-0 text-[0.625rem] text-[color:var(--text-soft)]">
+                                gezien {a.lastSeenAt ? formatDate(a.lastSeenAt) : "—"}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+              <p className="text-[0.625rem] text-[color:var(--text-soft)]">
+                Loskoppelen kan via de Commercie-tab (support-acties).
+              </p>
             </div>
           )}
 

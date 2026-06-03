@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Copy, Download } from "lucide-react";
+import { Check, Copy, Download, Laptop } from "lucide-react";
 
 type License = {
   id: string;
@@ -15,6 +16,23 @@ type License = {
   planLabel: string | null;
   issuedAt: string;
   expiresAt: string | null;
+};
+
+type Device = {
+  licenseId: string;
+  activationId: string;
+  platform: string | null;
+  appVersion: string | null;
+  lastSeenAt: string | null;
+  activatedAt: string;
+};
+
+const PLATFORM_LABEL: Record<string, string> = {
+  "darwin-arm64": "Mac (Apple Silicon)",
+  "darwin-x86_64": "Mac (Intel)",
+  "windows-x86_64": "Windows",
+  "linux-x86_64": "Linux",
+  "linux-arm64": "Linux (ARM)",
 };
 
 const STATUS_META: Record<
@@ -46,7 +64,13 @@ function formatDate(iso: string | null): string {
   });
 }
 
-export function LicensesView({ licenses }: { licenses: License[] }) {
+export function LicensesView({
+  licenses,
+  devices,
+}: {
+  licenses: License[];
+  devices: Device[];
+}) {
   if (licenses.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-12">
@@ -70,7 +94,11 @@ export function LicensesView({ licenses }: { licenses: License[] }) {
 
       <div className="mt-8 space-y-4">
         {licenses.map((l) => (
-          <LicenseCard key={l.id} license={l} />
+          <LicenseCard
+            key={l.id}
+            license={l}
+            devices={devices.filter((d) => d.licenseId === l.id)}
+          />
         ))}
       </div>
 
@@ -88,7 +116,13 @@ export function LicensesView({ licenses }: { licenses: License[] }) {
   );
 }
 
-function LicenseCard({ license }: { license: License }) {
+function LicenseCard({
+  license,
+  devices,
+}: {
+  license: License;
+  devices: Device[];
+}) {
   const meta = STATUS_META[license.status] ?? {
     label: license.status,
     tone: "neutral" as const,
@@ -130,6 +164,41 @@ function LicenseCard({ license }: { license: License }) {
           <div className="text-[color:var(--text-muted)]">Aangeschaft</div>
           <div className="mt-0.5 font-semibold">{formatDate(license.issuedAt)}</div>
         </div>
+      </div>
+
+      {/* Apparaten — zelf loskoppelen om een slot vrij te maken */}
+      <div className="mt-5 border-t border-[color:var(--border-soft)] pt-4">
+        <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
+          Apparaten
+        </div>
+        {devices.length === 0 ? (
+          <p className="mt-2 text-xs text-[color:var(--text-muted)]">
+            Nog geen apparaat geactiveerd met deze licentie.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-0">
+            {devices.map((d, i) => (
+              <li
+                key={d.activationId}
+                className={`flex items-center gap-3 py-2.5 ${i > 0 ? "border-t border-[color:var(--border-soft)]" : ""}`}
+              >
+                <Laptop
+                  className="size-4 shrink-0 text-[color:var(--text-muted)]"
+                  strokeWidth={2}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold">
+                    {PLATFORM_LABEL[d.platform ?? ""] ?? d.platform ?? "Onbekend apparaat"}
+                  </div>
+                  <div className="text-[0.625rem] text-[color:var(--text-muted)]">
+                    Laatst gezien {formatDate(d.lastSeenAt)}
+                  </div>
+                </div>
+                <DeactivateButton activationId={d.activationId} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {(license.status === "past_due" || license.status === "expired") && (
@@ -182,6 +251,49 @@ function StatusChip({
       />
       {label}
     </span>
+  );
+}
+
+function DeactivateButton({ activationId }: { activationId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [, startTransition] = useTransition();
+
+  async function deactivate() {
+    if (
+      !window.confirm(
+        "Dit apparaat loskoppelen? Het maakt een slot vrij; je kunt het later opnieuw activeren met je code.",
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/account/activations/${activationId}/deactivate`,
+        { method: "POST" },
+      );
+      if (res.ok) {
+        startTransition(() => router.refresh());
+      } else {
+        const d = await res.json().catch(() => ({}));
+        window.alert(d.error ?? "Loskoppelen mislukt. Probeer opnieuw.");
+        setBusy(false);
+      }
+    } catch {
+      window.alert("Loskoppelen mislukt. Probeer opnieuw.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={deactivate}
+      disabled={busy}
+      className="shrink-0 rounded-md border border-[color:var(--border-soft)] bg-white px-2.5 py-1 text-[0.6875rem] font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--red)] disabled:opacity-50"
+    >
+      {busy ? "Bezig…" : "Loskoppelen"}
+    </button>
   );
 }
 
