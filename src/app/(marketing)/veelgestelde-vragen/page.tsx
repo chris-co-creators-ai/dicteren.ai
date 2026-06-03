@@ -17,7 +17,7 @@ export default function FaqPage() {
           Veelgestelde vragen
         </h1>
         <p className="mt-4 text-base text-[color:var(--text-muted)] sm:text-lg">
-          De vragen die we het vaakst horen. Wil je meer weten? Bekijk de{" "}
+          De vragen die we het vaakst horen. Meer weten? Bekijk de{" "}
           <Link
             href="/kennisbank"
             className="font-semibold text-[color:var(--navy-500)] underline-offset-4 hover:underline"

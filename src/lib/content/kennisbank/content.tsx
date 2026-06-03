@@ -28,7 +28,7 @@ export const categories: KbCategory[] = [
       {
         slug: "wat-doet-het",
         title: "Wat doet Dicteren.ai eigenlijk?",
-        summary: "Je praat, het programma typt voor je. Overal waar je tekst kunt typen.",
+        summary: "Je praat, het programma typt voor je. Overal waar je normaal typt.",
         audience: "both",
         faq: true,
         body: (
@@ -452,7 +452,7 @@ export const categories: KbCategory[] = [
       {
         slug: "werkt-in-apps",
         title: "In welke apps kan ik dicteren?",
-        summary: "Overal waar je tekst kunt typen: mail, browser, Word, je AI-tool, chat.",
+        summary: "Overal waar je normaal typt: mail, browser, Word, je AI-tool, chat.",
         audience: "both",
         faq: true,
         body: (
@@ -693,16 +693,16 @@ export const categories: KbCategory[] = [
         interactive: "subscription",
         body: (
           <p>
-            Log in op je account op{" "}
+            Log in op je account en ga naar{" "}
             <Link
-              href="/account"
+              href="/account/billing"
               className="font-semibold underline"
               style={{ color: "var(--navy)" }}
             >
-              dicteren.ai/account
+              Facturering
             </Link>
-            . Klik op Abonnement en daarna op Stop abonnement. Klaar. Bij opzegging
-            loopt je licentie door tot het einde van de betaalde periode.
+            . Klik op Abonnement opzeggen en bevestig met Ja, opzeggen. Bij
+            opzegging loopt je licentie door tot het einde van de betaalde periode.
           </p>
         ),
       },
@@ -1096,7 +1096,7 @@ export const categories: KbCategory[] = [
       {
         slug: "mijn-facturen",
         title: "Waar vind ik mijn factuur?",
-        summary: "Al je facturen staan in je account onder Facturen, klaar om te downloaden.",
+        summary: "Al je facturen staan in je account onder Facturering, met Download als PDF.",
         audience: "customer",
         interactive: "invoices",
         body: (
@@ -1104,14 +1104,14 @@ export const categories: KbCategory[] = [
             <p>
               Al je facturen staan in je account. Log in en ga naar{" "}
               <Link
-                href="/account/invoices"
+                href="/account/billing"
                 className="font-semibold underline"
                 style={{ color: "var(--navy)" }}
               >
-                Facturen
+                Facturering
               </Link>
-              . Daar download je elke factuur als pdf, met je bedrijfsgegevens en
-              btw erop.
+              . Open een factuur en klik op Download als PDF. Je
+              bedrijfsgegevens en btw staan erop.
             </p>
             <p>
               Klopt er iets niet aan je gegevens? Mail{" "}
