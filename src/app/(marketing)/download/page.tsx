@@ -71,19 +71,19 @@ const TROUBLESHOOTING = [
     icon: Mic,
     title: "Microfoon geeft geen toegang",
     desc: "Open Systeeminstellingen → Privacy → Microfoon en zet Dicteren.ai aan.",
-    href: "/help/microfoon-toegang",
+    href: "/kennisbank/opstarten/microfoon-toestemming",
   },
   {
     icon: Settings,
     title: "Toegankelijkheid op Mac",
     desc: "Geef toegang via Systeeminstellingen → Privacy & beveiliging.",
-    href: "/help/toegankelijkheid-toegang-mac",
+    href: "/kennisbank/opstarten/toegankelijkheid",
   },
   {
     icon: RefreshCw,
     title: "Model opnieuw installeren",
     desc: "Verwijder de modelmap en herstart de app om opnieuw te downloaden.",
-    href: "/help/model-downloaden",
+    href: "/kennisbank/niet-werkt",
   },
 ];
 
