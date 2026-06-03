@@ -3,36 +3,25 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import {
   visibleCategories,
-  categoryParams,
   articleHref,
-  KB_BASE,
+  KB_ACCOUNT_BASE,
 } from "@/lib/content/kennisbank";
 import { KbShell } from "@/components/kennisbank/KbShell";
 
+export const dynamic = "force-dynamic";
+
 type Params = Promise<{ categorie: string }>;
 
-export function generateStaticParams() {
-  return categoryParams("public");
-}
-
-export async function generateMetadata({ params }: { params: Params }) {
+export default async function AccountCategoryPage({ params }: { params: Params }) {
   const { categorie } = await params;
-  const category = visibleCategories("public").find((c) => c.slug === categorie);
-  if (!category) return { title: "Niet gevonden · Dicteren.ai" };
-  return {
-    title: `${category.title} · Kennisbank`,
-    description: category.intro,
-  };
-}
-
-export default async function CategoryPage({ params }: { params: Params }) {
-  const { categorie } = await params;
-  const category = visibleCategories("public").find((c) => c.slug === categorie);
+  const category = visibleCategories("account").find((c) => c.slug === categorie);
   if (!category) notFound();
 
   return (
     <KbShell
-      crumbs={[{ label: "Kennisbank", href: KB_BASE }, { label: category.title }]}
+      scope="account"
+      basePath={KB_ACCOUNT_BASE}
+      crumbs={[{ label: "Hulp", href: KB_ACCOUNT_BASE }, { label: category.title }]}
       activeCategory={category.slug}
     >
       <header>
@@ -50,7 +39,7 @@ export default async function CategoryPage({ params }: { params: Params }) {
         {category.articles.map((a) => (
           <li key={a.slug}>
             <Link
-              href={articleHref(category.slug, a.slug)}
+              href={articleHref(category.slug, a.slug, KB_ACCOUNT_BASE)}
               className="group flex items-start justify-between gap-4 rounded-xl border border-[color:var(--border)] bg-white p-4 transition-colors hover:border-[color:var(--navy)]"
             >
               <span className="min-w-0">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, MessageCircle } from "lucide-react";
-import { categories, categoryHref, getSearchIndex } from "@/lib/content/kennisbank";
+import { visibleCategories, categoryHref, getSearchIndex } from "@/lib/content/kennisbank";
 import { KbSearch } from "@/components/kennisbank/KbSearch";
 
 export const metadata = {
@@ -10,7 +10,8 @@ export const metadata = {
 };
 
 export default function KennisbankPage() {
-  const searchItems = getSearchIndex();
+  const categories = visibleCategories("public");
+  const searchItems = getSearchIndex("public");
 
   return (
     <>

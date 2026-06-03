@@ -1,48 +1,44 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, MessageCircle } from "lucide-react";
+import { getSession } from "@/lib/auth/session";
 import {
   getArticle,
   getAdjacent,
-  articleParams,
   articleVisibleInScope,
   categoryHref,
-  KB_BASE,
+  KB_ACCOUNT_BASE,
 } from "@/lib/content/kennisbank";
 import { KbShell } from "@/components/kennisbank/KbShell";
+import { KbInteractiveBlock } from "@/components/account/kb/KbInteractiveBlock";
+
+export const dynamic = "force-dynamic";
 
 type Params = Promise<{ categorie: string; artikel: string }>;
-
-export function generateStaticParams() {
-  return articleParams("public");
-}
 
 export async function generateMetadata({ params }: { params: Params }) {
   const { categorie, artikel } = await params;
   const found = getArticle(categorie, artikel);
-  if (!found || !articleVisibleInScope(categorie, artikel, "public")) {
-    return { title: "Niet gevonden · Dicteren.ai" };
-  }
-  return {
-    title: `${found.article.title} · Kennisbank`,
-    description: found.article.summary,
-  };
+  if (!found) return { title: "Niet gevonden · Dicteren.ai" };
+  return { title: `${found.article.title} · Hulp` };
 }
 
-export default async function ArticlePage({ params }: { params: Params }) {
+export default async function AccountArticlePage({ params }: { params: Params }) {
+  const session = (await getSession())!;
   const { categorie, artikel } = await params;
   const found = getArticle(categorie, artikel);
-  // Account-artikelen (audience customer) bestaan niet publiek: alleen in het dashboard.
-  if (!found || !articleVisibleInScope(categorie, artikel, "public")) notFound();
+  if (!found || !articleVisibleInScope(categorie, artikel, "account")) notFound();
 
   const { category, article } = found;
-  const { prev, next } = getAdjacent(categorie, artikel, "public");
+  const { prev, next } = getAdjacent(categorie, artikel, "account");
 
   return (
     <KbShell
+      scope="account"
+      basePath={KB_ACCOUNT_BASE}
       crumbs={[
-        { label: "Kennisbank", href: KB_BASE },
-        { label: category.title, href: categoryHref(category.slug) },
+        { label: "Hulp", href: KB_ACCOUNT_BASE },
+        { label: category.title, href: categoryHref(category.slug, KB_ACCOUNT_BASE) },
         { label: article.title },
       ]}
       activeCategory={category.slug}
@@ -55,6 +51,9 @@ export default async function ArticlePage({ params }: { params: Params }) {
         <div className="mt-5 space-y-3 text-[16px] leading-relaxed text-[color:var(--text)]">
           {article.body}
         </div>
+        {article.interactive && (
+          <KbInteractiveBlock type={article.interactive} userId={session.user.id} />
+        )}
       </article>
 
       <nav className="mt-12 grid gap-3 sm:grid-cols-2">

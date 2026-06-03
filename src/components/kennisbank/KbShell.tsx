@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, Menu } from "lucide-react";
-import { categories, articleHref, categoryHref } from "@/lib/content/kennisbank";
+import {
+  visibleCategories,
+  articleHref,
+  categoryHref,
+  type KbScope,
+} from "@/lib/content/kennisbank";
 
 export type Crumb = { label: string; href?: string };
 
@@ -28,20 +33,24 @@ function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
 }
 
 function IndexTree({
+  scope,
+  basePath,
   activeCategory,
   activeArticle,
 }: {
+  scope: KbScope;
+  basePath: string;
   activeCategory?: string;
   activeArticle?: string;
 }) {
   return (
     <nav aria-label="Onderwerpen" className="space-y-1">
-      {categories.map((c) => {
+      {visibleCategories(scope).map((c) => {
         const open = c.slug === activeCategory;
         return (
           <details key={c.slug} open={open} className="group">
             <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2.5 text-[15px] font-semibold text-[color:var(--navy)] hover:bg-white [&::-webkit-details-marker]:hidden">
-              <Link href={categoryHref(c.slug)} className="hover:underline">
+              <Link href={categoryHref(c.slug, basePath)} className="hover:underline">
                 {c.title}
               </Link>
               <ChevronRight className="size-4 shrink-0 opacity-50 transition-transform group-open:rotate-90" />
@@ -52,7 +61,7 @@ function IndexTree({
                 return (
                   <li key={a.slug}>
                     <Link
-                      href={articleHref(c.slug, a.slug)}
+                      href={articleHref(c.slug, a.slug, basePath)}
                       aria-current={isActive ? "page" : undefined}
                       className={`block rounded-lg px-3 py-2 text-[14px] leading-snug ${
                         isActive
@@ -74,11 +83,15 @@ function IndexTree({
 }
 
 export function KbShell({
+  scope = "public",
+  basePath = "/kennisbank",
   crumbs,
   activeCategory,
   activeArticle,
   children,
 }: {
+  scope?: KbScope;
+  basePath?: string;
   crumbs: Crumb[];
   activeCategory?: string;
   activeArticle?: string;
@@ -96,14 +109,14 @@ export function KbShell({
             Onderwerpen
           </summary>
           <div className="mt-2">
-            <IndexTree activeCategory={activeCategory} activeArticle={activeArticle} />
+            <IndexTree scope={scope} basePath={basePath} activeCategory={activeCategory} activeArticle={activeArticle} />
           </div>
         </details>
 
         {/* Desktop: index altijd zichtbaar, blijft meescrollen */}
         <aside className="hidden lg:block">
           <div className="sticky top-24 rounded-xl bg-[color:var(--bg-soft,#f6f7f9)] p-2">
-            <IndexTree activeCategory={activeCategory} activeArticle={activeArticle} />
+            <IndexTree scope={scope} basePath={basePath} activeCategory={activeCategory} activeArticle={activeArticle} />
           </div>
         </aside>
 
