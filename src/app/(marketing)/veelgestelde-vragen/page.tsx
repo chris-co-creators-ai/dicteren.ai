@@ -1,48 +1,14 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
+import { getFaqArticles } from "@/lib/content/kennisbank";
 
 export const metadata = { title: "Veelgestelde vragen" };
 
-const FAQS = [
-  {
-    q: "Wordt mijn stem naar een server gestuurd?",
-    a: "Nee. Het taalmodel draait op je eigen computer. Audio blijft op je apparaat.",
-  },
-  {
-    q: "Werkt het ook in andere talen?",
-    a: "Het model is gemaakt voor Nederlands. Engels werkt ook. Andere talen volgen later.",
-  },
-  {
-    q: "In welke apps kan ik dicteren?",
-    a: "Overal waar je tekst kunt typen. Mail, browser, Word, je AI-tool, je editor, je EPD of je boekhoudpakket.",
-  },
-  {
-    q: "Kan ik mijn licentie op meer dan één computer gebruiken?",
-    a: "Een persoonlijke licentie werkt op twee apparaten, bijvoorbeeld je laptop en je werk-pc. Zakelijke licenties zijn per gebruiker.",
-  },
-  {
-    q: "Heb ik internet nodig?",
-    a: "Alleen voor de eerste download van de app en het model. Daarna werk je gewoon offline.",
-  },
-  {
-    q: "Welke modelversie wordt er gebruikt?",
-    a: "Dicteren.ai V3. Dat is een taalmodel dat is gemaakt voor Nederlands. Updates krijg je automatisch als je een betaalde licentie hebt.",
-  },
-  {
-    q: "Wat als mijn licentie verloopt?",
-    a: "De app blijft werken. Wel stoppen nieuwe modelversies en de snelle support. Je kunt verlengen vanuit je account.",
-  },
-  {
-    q: "Kunnen organisaties een DPA krijgen?",
-    a: "Ja. Vraag een DPA aan via info@dicteren.ai bij je zakelijke aanvraag.",
-  },
-  {
-    q: "Hoe annuleer ik?",
-    a: "Per maand, kwartaal of jaar. Op elk moment. Bij opzegging loopt je licentie door tot het einde van de betaalperiode.",
-  },
-];
-
+// Geen eigen lijst meer: de FAQ leest de featured-artikelen uit de kennisbank
+// (de plek van waarheid). Antwoorden linken door naar het volledige artikel.
 export default function FaqPage() {
+  const faqs = getFaqArticles();
+
   return (
     <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-14 lg:py-24">
       <div className="mx-auto max-w-3xl">
@@ -51,19 +17,20 @@ export default function FaqPage() {
           Veelgestelde vragen
         </h1>
         <p className="mt-4 text-base text-[color:var(--text-muted)] sm:text-lg">
-          Antwoorden op de vragen die we vaak horen. Mis je iets?{" "}
+          De vragen die we het vaakst horen. Wil je meer weten? Bekijk de{" "}
           <Link
-            href="/contact"
+            href="/kennisbank"
             className="font-semibold text-[color:var(--navy-500)] underline-offset-4 hover:underline"
           >
-            Stel hem ons direct.
+            volledige kennisbank
           </Link>
+          .
         </p>
 
         <div className="mt-9">
-          {FAQS.map((f, i) => (
+          {faqs.map((f, i) => (
             <details
-              key={i}
+              key={f.href}
               open={i === 0}
               className="border-t border-[color:var(--border-soft)] py-4 [&_summary::-webkit-details-marker]:hidden [&[open]_summary_svg]:rotate-45"
             >
@@ -73,11 +40,18 @@ export default function FaqPage() {
                   strokeWidth={2.4}
                   style={{ color: "var(--orange)" }}
                 />
-                {f.q}
+                {f.article.title}
               </summary>
-              <p className="mt-2.5 pl-7 text-[15px] leading-relaxed text-[color:var(--text-muted)]">
-                {f.a}
-              </p>
+              <div className="mt-2.5 pl-7 text-[15px] leading-relaxed text-[color:var(--text-muted)]">
+                <p>{f.article.summary}</p>
+                <Link
+                  href={f.href}
+                  className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-semibold text-[color:var(--navy)] hover:underline"
+                >
+                  Lees het hele antwoord
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              </div>
             </details>
           ))}
         </div>

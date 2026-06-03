@@ -40,7 +40,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Support",
     links: [
-      { label: "Help", href: "/help" },
+      { label: "Kennisbank", href: "/kennisbank" },
       { label: "Veelgestelde vragen", href: "/veelgestelde-vragen" },
       { label: "Contact", href: "/contact" },
       { label: "Blog", href: "/blog" },

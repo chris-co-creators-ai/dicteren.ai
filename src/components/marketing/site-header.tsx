@@ -13,7 +13,7 @@ const PRIMARY_NAV: NavItem[] = [
   { label: "Voor wie", href: "/voor-wie" },
   { label: "Zakelijk", href: "/zakelijk" },
   { label: "Prijzen", href: "/prijzen" },
-  { label: "Help", href: "/help" },
+  { label: "Kennisbank", href: "/kennisbank" },
 ];
 
 type InitialUser = {
