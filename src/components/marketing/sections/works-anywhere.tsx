@@ -26,7 +26,7 @@ const APPS: { icon: typeof Mail; name: string; tag: string }[] = [
   { icon: Sparkles, name: "Copilot & Gemini", tag: "AI-tools" },
   { icon: Search, name: "Google", tag: "Zoekbalk" },
   { icon: Hash, name: "Discord", tag: "Chats" },
-  { icon: Code2, name: "VS Code", tag: "Commentaar typen" },
+  { icon: Code2, name: "VS Code", tag: "Commentaar inspreken" },
   { icon: ShoppingCart, name: "Webwinkel", tag: "Reviews" },
   { icon: Calendar, name: "Agenda", tag: "Afspraaknotities" },
 ];
@@ -47,7 +47,7 @@ export function WorksAnywhereSection() {
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-base text-[color:var(--text-muted)] sm:text-lg">
             Mail, notities, documenten, chats, AI-tools, formulieren op
-            websites — als er een tekstcursor in zit, kun je het inspreken.
+            websites. Zit er een tekstcursor in, dan kun je het inspreken.
           </p>
         </div>
 
@@ -96,7 +96,7 @@ export function WorksAnywhereSection() {
           style={{ color: "var(--text-muted)" }}
         >
           + elke andere app waar je in een tekstveld kunt typen. Werkt op
-          systeem-niveau via je sneltoets — geen plugins, geen extensies.
+          systeem-niveau via je sneltoets. Geen plugins, geen extensies.
         </p>
       </div>
     </section>

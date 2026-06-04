@@ -131,13 +131,13 @@ export const categories: KbCategory[] = [
       {
         slug: "andere-talen",
         title: "Werkt het ook in andere talen?",
-        summary: "Gemaakt voor Nederlands. Engels werkt ook. Andere talen volgen later.",
+        summary: "Nee. Het model is gemaakt voor Nederlands en doet dat goed.",
         audience: "both",
         faq: true,
         body: (
           <p>
-            Het model is gemaakt voor Nederlands. Engels werkt ook. Andere talen
-            volgen later.
+            Nee. Het model is gemaakt voor Nederlands en doet dat goed. Andere
+            talen ondersteunen we bewust niet.
           </p>
         ),
       },

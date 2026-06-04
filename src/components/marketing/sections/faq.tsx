@@ -8,7 +8,7 @@ const FAQS = [
   },
   {
     q: "Werkt het ook in andere talen?",
-    a: "Het model is geoptimaliseerd voor Nederlands. Voor v1 ondersteunen we alleen Nederlands. Andere talen volgen later.",
+    a: "Nee. Het model is gemaakt voor Nederlands en doet dat goed. Andere talen ondersteunen we bewust niet.",
   },
   {
     q: "In welke apps kan ik dicteren?",
@@ -24,7 +24,7 @@ const FAQS = [
   },
   {
     q: "Op welke besturingssystemen werkt het?",
-    a: "macOS en Windows. Voor macOS heb je toegankelijkheidsrechten nodig zodat de sneltoets werkt; daar leidt de app je doorheen.",
+    a: "Mac en Windows. Op een Mac vraagt de app eenmalig om toegankelijkheidstoegang zodat de sneltoets werkt. De app leidt je daar doorheen.",
   },
 ];
 

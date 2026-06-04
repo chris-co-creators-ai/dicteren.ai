@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getPricing } from "@/lib/services/pricing";
 
 type Plan = {
   title: string;
@@ -11,36 +12,46 @@ type Plan = {
   best?: boolean;
 };
 
-const PLANS: Plan[] = [
-  {
-    title: "Maandelijks",
-    price: "€12",
-    sub: "per maand",
-    items: ["Volledige dicteer-app", "Mac & Windows", "Modelupdates"],
-    cta: { label: "Start gratis trial", href: "/auth/sign-up?next=/trial/start" },
-  },
-  {
-    title: "Jaarlijks",
-    price: "€96",
-    sub: "per jaar · 33% korting",
-    items: [
-      "Alles uit Maandelijks",
-      "Beste prijs voor consumenten",
-      "Eén apparaat",
-    ],
-    cta: { label: "Start gratis trial", href: "/auth/sign-up?next=/trial/start" },
-    best: true,
-  },
-  {
-    title: "Zakelijk",
-    price: "€84",
-    sub: "per gebruiker / jaar",
-    items: ["Teamlicenties", "Admin-dashboard", "Volumekorting vanaf 5"],
-    cta: { label: "Vraag aan", href: "/zakelijk" },
-  },
-];
+export async function PricingPreviewSection() {
+  // Zakelijke prijs uit de SSOT (pricing_tiers), nooit hardcoded.
+  const pricing = await getPricing();
+  const seatYearEuro = Math.round(pricing.tiers[0].pricePerSeatCents / 100);
 
-export function PricingPreviewSection() {
+  const PLANS: Plan[] = [
+    {
+      title: "Maandelijks",
+      price: "€12",
+      sub: "per maand",
+      items: ["Volledige dicteer-app", "Mac & Windows", "Modelupdates"],
+      cta: {
+        label: "Probeer 14 dagen gratis",
+        href: "/auth/sign-up?next=/trial/start",
+      },
+    },
+    {
+      title: "Jaarlijks",
+      price: "€96",
+      sub: "per jaar · 33% korting",
+      items: [
+        "Alles uit Maandelijks",
+        "Beste prijs voor consumenten",
+        "Twee apparaten",
+      ],
+      cta: {
+        label: "Probeer 14 dagen gratis",
+        href: "/auth/sign-up?next=/trial/start",
+      },
+      best: true,
+    },
+    {
+      title: "Zakelijk",
+      price: `€${seatYearEuro}`,
+      sub: "per gebruiker / jaar, excl. btw",
+      items: ["Teamlicenties", "Admin-dashboard", "Volumekorting vanaf 5 seats"],
+      cta: { label: "Vraag aan", href: "/zakelijk" },
+    },
+  ];
+
   return (
     <section className="px-6 py-20 lg:px-14 lg:py-24">
       <div className="mx-auto mb-10 max-w-3xl text-center">

@@ -86,7 +86,7 @@ export function AudienceGridSection() {
         <div>
           <span className="chip">Voor wie</span>
           <h2 className="mt-3 text-3xl font-bold leading-tight tracking-tight lg:text-4xl">
-            Voor wie veel schrijft, vaak.
+            Voor wie elke dag schrijft.
           </h2>
         </div>
         <Link

@@ -60,9 +60,9 @@ export function HeroSection() {
             14 dagen gratis · Mac &amp; Windows
           </span>
           <h1 className="text-balance text-4xl font-bold leading-[1.05] tracking-tight text-[color:var(--navy)] sm:text-5xl lg:text-6xl">
-            Praat.{" "}
+            Wat een werk,{" "}
             <span className="relative inline-block">
-              En het staat er.
+              dat typen.
               <svg
                 aria-hidden
                 viewBox="0 0 360 18"
@@ -77,12 +77,12 @@ export function HeroSection() {
                   strokeLinecap="round"
                 />
               </svg>
-            </span>
+            </span>{" "}
+            Elke dag weer.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-[color:var(--text-muted)] sm:mt-6 sm:text-lg">
-            Druk op een sneltoets, zeg wat je wilt typen, en je tekst verschijnt
-            in welke app dan ook. Mail, notities, Word, ChatGPT, een
-            formulier op een website. Lokaal en Nederlands.
+            Praat je tekst in plaats van te tikken. Dicteren.ai typt voor
+            je, in Word, je mail en WhatsApp Web. Lokaal, op jouw computer.
           </p>
           <div className="mt-7 flex flex-col items-stretch gap-3 sm:mt-8 sm:flex-row sm:items-center sm:flex-wrap">
             <Link
@@ -96,6 +96,9 @@ export function HeroSection() {
               Bekijk hoe het werkt
             </Link>
           </div>
+          <p className="mt-3 text-xs text-[color:var(--text-soft)] sm:text-sm">
+            Geen creditcard nodig. Stopt vanzelf.
+          </p>
           <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[color:var(--text-muted)] sm:mt-7 sm:text-sm">
             {[
               { icon: Shield, label: "Spraak blijft lokaal" },

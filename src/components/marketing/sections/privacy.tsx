@@ -16,7 +16,7 @@ export function PrivacySection() {
     { icon: Shield, title: "Spraak blijft lokaal", desc: "Je audio wordt op je eigen apparaat verwerkt, niet in de cloud." },
     { icon: Settings, title: "Jij kiest", desc: "Beheer zelf je sneltoetsen, geluiden en eigen woorden." },
     { icon: Eye, title: "Niemand luistert mee", desc: "We trainen niet op jouw stem." },
-    { icon: RefreshCw, title: "Dicteren werkt offline", desc: "Voor het transcriberen heb je geen internet nodig." },
+    { icon: RefreshCw, title: "Dicteren werkt offline", desc: "Transcriberen gebeurt op je eigen apparaat, ook zonder internet." },
   ];
 
   const flow: { label: string; icon: typeof Mic }[] = [

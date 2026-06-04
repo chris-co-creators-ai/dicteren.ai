@@ -27,12 +27,27 @@ export function FinalCtaSection() {
             className="btn btn-primary btn-lg"
           >
             <Download className="size-4" />
-            Start 14 dagen gratis
+            Probeer 14 dagen gratis
           </Link>
           <Link href="/prijzen" className="btn btn-secondary btn-lg">
-            Zie prijzen
+            Bekijk de prijzen
           </Link>
         </div>
+
+        {/* Slotzin: de pagina als eigen bewijs */}
+        <p className="mt-14 inline-flex flex-wrap items-center justify-center gap-x-1.5 text-sm text-[color:var(--text-muted)]">
+          Deze pagina is ingesproken met Dicteren.ai en geüpgraded door
+          Claude. Gemaakt met liefde in Nederland.
+          <svg
+            aria-label="Nederlandse vlag"
+            viewBox="0 0 18 12"
+            className="ml-1 inline-block h-[11px] w-[16px] rounded-[2px] align-[-1px]"
+          >
+            <rect width="18" height="4" y="0" fill="#AE1C28" />
+            <rect width="18" height="4" y="4" fill="#FFFFFF" />
+            <rect width="18" height="4" y="8" fill="#21468B" />
+          </svg>
+        </p>
       </div>
     </section>
   );
