@@ -22,7 +22,10 @@ export function HowItWorksSection() {
   ];
 
   return (
-    <section className="border-y border-[color:var(--border-soft)] bg-white px-6 py-20 lg:px-14 lg:py-24">
+    <section
+      id="hoe-het-werkt"
+      className="border-y border-[color:var(--border-soft)] bg-white px-6 py-20 lg:px-14 lg:py-24"
+    >
       <div className="mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-[1fr_1.1fr]">
         {/* Left: copy + steps */}
         <div>

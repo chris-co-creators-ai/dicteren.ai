@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { SettingRow, SettingsGroup } from "@/components/app/settings-group";
 import { ToggleSwitch } from "@/components/app/toggle-switch";
 
@@ -55,6 +56,15 @@ export function FeaturesInsideSection() {
                 </p>
               </div>
             ))}
+            {/* De actie op het moment van ja */}
+            <div>
+              <Link
+                href="/auth/sign-up?next=/trial/start"
+                className="btn btn-primary"
+              >
+                Probeer 14 dagen gratis
+              </Link>
+            </div>
           </div>
 
           {/* Rechts: echte app-componenten als bewijs */}
