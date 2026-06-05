@@ -41,9 +41,9 @@ const STATUS_META: Record<
   { label: string; tone: "good" | "warn" | "bad" | "neutral" }
 > = {
   active: { label: "Actief", tone: "good" },
-  trial: { label: "Trial", tone: "neutral" },
-  past_due: { label: "Betaling mislukt", tone: "warn" },
-  canceled: { label: "Opgezegd", tone: "neutral" },
+  trial: { label: "Proefperiode", tone: "neutral" },
+  past_due: { label: "Betaling achter", tone: "warn" },
+  canceled: { label: "Geannuleerd", tone: "neutral" },
   expired: { label: "Verlopen", tone: "warn" },
   refunded: { label: "Terugbetaald", tone: "bad" },
   revoked: { label: "Ingetrokken", tone: "bad" },
@@ -129,6 +129,9 @@ function LicenseCard({
     tone: "neutral" as const,
   };
   const maxDevices = license.seats * license.maxActivationsPerSeat;
+  // Actief zonder einddatum = lifetime. Dat moet de gebruiker letterlijk zien,
+  // niet afleiden uit een streepje.
+  const isLifetime = license.status === "active" && !license.expiresAt;
 
   return (
     <div className="rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
@@ -147,13 +150,18 @@ function LicenseCard({
             <CopyButton value={license.code} />
           </div>
         </div>
-        <StatusChip label={meta.label} tone={meta.tone} />
+        <div className="flex items-center gap-2">
+          {isLifetime && <StatusChip label="Lifetime" tone="neutral" />}
+          <StatusChip label={meta.label} tone={meta.tone} />
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3 text-xs sm:grid-cols-3">
         <div>
           <div className="text-[color:var(--text-muted)]">Geldig tot</div>
-          <div className="mt-0.5 font-semibold">{formatDate(license.expiresAt)}</div>
+          <div className="mt-0.5 font-semibold">
+            {isLifetime ? "Onbeperkt" : formatDate(license.expiresAt)}
+          </div>
         </div>
         <div>
           <div className="text-[color:var(--text-muted)]">Apparaten in gebruik</div>
