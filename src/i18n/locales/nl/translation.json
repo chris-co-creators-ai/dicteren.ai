@@ -241,7 +241,7 @@
         },
         "ort": {
           "title": "ONNX-versnelling",
-          "description": "Hardwareversnelling voor ONNX-modellen zoals Parakeet. DirectML op Windows is experimenteel."
+          "description": "Hardwareversnelling voor het lokale model. DirectML op Windows is experimenteel."
         },
         "gpuDevice": {
           "title": "GPU-apparaat",
