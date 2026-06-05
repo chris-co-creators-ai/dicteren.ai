@@ -26,7 +26,7 @@ import { FinalCtaSection } from "@/components/marketing/sections/final-cta";
 export const metadata: Metadata = {
   title: "Wispr Flow alternatief voor Nederland — Dicteren.ai",
   description:
-    "Wispr Flow stuurt je stem naar 21 sub-verwerkers in de VS. Dicteren.ai verwerkt alles op je eigen Mac of Windows. Nederlandse leverancier, btw-factuur, 14 dagen gratis.",
+    "Wispr Flow stuurt je stem naar de Amerikaanse cloud met 19 sub-verwerkers. Dicteren.ai verwerkt alles op je eigen Mac of Windows. Nederlandse leverancier, btw-factuur, 14 dagen gratis.",
   alternates: {
     canonical: "https://www.dicteren.ai/wispr-flow-alternatief",
   },
@@ -59,23 +59,38 @@ const COMPARISON_ROWS: Array<{
   },
   {
     feature: "Aantal sub-verwerkers",
-    dicteren: "Geen",
-    wispr: "21 partijen",
+    dicteren: "Geen, voor je dictaat",
+    wispr: "19 partijen, waarvan 6 AI-bedrijven",
   },
   {
-    feature: "Land waar je gegevens staan",
-    dicteren: "Nederland",
+    feature: "Waar je dictaat staat",
+    dicteren: "Op jouw eigen computer",
     wispr: "Verenigde Staten",
   },
   {
-    feature: "Screenshots van je scherm",
+    feature: "Meekijken met je scherm",
     dicteren: "Nooit",
-    wispr: "Elke paar seconden, naar cloud",
+    wispr: "Optioneel leest hij tekst van je scherm mee",
   },
   {
-    feature: "Training op jouw stem",
+    feature: "Training op jouw dictaten",
     dicteren: "Nooit",
-    wispr: "Standaard wel. Privacy Mode zet het uit.",
+    wispr: "Standaard aan op desktop, tot je Privacy Mode aanzet",
+  },
+  {
+    feature: "Bewaartermijn tekst bij AI-partijen",
+    dicteren: "Niet van toepassing",
+    wispr: "Tot 30 dagen",
+  },
+  {
+    feature: "Analytics uitzetten",
+    dicteren: "Er staat niets aan",
+    wispr: "Kan niet, geen opt-out",
+  },
+  {
+    feature: "Jaarprijs",
+    dicteren: "€96 inclusief btw",
+    wispr: "$144, exclusief koersrisico",
   },
   {
     feature: "Leverancier",
@@ -97,7 +112,7 @@ const COMPARISON_ROWS: Array<{
 const FAQS: Array<{ q: string; a: string; defaultOpen?: boolean }> = [
   {
     q: "Is Wispr Flow veilig voor Nederlandse gebruikers?",
-    a: "Wispr Flow stuurt je stem en regelmatige schermafbeeldingen naar Amerikaanse cloud-servers. De verwerking gebeurt bij Baseten en Soniox. Onder de CLOUD Act kan een Amerikaanse rechter toegang vragen tot die data, ook als jij in Nederland zit. Voor werk met beroepsgeheim, gezondheidsgegevens of klantvertrouwelijke informatie wegen Nederlandse organisaties dit risico vaak zwaar.",
+    a: "Wispr Flow stuurt je stem naar Amerikaanse cloud-servers, en kan optioneel tekst van je scherm meesturen voor context. De transcriptie gebeurt bij Baseten en Soniox, de tekstverwerking bij onder andere OpenAI en Anthropic. Onder de CLOUD Act kan een Amerikaanse rechter toegang vragen tot die data, ook als jij in Nederland zit. Voor werk met beroepsgeheim, gezondheidsgegevens of klantvertrouwelijke informatie wegen Nederlandse organisaties dit risico vaak zwaar.",
     defaultOpen: true,
   },
   {
@@ -106,7 +121,7 @@ const FAQS: Array<{ q: string; a: string; defaultOpen?: boolean }> = [
   },
   {
     q: "Hoeveel partijen verwerken mijn data bij Wispr Flow?",
-    a: "21 sub-verwerkers volgens hun eigen documentatie. Baseten en Soniox doen de transcriptie. Daarnaast OpenAI, Anthropic, AWS, Stripe en zestien anderen voor analytics, betalingen en monitoring. Bij Dicteren.ai gaat je stem nergens heen, dus er zijn geen sub-verwerkers voor audio.",
+    a: "19 sub-verwerkers volgens hun eigen documentatie. Zes daarvan raken je dictaat: Baseten, Soniox, OpenAI, Anthropic, Cerebras en OpenRouter. De overige dertien doen analytics, betalingen en monitoring, waaronder AWS en Stripe. Bij Dicteren.ai gaat je stem nergens heen, dus er zijn geen sub-verwerkers voor audio.",
   },
   {
     q: "Wat is een goed Nederlands alternatief voor Wispr Flow?",
@@ -122,7 +137,7 @@ const FAQS: Array<{ q: string; a: string; defaultOpen?: boolean }> = [
   },
   {
     q: "Krijg ik een btw-factuur bij Dicteren.ai?",
-    a: "Ja. Elke betaling levert een Nederlandse factuur op met 21% btw. Betalen kan met iDEAL, creditcard of factuur. Wispr Flow rekent uitsluitend in USD via creditcard.",
+    a: "Ja. Elke betaling levert een Nederlandse factuur op met 21% btw. Betalen kan met iDEAL, creditcard of factuur. Wispr Flow rekent in dollars, dus je factuur schommelt met de koers mee.",
   },
   {
     q: "Op welke besturingssystemen werkt Dicteren.ai?",
@@ -207,7 +222,7 @@ export default function WisprFlowAlternativePage() {
               {
                 value: "0",
                 label: "sub-verwerkers voor jouw audio",
-                detail: "Wispr Flow: 21",
+                detail: "Wispr Flow: 19",
                 icon: ShieldOff,
               },
               {
@@ -341,16 +356,18 @@ export default function WisprFlowAlternativePage() {
               }}
             >
               <strong className="block font-bold">
-                Plus: regelmatige schermafbeeldingen.
+                Plus: standaard traint jouw tekst hun model.
               </strong>
-              Wispr Flow maakt elke paar seconden een screenshot van je actieve
-              venster. Die gaan mee naar dezelfde cloud.
+              Privacy Mode staat op Mac en Windows standaard uit. Tot jij hem
+              aanzet wordt je dictaat opgeslagen en gebruikt om hun model te
+              verbeteren. En hun analytics kún je niet uitzetten, die optie
+              bestaat niet.
             </div>
 
             <ul className="mt-5 flex flex-col gap-2.5 text-sm">
               {[
                 "Internet altijd nodig",
-                "21 sub-verwerkers in de keten",
+                "19 sub-verwerkers in de keten",
                 "Onder Amerikaanse wetgeving (CLOUD Act)",
               ].map((item) => (
                 <li
@@ -632,12 +649,12 @@ export default function WisprFlowAlternativePage() {
             },
             {
               title: "Accountants en fiscalisten",
-              pain: "Cliëntdossiers vallen onder geheimhouding. Cloud-verwerking via 21 partijen is moeilijk te verantwoorden.",
+              pain: "Cliëntdossiers vallen onder geheimhouding. Cloud-verwerking via 19 partijen is moeilijk te verantwoorden.",
               gain: "Je dictaten blijven op je computer. Geen sub-verwerker om te beoordelen.",
             },
             {
               title: "Inkoop en compliance",
-              pain: "Een sub-verwerker-lijst van 21 partijen, allemaal in de VS, scoort slecht in elke leverancier-review.",
+              pain: "Een sub-verwerker-lijst van 19 partijen, grotendeels Amerikaans, scoort slecht in elke leverancier-review.",
               gain: "Bij Dicteren.ai is er geen sub-verwerker-lijst om te beoordelen voor audio.",
             },
           ].map((item) => (
@@ -728,8 +745,9 @@ export default function WisprFlowAlternativePage() {
               </table>
             </div>
             <p className="px-5 py-3 text-[0.6875rem] text-[color:var(--text-soft)]">
-              Bron: Wispr Flow's publieke sub-processor-pagina en
-              privacy-overzicht. Gecontroleerd mei 2026.
+              Bron: de publieke sub-processor-pagina, het privacy-beleid, de
+              data-controls-pagina en de prijzen-pagina van Wispr Flow.
+              Gecontroleerd juni 2026.
             </p>
           </div>
         </div>
@@ -750,7 +768,7 @@ export default function WisprFlowAlternativePage() {
               {
                 step: "1",
                 title: "Download de app",
-                body: "Voor Mac of Windows. Het taalmodel komt mee, ongeveer 450 MB. Geen account nodig voor de proefperiode.",
+                body: "Voor Mac of Windows. Het taalmodel installeert zichzelf, eenmalig downloaden en daarna werkt het offline. Proefperiode zonder creditcard.",
               },
               {
                 step: "2",
