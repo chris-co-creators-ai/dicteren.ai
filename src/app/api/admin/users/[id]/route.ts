@@ -10,7 +10,7 @@ import { dbAuth } from "@/lib/db";
 import { authUser } from "@/lib/db/auth-schema";
 import { auth } from "@/lib/auth/server";
 import { requireStaffApi } from "@/lib/auth/session";
-import { sendPasswordResetEmail } from "@/lib/services/email";
+import { sendLicenseEmail, sendPasswordResetEmail } from "@/lib/services/email";
 import { logEvent } from "@/lib/services/audit";
 import {
   grantFreeMonthsLicense,
@@ -143,6 +143,15 @@ export async function POST(
           seats: body.seats,
           grantedByUserId: session.user.id,
         });
+        // De klant moet de code in z'n mailbox hebben, niet alleen in /account.
+        await sendLicenseEmail({
+          to: user.email,
+          name: user.name ?? undefined,
+          licenseCode: grant.code,
+          expiresAt: null,
+          licenseId: grant.licenseId,
+          userId,
+        });
         await logEvent({
           action: "license.created",
           entityType: "license",
@@ -171,6 +180,15 @@ export async function POST(
           type: body.licenseType ?? "consumer",
           seats: body.seats,
           grantedByUserId: session.user.id,
+        });
+        // Zelfde regel als lifetime: code altijd ook per mail.
+        await sendLicenseEmail({
+          to: user.email,
+          name: user.name ?? undefined,
+          licenseCode: grant.code,
+          expiresAt: grant.expiresAt,
+          licenseId: grant.licenseId,
+          userId,
         });
         await logEvent({
           action: "license.created",
