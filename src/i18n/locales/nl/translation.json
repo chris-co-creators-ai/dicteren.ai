@@ -1,12 +1,12 @@
 {
   "tray": {
-    "settings": "Settings...",
-    "checkUpdates": "Check for Updates...",
-    "copyLastTranscript": "Copy Last Transcript",
-    "unloadModel": "Unload Model",
+    "settings": "Instellingen...",
+    "checkUpdates": "Zoek naar updates...",
+    "copyLastTranscript": "Kopieer laatste dictaat",
+    "unloadModel": "Model ontladen",
     "model": "Model",
-    "quit": "Quit",
-    "cancel": "Cancel"
+    "quit": "Stop",
+    "cancel": "Annuleer"
   },
   "sidebar": {
     "general": "Algemeen",

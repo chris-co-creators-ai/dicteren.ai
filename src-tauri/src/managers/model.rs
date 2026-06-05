@@ -295,7 +295,9 @@ impl ModelManager {
             "parakeet-tdt-0.6b-v3".to_string(),
             ModelInfo {
                 id: "parakeet-tdt-0.6b-v3".to_string(),
-                name: "Parakeet V3".to_string(),
+                // User-facing name. The internal id stays parakeet-* but the
+                // model name shown in tray/UI must always be "Dicteren.ai V3".
+                name: "Dicteren.ai V3".to_string(),
                 description: "Een klein open-source model dat lokaal op je computer wordt geinstalleerd. Je dictaten en tekst blijven lokaal opgeslagen.".to_string(),
                 filename: "parakeet-tdt-0.6b-v3-int8".to_string(), // Directory name
                 url: Some("https://models.dicteren.ai/parakeet-v3-int8.tar.gz".to_string()),
