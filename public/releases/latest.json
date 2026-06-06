@@ -1,0 +1,11 @@
+{
+  "version": "0.8.4",
+  "notes": "Eerste publieke release: gesigneerd en genotariseerd voor macOS.",
+  "pub_date": "2026-06-06T00:30:00Z",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWERXVnY3WElOYk9ndDJRTmJPOUNHL1g1MmtSYU5Ic3BZNWFoeUF5U1NtYkdueW1LUjhxNlFSWFZoOUZuU1c2NVd2VTJaUURIdlo4UEl4NDlzRHBhRDNjZ2Y1ckVEclFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzAxOTE5CWZpbGU6RGljdGVyZW4uYWkuYXBwLnRhci5negphUFllVXJEbjBoMXRMMmdISU9SNVBTQkZzaHdmOUZjeUUwNnN0NHFtU2VjYnUvYnlQQ1czMUk1UmRScjhnUmRXcHJGSU8yZVRXbElXN20wKzh0Q05EQT09Cg==",
+      "url": "https://models.dicteren.ai/releases/Dicteren.ai_0.8.4_aarch64.app.tar.gz"
+    }
+  }
+}

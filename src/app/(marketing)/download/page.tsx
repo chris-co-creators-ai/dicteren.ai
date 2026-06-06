@@ -18,17 +18,17 @@ import { cn } from "@/lib/utils";
 type Os = "mac" | "win";
 
 /**
- * URL naar de Apple Silicon .dmg op GitHub Releases.
- * Bij elke release-bump dit pad updaten of een proxy-route bouwen.
+ * URL naar de Apple Silicon .dmg op ons eigen R2 (zelfde bucket als het
+ * model-CDN, releases/-prefix). Bij elke release-bump dit pad updaten,
+ * samen met public/releases/latest.json (updater-manifest).
  * Intel-Mac support volgt zodra ort-sys een x86_64 prebuilt levert
  * (of we naar ort-tract switchen).
  */
 const MAC_DMG_URL =
-  "https://github.com/dicterenai/dicteren.ai/releases/download/v0.8.4/Dicteren.ai_0.8.4_aarch64.dmg";
+  "https://models.dicteren.ai/releases/Dicteren.ai_0.8.4_aarch64.dmg";
 
-// Mac-download tijdelijk vergrendeld (DMG nog niet genotariseerd). Zet op false
-// om de knop weer te openen zodra de notarisatie rond is.
-const MAC_LOCKED = true;
+// Gesigneerd + genotariseerd per 0.8.4 — knop open.
+const MAC_LOCKED = false;
 
 const OS_INFO: Record<
   Os,
