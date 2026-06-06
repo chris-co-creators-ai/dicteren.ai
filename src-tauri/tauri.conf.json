@@ -58,7 +58,6 @@
       }
     },
     "windows": {
-      "signCommand": "trusted-signing-cli -e https://eus.codesigning.azure.net/ -a Dicteren-Signing -c dicteren-ai -d Dicteren.ai %1",
       "nsis": {
         "template": "nsis/installer.nsi"
       }
