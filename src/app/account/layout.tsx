@@ -6,7 +6,7 @@ export default async function AccountLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireAuth();
+  const session = await requireAuth();
 
   return (
     <div
@@ -43,6 +43,12 @@ export default async function AccountLayout({
             >
               Hulp
             </Link>
+            <span
+              className="hidden text-[color:var(--text-soft)] sm:inline"
+              title={`Ingelogd als ${session.user.email}`}
+            >
+              {session.user.email}
+            </span>
             <Link
               href="/auth/sign-out"
               className="text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
