@@ -276,20 +276,6 @@ impl Default for TypingTool {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
-pub enum WhisperAcceleratorSetting {
-    Auto,
-    Cpu,
-    Gpu,
-}
-
-impl Default for WhisperAcceleratorSetting {
-    fn default() -> Self {
-        WhisperAcceleratorSetting::Auto
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
-#[serde(rename_all = "snake_case")]
 pub enum OrtAcceleratorSetting {
     Auto,
     Cpu,
@@ -423,11 +409,7 @@ pub struct AppSettings {
     #[serde(default)]
     pub custom_filler_words: Option<Vec<String>>,
     #[serde(default)]
-    pub whisper_accelerator: WhisperAcceleratorSetting,
-    #[serde(default)]
     pub ort_accelerator: OrtAcceleratorSetting,
-    #[serde(default = "default_whisper_gpu_device")]
-    pub whisper_gpu_device: i32,
     #[serde(default)]
     pub extra_recording_buffer_ms: u64,
 }
@@ -644,10 +626,6 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
     }]
 }
 
-fn default_whisper_gpu_device() -> i32 {
-    -1 // auto
-}
-
 fn default_typing_tool() -> TypingTool {
     TypingTool::Auto
 }
@@ -808,9 +786,7 @@ pub fn get_default_settings() -> AppSettings {
         typing_tool: default_typing_tool(),
         external_script_path: None,
         custom_filler_words: None,
-        whisper_accelerator: WhisperAcceleratorSetting::default(),
         ort_accelerator: OrtAcceleratorSetting::default(),
-        whisper_gpu_device: default_whisper_gpu_device(),
         extra_recording_buffer_ms: 0,
     }
 }

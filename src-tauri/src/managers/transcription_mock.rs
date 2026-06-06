@@ -66,24 +66,11 @@ impl TranscriptionManager {
 pub fn apply_accelerator_settings(_app: &tauri::AppHandle) {}
 
 #[derive(Serialize, Clone, Debug, Type)]
-pub struct GpuDeviceOption {
-    pub id: i32,
-    pub name: String,
-    pub total_vram_mb: usize,
-}
-
-#[derive(Serialize, Clone, Debug, Type)]
 pub struct AvailableAccelerators {
-    pub whisper: Vec<String>,
     pub ort: Vec<String>,
-    pub gpu_devices: Vec<GpuDeviceOption>,
 }
 
 /// Returns empty lists in CI mock.
 pub fn get_available_accelerators() -> AvailableAccelerators {
-    AvailableAccelerators {
-        whisper: vec![],
-        ort: vec![],
-        gpu_devices: vec![],
-    }
+    AvailableAccelerators { ort: vec![] }
 }

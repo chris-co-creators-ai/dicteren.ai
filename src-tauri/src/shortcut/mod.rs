@@ -1118,18 +1118,6 @@ fn apply_and_reload_accelerator(app: &AppHandle, s: settings::AppSettings) {
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_whisper_accelerator_setting(
-    app: AppHandle,
-    accelerator: settings::WhisperAcceleratorSetting,
-) -> Result<(), String> {
-    let mut s = settings::get_settings(&app);
-    s.whisper_accelerator = accelerator;
-    apply_and_reload_accelerator(&app, s);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub fn change_ort_accelerator_setting(
     app: AppHandle,
     accelerator: settings::OrtAcceleratorSetting,
@@ -1140,21 +1128,7 @@ pub fn change_ort_accelerator_setting(
     Ok(())
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn change_whisper_gpu_device(app: AppHandle, device: i32) -> Result<(), String> {
-    let mut s = settings::get_settings(&app);
-    s.whisper_gpu_device = device;
-    apply_and_reload_accelerator(&app, s);
-    Ok(())
-}
-
-/// Return which accelerators and GPU devices are available for this build.
-///
-/// First-call cost is dominated by enumerating GPU devices through the
-/// whisper.cpp Metal/Vulkan backend, which loads dynamic libraries and
-/// probes hardware. Run it on the blocking pool so the webview thread
-/// stays responsive — see also the startup pre-warm in `lib.rs`.
+/// Return which accelerators are available for this build.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_available_accelerators() -> crate::managers::transcription::AvailableAccelerators {

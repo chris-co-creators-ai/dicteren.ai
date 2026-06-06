@@ -4,7 +4,6 @@ import { listen } from "@tauri-apps/api/event";
 import type {
   AppSettings as Settings,
   AudioDevice,
-  WhisperAcceleratorSetting,
   OrtAcceleratorSetting,
 } from "@/bindings";
 import { commands } from "@/bindings";
@@ -140,14 +139,8 @@ const settingUpdaters: {
     commands.changeLazyStreamCloseSetting(value as boolean),
   show_tray_icon: (value) =>
     commands.changeShowTrayIconSetting(value as boolean),
-  whisper_accelerator: (value) =>
-    commands.changeWhisperAcceleratorSetting(
-      value as WhisperAcceleratorSetting,
-    ),
   ort_accelerator: (value) =>
     commands.changeOrtAcceleratorSetting(value as OrtAcceleratorSetting),
-  whisper_gpu_device: (value) =>
-    commands.changeWhisperGpuDevice(value as number),
   extra_recording_buffer_ms: (value) =>
     commands.changeExtraRecordingBufferSetting(value as number),
 };

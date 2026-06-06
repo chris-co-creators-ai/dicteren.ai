@@ -1,16 +1,14 @@
 use crate::audio_toolkit::{apply_custom_words, filter_transcription_output};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::model::{EngineType, ModelManager};
-use crate::settings::{
-    get_settings, ModelUnloadTimeout, OrtAcceleratorSetting, WhisperAcceleratorSetting,
-};
+use crate::settings::{get_settings, ModelUnloadTimeout, OrtAcceleratorSetting};
 use anyhow::Result;
 use log::{debug, error, info, warn};
 use serde::Serialize;
 use specta::Type;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Emitter, Manager};
@@ -24,7 +22,6 @@ use transcribe_rs::{
         sense_voice::{SenseVoiceModel, SenseVoiceParams},
         Quantization,
     },
-    whisper_cpp::{WhisperEngine, WhisperInferenceParams},
     SpeechModel, TranscribeOptions,
 };
 
@@ -37,7 +34,6 @@ pub struct ModelStateEvent {
 }
 
 enum LoadedEngine {
-    Whisper(WhisperEngine),
     Parakeet(ParakeetModel),
     Moonshine(MoonshineModel),
     MoonshineStreaming(StreamingModel),
@@ -300,14 +296,6 @@ impl TranscriptionManager {
         };
 
         let loaded_engine = match model_info.engine_type {
-            EngineType::Whisper => {
-                let engine = WhisperEngine::load(&model_path).map_err(|e| {
-                    let error_msg = format!("Failed to load whisper model {}: {}", model_id, e);
-                    emit_loading_failed(&error_msg);
-                    anyhow::anyhow!(error_msg)
-                })?;
-                LoadedEngine::Whisper(engine)
-            }
             EngineType::Parakeet => {
                 let engine =
                     ParakeetModel::load(&model_path, &Quantization::Int8).map_err(|e| {
@@ -526,35 +514,6 @@ impl TranscriptionManager {
             let transcribe_result = catch_unwind(AssertUnwindSafe(
                 || -> Result<transcribe_rs::TranscriptionResult> {
                     match &mut engine {
-                        LoadedEngine::Whisper(whisper_engine) => {
-                            let whisper_language = if validated_language == "auto" {
-                                None
-                            } else {
-                                let normalized = if validated_language == "zh-Hans"
-                                    || validated_language == "zh-Hant"
-                                {
-                                    "zh".to_string()
-                                } else {
-                                    validated_language.clone()
-                                };
-                                Some(normalized)
-                            };
-
-                            let params = WhisperInferenceParams {
-                                language: whisper_language,
-                                translate: settings.translate_to_english,
-                                initial_prompt: if settings.custom_words.is_empty() {
-                                    None
-                                } else {
-                                    Some(settings.custom_words.join(", "))
-                                },
-                                ..Default::default()
-                            };
-
-                            whisper_engine
-                                .transcribe_with(&audio, &params)
-                                .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {}", e))
-                        }
                         LoadedEngine::Parakeet(parakeet_engine) => {
                             let params = ParakeetParams {
                                 timestamp_granularity: Some(TimestampGranularity::Segment),
@@ -683,14 +642,7 @@ impl TranscriptionManager {
         };
 
         // Apply word correction if custom words are configured.
-        // Skip for Whisper models since custom words are already passed as initial_prompt.
-        let is_whisper = self
-            .model_manager
-            .get_model_info(&settings.selected_model)
-            .map(|info| matches!(info.engine_type, EngineType::Whisper))
-            .unwrap_or(false);
-
-        let corrected_result = if !settings.custom_words.is_empty() && !is_whisper {
+        let corrected_result = if !settings.custom_words.is_empty() {
             apply_custom_words(
                 &result.text,
                 &settings.custom_words,
@@ -740,23 +692,6 @@ pub fn apply_accelerator_settings(app: &tauri::AppHandle) {
 
     let settings = get_settings(app);
 
-    let whisper_pref = match settings.whisper_accelerator {
-        WhisperAcceleratorSetting::Auto => accel::WhisperAccelerator::Auto,
-        WhisperAcceleratorSetting::Cpu => accel::WhisperAccelerator::CpuOnly,
-        WhisperAcceleratorSetting::Gpu => accel::WhisperAccelerator::Gpu,
-    };
-    accel::set_whisper_accelerator(whisper_pref);
-    accel::set_whisper_gpu_device(settings.whisper_gpu_device);
-    info!(
-        "Whisper accelerator set to: {}, gpu_device: {}",
-        whisper_pref,
-        if settings.whisper_gpu_device == accel::GPU_DEVICE_AUTO {
-            "auto".to_string()
-        } else {
-            settings.whisper_gpu_device.to_string()
-        }
-    );
-
     let ort_pref = match settings.ort_accelerator {
         OrtAcceleratorSetting::Auto => accel::OrtAccelerator::Auto,
         OrtAcceleratorSetting::Cpu => accel::OrtAccelerator::CpuOnly,
@@ -769,44 +704,8 @@ pub fn apply_accelerator_settings(app: &tauri::AppHandle) {
 }
 
 #[derive(Serialize, Clone, Debug, Type)]
-pub struct GpuDeviceOption {
-    pub id: i32,
-    pub name: String,
-    pub total_vram_mb: usize,
-}
-
-static GPU_DEVICES: OnceLock<Vec<GpuDeviceOption>> = OnceLock::new();
-
-fn cached_gpu_devices() -> &'static [GpuDeviceOption] {
-    use transcribe_rs::whisper_cpp::gpu::list_gpu_devices;
-
-    GPU_DEVICES.get_or_init(|| {
-        // ggml's Vulkan backend uses FMA3 instructions internally.
-        // On older CPUs without FMA3 (e.g. Sandy Bridge Xeons) this causes
-        // a SIGILL crash that cannot be caught. Skip enumeration entirely
-        // on those CPUs — GPU-accelerated whisper won't work there anyway.
-        #[cfg(target_arch = "x86_64")]
-        if !std::arch::is_x86_feature_detected!("fma") {
-            warn!("CPU lacks FMA3 support — skipping GPU device enumeration");
-            return Vec::new();
-        }
-
-        list_gpu_devices()
-            .into_iter()
-            .map(|d| GpuDeviceOption {
-                id: d.id,
-                name: d.name,
-                total_vram_mb: d.total_vram / (1024 * 1024),
-            })
-            .collect()
-    })
-}
-
-#[derive(Serialize, Clone, Debug, Type)]
 pub struct AvailableAccelerators {
-    pub whisper: Vec<String>,
     pub ort: Vec<String>,
-    pub gpu_devices: Vec<GpuDeviceOption>,
 }
 
 /// Return which accelerators are compiled into this build.
@@ -818,13 +717,7 @@ pub fn get_available_accelerators() -> AvailableAccelerators {
         .map(|a| a.to_string())
         .collect();
 
-    let whisper_options = vec!["auto".to_string(), "cpu".to_string(), "gpu".to_string()];
-
-    AvailableAccelerators {
-        whisper: whisper_options,
-        ort: ort_options,
-        gpu_devices: cached_gpu_devices().to_vec(),
-    }
+    AvailableAccelerators { ort: ort_options }
 }
 
 impl Drop for TranscriptionManager {

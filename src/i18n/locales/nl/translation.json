@@ -235,18 +235,9 @@
         "description": "Houdt de microfoonstream 30 seconden open na een opname, zodat opeenvolgende dictaten sneller starten. Dit kan Bluetooth-audio tijdelijk verslechteren."
       },
       "acceleration": {
-        "whisper": {
-          "title": "Whisper-versnelling",
-          "description": "Hardwareversnelling voor Whisper-modellen. Automatisch gebruikt de GPU als die beschikbaar is."
-        },
         "ort": {
           "title": "ONNX-versnelling",
           "description": "Hardwareversnelling voor het lokale model. DirectML op Windows is experimenteel."
-        },
-        "gpuDevice": {
-          "title": "GPU-apparaat",
-          "description": "Kies welke GPU gebruikt wordt. Automatisch kiest de aparte GPU.",
-          "auto": "Automatisch"
         }
       },
       "startHidden": {

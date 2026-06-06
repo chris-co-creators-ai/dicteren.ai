@@ -1,6 +1,6 @@
 [package]
 name = "dicteren-ai"
-version = "0.8.4"
+version = "0.8.5"
 description = "Dicteren.ai"
 authors = ["Dicteren.ai"]
 edition = "2021"
@@ -72,8 +72,8 @@ sha2 = "0.10"
 base64 = "0.22"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 machine-uid = "0.5"
-transcribe-rs = { version = "0.3.8", features = ["whisper-cpp", "onnx"] }
-dicteren-keys = { package = "handy-keys", version = "0.2.4" }
+transcribe-rs = { version = "0.3.8", features = ["onnx"] }
+dicteren-keys = { git = "https://github.com/dicterenai/dicteren-keys", rev = "d1e11b0517005ad69204d136a032bf9a5212398a" }
 ferrous-opencc = "0.2.3"
 clap = { version = "4", features = ["derive"] }
 specta = "=2.0.0-rc.22"
@@ -91,7 +91,7 @@ tauri-plugin-single-instance = "2.3.2"
 tauri-plugin-updater = "2.10.0"
 
 [target.'cfg(windows)'.dependencies]
-transcribe-rs = { version = "0.3.3", features = ["whisper-vulkan", "ort-directml"] }
+transcribe-rs = { version = "0.3.3", features = ["ort-directml"] }
 windows = { version = "0.61.3", features = [
   "Win32_Media_Audio_Endpoints",
   "Win32_System_Com_StructuredStorage",
@@ -103,12 +103,10 @@ winreg = "0.55"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
-transcribe-rs = { version = "0.3.3", features = ["whisper-metal"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk-layer-shell = { version = "0.8", features = ["v0_6"] }
 gtk = "0.18"
-transcribe-rs = { version = "0.3.3", features = ["whisper-vulkan"] }
 
 [patch.crates-io]
 tauri-runtime = { git = "https://github.com/dicterenai/tauri.git", rev = "ad9ba9448b82b1a1628333ae06459e4def470db3" }
