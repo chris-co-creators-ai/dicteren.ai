@@ -27,8 +27,9 @@ type Os = "mac" | "win";
 const MAC_DMG_URL =
   "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_aarch64.dmg";
 
-// Gesigneerd + genotariseerd per 0.8.5 — knop open.
-const MAC_LOCKED = false;
+// Gesigneerd + genotariseerd per 0.8.5. Knop tijdelijk dicht (Christian).
+// Open = MAC_LOCKED=false.
+const MAC_LOCKED = true;
 
 const WIN_SETUP_URL =
   "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_x64-setup.exe";
