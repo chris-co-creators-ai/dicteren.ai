@@ -1,11 +1,15 @@
 {
-  "version": "0.8.4",
-  "notes": "Eerste publieke release: gesigneerd en genotariseerd voor macOS.",
-  "pub_date": "2026-06-06T00:30:00Z",
+  "version": "0.8.5",
+  "notes": "Kleinere, snellere app. Volledig lokaal, Nederlands.",
+  "pub_date": "2026-06-06T18:40:00Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWERXVnY3WElOYk9ndDJRTmJPOUNHL1g1MmtSYU5Ic3BZNWFoeUF5U1NtYkdueW1LUjhxNlFSWFZoOUZuU1c2NVd2VTJaUURIdlo4UEl4NDlzRHBhRDNjZ2Y1ckVEclFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzAxOTE5CWZpbGU6RGljdGVyZW4uYWkuYXBwLnRhci5negphUFllVXJEbjBoMXRMMmdISU9SNVBTQkZzaHdmOUZjeUUwNnN0NHFtU2VjYnUvYnlQQ1czMUk1UmRScjhnUmRXcHJGSU8yZVRXbElXN20wKzh0Q05EQT09Cg==",
-      "url": "https://models.dicteren.ai/releases/Dicteren.ai_0.8.4_aarch64.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWERXVnY3WElOYkZjL0F1VnFYN0ZrY0VBMmNhclQ5RUxqbUN5K3RiYjk3ejl0MDNOVS82aVVFT1J1VlhLMDcrb3h2RHBQYTlZOStIZnBkc1kzNEZSSlJxZEwzTXgwMFFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzExNzY1CWZpbGU6RGljdGVyZW4uYWkuYXBwLnRhci5negppL2NSNjZlWC9NNGd3NDF6anlhd2dxY3k1SDNKNGd3MUlKWUplc29uZHZSa1BNRXQrdzdPKzlmNU1MVitiQzc5LzBaaFIzbkNveWdlcWpRZXllYzhCZz09Cg==",
+      "url": "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_aarch64.app.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWERXVnY3WElOYkZodjhMTzlTZmM0elJaTnhKNE5PNnB0RXcyVVJKaHpzQWt6bE1sdjVTK1hueGVwOEpWZzNjVjRtRFc2S3hCaHNjSjJNNTJvMm9leFJZNUpYZjdseGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzYyMDE4CWZpbGU6RGljdGVyZW4uYWlfMC44LjVfeDY0LXNldHVwLmV4ZQpETjZkSXFNTWNkdHlvSlBZeUtsandaUlRpVXVPbi92aXlKNTBhZ0ZOYnZWMlFIZ0Y1YVZZN3RKWmdFZk5uV3c3dG03bVZoaUhDR1d0OXhpemZQR2NCZz09Cg==",
+      "url": "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_x64-setup.exe"
     }
   }
 }

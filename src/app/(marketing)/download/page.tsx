@@ -25,10 +25,17 @@ type Os = "mac" | "win";
  * (of we naar ort-tract switchen).
  */
 const MAC_DMG_URL =
-  "https://models.dicteren.ai/releases/Dicteren.ai_0.8.4_aarch64.dmg";
+  "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_aarch64.dmg";
 
-// Gesigneerd + genotariseerd per 0.8.4 — knop open.
+// Gesigneerd + genotariseerd per 0.8.5 — knop open.
 const MAC_LOCKED = false;
+
+const WIN_SETUP_URL =
+  "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_x64-setup.exe";
+
+// Windows-build is nog ONGESIGNEERD (Azure Trusted Signing volgt). Op true =
+// knop dicht; op false = knop open met SmartScreen-uitleg eronder.
+const WIN_LOCKED = true;
 
 const OS_INFO: Record<
   Os,
@@ -152,13 +159,18 @@ export default function DownloadPage() {
                 macOS · binnenkort beschikbaar
               </button>
             )
+          ) : WIN_SETUP_URL && !WIN_LOCKED ? (
+            <a href={WIN_SETUP_URL} className="btn btn-primary btn-lg">
+              <DownloadIcon className="size-4" />
+              Download voor Windows
+            </a>
           ) : (
             <button
               className="btn btn-primary btn-lg cursor-not-allowed opacity-60"
               disabled
               aria-disabled
             >
-              <DownloadIcon className="size-4" />
+              <Lock className="size-4" />
               Windows · binnenkort beschikbaar
             </button>
           )}
