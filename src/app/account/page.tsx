@@ -36,7 +36,9 @@ export default async function AccountHomePage() {
         {session.user.email}
       </p>
 
-      {trial && (
+      {/* Trial-blok alleen relevant zolang je nog geen betaalde/lifetime
+          licentie hebt. Een verlopen trial naast een actieve licentie is ruis. */}
+      {trial && !paid.length && (
         <div className="mt-8 rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
