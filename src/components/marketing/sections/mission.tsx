@@ -12,7 +12,7 @@ export function MissionSection() {
       style={{ background: "var(--bg-deep)" }}
       id="onze-missie"
     >
-      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.35fr_1fr] lg:gap-16">
         {/* Links: de scene-afbeelding */}
         <div className="overflow-hidden rounded-2xl" style={{ boxShadow: "var(--shadow-lg)" }}>
           <Image
@@ -20,6 +20,7 @@ export function MissionSection() {
             alt="Vrouw dicteert een bericht aan Anna, de tekst verschijnt direct op haar scherm"
             width={1693}
             height={929}
+            sizes="(max-width: 1024px) 100vw, 56vw"
             className="block h-auto w-full"
           />
         </div>
