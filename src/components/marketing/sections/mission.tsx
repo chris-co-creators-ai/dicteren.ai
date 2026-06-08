@@ -1,36 +1,30 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { LogoIcon } from "@/components/shared/logo";
 
 // Onze missie — bewuste register-wissel: deze sectie spreekt de taal van het
 // sociale domein (digitale inclusie, meedoen, zelfredzaamheid). Zie TOV.
 
-const MISSION_DEMO = "Lieve Anna, wat fijn dat je er gisteren was. Ik heb genoten.";
-
 export function MissionSection() {
-  const [typed, setTyped] = useState("");
-
-  useEffect(() => {
-    let i = 0;
-    const id = window.setInterval(() => {
-      i += 1;
-      if (i > MISSION_DEMO.length + 24) i = 0; // korte pauze, dan opnieuw
-      setTyped(MISSION_DEMO.slice(0, i));
-    }, 70);
-    return () => window.clearInterval(id);
-  }, []);
-
   return (
     <section
       className="px-6 py-20 lg:px-14 lg:py-24"
       style={{ background: "var(--bg-deep)" }}
       id="onze-missie"
     >
-      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
-        {/* Links: de missie */}
+      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
+        {/* Links: de scene-afbeelding */}
+        <div className="overflow-hidden rounded-2xl" style={{ boxShadow: "var(--shadow-lg)" }}>
+          <Image
+            src="/branding/landingpage-right-woman-mascot-document-v2-20260608.png"
+            alt="Vrouw dicteert een bericht aan Anna, de tekst verschijnt direct op haar scherm"
+            width={1693}
+            height={929}
+            className="block h-auto w-full"
+          />
+        </div>
+
+        {/* Rechts: de missie */}
         <div>
           <span className="chip chip-orange">Onze missie</span>
           <h2 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-[color:var(--navy)] lg:text-4xl">
@@ -63,65 +57,7 @@ export function MissionSection() {
             Namens het hele team: alvast hartelijk dank.
           </p>
         </div>
-
-        {/* Rechts: mascotte die tekst het scherm in laat stromen */}
-        <div className="relative hidden lg:block">
-          <div
-            className="relative overflow-hidden rounded-2xl bg-white"
-            style={{
-              border: "1px solid var(--border-soft)",
-              boxShadow: "var(--shadow-lg)",
-            }}
-          >
-            <div
-              className="flex items-center gap-2 border-b px-4 py-3"
-              style={{ borderColor: "var(--border-soft)", background: "var(--bg)" }}
-            >
-              <span className="size-2.5 rounded-full bg-[#ff5f57]" />
-              <span className="size-2.5 rounded-full bg-[#ffbd2e]" />
-              <span className="size-2.5 rounded-full bg-[#28c840]" />
-              <span className="ml-3 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-                Bericht aan Anna
-              </span>
-            </div>
-            <div className="min-h-[13rem] px-5 py-4">
-              <p className="text-[15px] leading-relaxed" style={{ color: "var(--navy)" }}>
-                {typed}
-                <span
-                  className="ml-0.5 inline-block h-4 w-0.5 align-[-2px]"
-                  style={{
-                    background: "var(--orange)",
-                    animation: "dicteren-mission-caret 1s steps(2) infinite",
-                  }}
-                />
-              </p>
-            </div>
-          </div>
-
-          {/* Curve van de mascotte naar het scherm */}
-          <svg
-            aria-hidden
-            viewBox="0 0 220 120"
-            className="absolute -bottom-14 -left-10 w-[220px]"
-          >
-            <path
-              d="M30 100 C 70 95, 120 70, 180 18"
-              fill="none"
-              stroke="var(--orange)"
-              strokeWidth="2.5"
-              strokeDasharray="2 7"
-              strokeLinecap="round"
-            />
-          </svg>
-          <div className="absolute -bottom-20 -left-16">
-            <LogoIcon size={92} />
-          </div>
-        </div>
       </div>
-
-      <style>{`
-        @keyframes dicteren-mission-caret { 50% { opacity: 0; } }
-      `}</style>
     </section>
   );
 }
