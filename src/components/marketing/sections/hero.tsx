@@ -149,10 +149,10 @@ export function HeroSection() {
                 style={{ borderColor: "var(--border-soft)" }}
               >
                 <span
-                  className="w-12 text-xs font-semibold"
+                  className="w-20 text-xs font-semibold"
                   style={{ color: "var(--text-soft)" }}
                 >
-                  Aan
+                  Aan:
                 </span>
                 <span style={{ color: "var(--navy)" }}>sanne@vandenberg.nl</span>
               </div>
@@ -161,10 +161,10 @@ export function HeroSection() {
                 style={{ borderColor: "var(--border-soft)" }}
               >
                 <span
-                  className="w-12 text-xs font-semibold"
+                  className="w-20 text-xs font-semibold"
                   style={{ color: "var(--text-soft)" }}
                 >
-                  Onderwerp
+                  Onderwerp:
                 </span>
                 <span style={{ color: "var(--navy)" }}>Update keuken</span>
               </div>
