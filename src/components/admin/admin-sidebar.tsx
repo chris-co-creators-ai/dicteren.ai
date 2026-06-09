@@ -13,6 +13,7 @@ import {
   Home,
   Inbox,
   Key,
+  LayoutGrid,
   ListChecks,
   Mail,
   Menu,
@@ -45,6 +46,7 @@ const ADMIN_ONLY: Role[] = ["admin"];
 const NAV: NavItem[] = [
   { href: "/admin", label: "Overzicht", icon: Home, roles: BOTH },
   { href: "/admin/taken", label: "Taken", icon: ListChecks, roles: BOTH },
+  { href: "/admin/borden", label: "Borden", icon: LayoutGrid, roles: BOTH },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: BOTH },
   { href: "/admin/crm", label: "CRM", icon: Users, roles: BOTH },
   { href: "/admin/users", label: "Users", icon: UserCog, roles: BOTH },

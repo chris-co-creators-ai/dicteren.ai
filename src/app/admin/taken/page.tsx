@@ -7,6 +7,7 @@
 
 import { assertStaffPageAccess } from "@/lib/auth/session";
 import { listOpenOrgTasksForUser } from "@/lib/services/crmDeals";
+import { listAssignedTasks } from "@/lib/services/kanban";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { TakenView } from "./taken-view";
 
@@ -29,6 +30,7 @@ export default async function AdminTakenPage() {
     userId: session.user.id,
     limit: 200,
   });
+  const boardTasks = await listAssignedTasks(session.user.id);
 
   const startToday = new Date();
   startToday.setHours(0, 0, 0, 0);
@@ -74,6 +76,39 @@ export default async function AdminTakenPage() {
             naar de organisatie te gaan.
           </p>
         </div>
+        {boardTasks.length > 0 && (
+          <div className="rounded-2xl border bg-card p-5">
+            <h2 className="mb-3 text-sm font-semibold text-[color:var(--text-muted)]">
+              Toegewezen aan mij op borden ({boardTasks.length})
+            </h2>
+            <div className="divide-y divide-[color:var(--border-soft)]">
+              {boardTasks.map((t) => (
+                <a
+                  key={t.id}
+                  href={`/admin/borden/${t.boardId}`}
+                  className="flex items-center justify-between gap-2 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-[color:var(--navy)]">
+                      {t.title}
+                    </div>
+                    <div className="text-xs text-[color:var(--text-muted)]">
+                      {t.boardName ?? "Bord"} · {t.columnName ?? "—"}
+                    </div>
+                  </div>
+                  {t.dueAt && (
+                    <span className="shrink-0 text-xs text-[color:var(--text-muted)]">
+                      {new Date(t.dueAt).toLocaleDateString("nl-NL", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </span>
+                  )}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
         <TakenView
           overdue={overdue}
           today={today}
