@@ -22,35 +22,30 @@ export default function OverOnsPage() {
             Het verhaal achter Dicteren.ai
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base text-[color:var(--text-muted)] sm:text-lg">
-            Een Nederlands product, gebouwd voor mensen die meer willen
-            vertellen dan ze kunnen typen. Je stem blijft op je eigen computer.
+            Volledig verhaal komt binnenkort online.
           </p>
         </div>
 
         {/* Founder-card */}
-        <div className="mt-12 overflow-hidden rounded-3xl border border-[color:var(--border)] bg-white shadow-sm sm:flex">
-          <div className="relative h-72 w-full shrink-0 sm:h-auto sm:w-64">
+        <div className="mt-12 rounded-3xl border border-[color:var(--border)] bg-white p-6 shadow-sm sm:flex sm:items-center sm:gap-8 sm:p-8">
+          <div className="mx-auto w-44 shrink-0 sm:mx-0 sm:w-56">
             <Image
               src="/team/christian-bleeker.jpg"
               alt="Christian Bleeker"
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, 256px"
+              width={1080}
+              height={1350}
+              className="h-auto w-full rounded-2xl object-contain"
+              sizes="(max-width: 640px) 176px, 224px"
             />
           </div>
-          <div className="flex flex-col justify-center p-6 sm:p-8">
+          <div className="mt-6 text-center sm:mt-0 sm:text-left">
             <div className="text-xl font-bold text-[color:var(--navy)]">
               Christian Bleeker
             </div>
             <div className="mt-1 text-sm font-medium text-[color:var(--text-muted)]">
               Oprichter van Dicteren.ai
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-[color:var(--text-muted)]">
-              Christian bouwt Dicteren.ai vanuit Nederland. Hij sprak op
-              TEDxEindhoven. Hij wil dat je je woorden gewoon uitspreekt in
-              plaats van ze te typen.
-            </p>
-            <div className="mt-5 flex flex-wrap items-center gap-2.5">
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5 sm:justify-start">
               <span
                 className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ background: "var(--orange-50)", color: "var(--orange-600)" }}
