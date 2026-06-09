@@ -27,16 +27,15 @@ type Os = "mac" | "win";
 const MAC_DMG_URL =
   "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_aarch64.dmg";
 
-// Gesigneerd + genotariseerd per 0.8.5. Knop tijdelijk dicht (Christian).
-// Open = MAC_LOCKED=false.
-const MAC_LOCKED = true;
+// Gesigneerd + genotariseerd per 0.8.5. Download live.
+const MAC_LOCKED = false;
 
 const WIN_SETUP_URL =
   "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_x64-setup.exe";
 
-// Windows-build is nog ONGESIGNEERD (Azure Trusted Signing volgt). Op true =
-// knop dicht; op false = knop open met SmartScreen-uitleg eronder.
-const WIN_LOCKED = true;
+// Windows-build is nog ONGESIGNEERD (Azure Trusted Signing volgt). Knop open;
+// gebruikers krijgen een SmartScreen-waarschuwing, met uitleg eronder.
+const WIN_LOCKED = false;
 
 const OS_INFO: Record<
   Os,
