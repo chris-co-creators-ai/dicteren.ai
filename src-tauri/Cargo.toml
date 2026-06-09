@@ -1,6 +1,6 @@
 [package]
 name = "dicteren-ai"
-version = "0.8.5"
+version = "0.8.6"
 description = "Dicteren.ai"
 authors = ["Dicteren.ai"]
 edition = "2021"
