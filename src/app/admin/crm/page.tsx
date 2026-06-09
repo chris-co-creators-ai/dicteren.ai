@@ -42,10 +42,10 @@ export default async function AdminCrmPage({
   const initialTab: "people" | "organizations" =
     open || tab === "organizations" ? "organizations" : "people";
 
-  // Scope: account_managers zien alleen hun eigen leads; admin ziet alles.
-  // (account_owner_id-filter — anders lekt de CRM-lijst andermans pijplijn.)
-  const isAdmin = session.user.role === "admin";
-  const scopeOwnerId = isAdmin ? undefined : session.user.id;
+  // Iedereen ziet alles in het CRM: geen per-AM-scope meer. Elke account
+  // manager ziet alle personen, organisaties, leadlijsten en contacten — één
+  // gedeelde pijplijn (besluit Christian, 2026-06-09).
+  const scopeOwnerId: string | undefined = undefined;
 
   // Beide datasets parallel laden — client-side tab switcht zonder reload.
   const [

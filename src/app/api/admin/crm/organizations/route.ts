@@ -1,8 +1,9 @@
 // Dicteren.ai — Admin: CRM organisaties (lijst + aanmaken)
 //
-// Scope-regel: account_manager ziet alleen eigen rijen (account_owner_id =
-// self.id). Admin ziet alles. Voor account_manager wordt accountOwnerId
-// automatisch geforceerd op self.id bij POST, ongeacht body.
+// Zichtbaarheid: iedereen ziet alle organisaties (geen per-AM-scope, besluit
+// 2026-06-09). Bij POST wordt accountOwnerId voor een AM nog wel op self.id
+// gezet als eigenaar-/verantwoordelijke-stempel, maar dat beperkt de
+// zichtbaarheid niet meer.
 //
 // Dedup-regel: POST checkt eerst checkDedupBeforeCreate op name+kvk. Bij
 // exact_kvk-match → 409 met match-data.
@@ -18,9 +19,8 @@ import { checkDedupBeforeCreate } from "@/lib/services/contactDedup";
 export async function GET() {
   const guard = await requireScopedAm();
   if (guard.response) return guard.response;
-  const rows = await listCrmOrganizations({
-    accountOwnerId: guard.isAdmin ? null : guard.ownerUserId,
-  });
+  // Iedereen ziet alle organisaties — geen per-AM-scope meer (besluit 2026-06-09).
+  const rows = await listCrmOrganizations({});
   return NextResponse.json({ success: true, data: rows });
 }
 

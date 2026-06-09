@@ -16,7 +16,6 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const p = url.searchParams;
-  const isAdmin = session.user.role === "admin";
   const filters: CrmPeopleFilters = {
     kind: (p.get("kind") as CrmPeopleFilters["kind"]) || null,
     stage: p.get("stage") || null,
@@ -27,8 +26,8 @@ export async function GET(request: Request) {
     industry: p.get("industry") || null,
     companySizeRange: p.get("size") || null,
     minScore: p.get("minScore") ? Number(p.get("minScore")) : null,
-    // AM's zien alleen eigen toegewezen leads + de niet-toegewezen pool; admin alles.
-    scopeAssignedTo: isAdmin ? null : session.user.id,
+    // Iedereen ziet alle personen — geen per-AM-scope meer (besluit 2026-06-09).
+    scopeAssignedTo: null,
   };
   const cursorCreatedAt = p.get("cursorCreatedAt");
   const cursorId = p.get("cursorId");

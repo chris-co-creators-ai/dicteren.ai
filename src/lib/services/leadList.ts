@@ -25,9 +25,11 @@ export type LeadListWithCount = LeadList & {
 };
 
 /** Alle lijsten zichtbaar voor deze admin (eigen + gedeelde). */
-export async function listLeadLists(args: {
+export async function listLeadLists(_args: {
   userId: string;
 }): Promise<LeadListWithCount[]> {
+  // Iedereen ziet alle leadlijsten (geen owner/shared-filter meer). De
+  // userId-arg blijft staan voor de call-sites maar wordt niet meer gefilterd.
   const rows = await db
     .select({
       id: leadLists.id,
@@ -41,9 +43,6 @@ export async function listLeadLists(args: {
       memberCount: sql<number>`(SELECT COUNT(*)::int FROM ${leadListMembers} WHERE ${leadListMembers.listId} = ${leadLists.id})`,
     })
     .from(leadLists)
-    .where(
-      or(eq(leadLists.isShared, true), eq(leadLists.ownerUserId, args.userId)),
-    )
     .orderBy(desc(leadLists.updatedAt));
   return rows;
 }

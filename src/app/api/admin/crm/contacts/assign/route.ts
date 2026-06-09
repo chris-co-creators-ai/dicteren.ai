@@ -1,7 +1,7 @@
 // Dicteren.ai — Bulk-toewijzing/overdracht van prospects aan een AM.
 //   { contactIds: string[], assignToUserId: string | null }
-// Admin: elke prospect. Account manager: alleen z'n eigen leads (server-side
-// gescoped op org.account_owner_id = self) overdragen aan een collega-AM.
+// Alle staff mogen elke prospect (her)toewijzen — geen owner-scope meer
+// (besluit 2026-06-09, gedeelde pijplijn).
 
 import { NextResponse } from "next/server";
 import { requireScopedAm } from "@/lib/auth/session";
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     contactIds,
     assignToUserId: body.assignToUserId ?? null,
     actorUserId: guard.session.user.id,
-    ownerScopeUserId: guard.isAdmin ? null : guard.ownerUserId,
+    ownerScopeUserId: null,
   });
   return NextResponse.json({ success: true, ...result });
 }

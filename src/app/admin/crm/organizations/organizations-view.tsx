@@ -125,6 +125,28 @@ export function OrganizationsView({
     initialOpenOrgId ?? null,
   );
 
+  // Live-refresh: nieuwe/aangepaste organisaties van andere account managers
+  // verschijnen zonder handmatig verversen. Poll elke 15s + bij terugkeer naar
+  // het tabblad via router.refresh() (server-component herlaadt de orgs).
+  // Overgeslagen terwijl iemand typt of het tabblad verborgen is.
+  useEffect(() => {
+    function maybeRefresh() {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") return;
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      router.refresh();
+    }
+    const id = setInterval(maybeRefresh, 15000);
+    window.addEventListener("focus", maybeRefresh);
+    document.addEventListener("visibilitychange", maybeRefresh);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", maybeRefresh);
+      document.removeEventListener("visibilitychange", maybeRefresh);
+    };
+  }, [router]);
+
   // Inline-edit van willekeurig org-veld; server valideert (FSM-gate op status).
   async function patchField(orgId: string, field: string, value: unknown) {
     const res = await fetch(`/api/admin/crm/organizations/${orgId}`, {

@@ -464,6 +464,35 @@ export function CrmView({
     void fetchPeople(true);
   }
 
+  // Live-refresh: een nieuwe of aangepaste prospect/contact verschijnt bij
+  // alle account managers zonder handmatig verversen. Polling (elke 15s) +
+  // direct bij terugkeer naar het tabblad. Geen websockets nodig — Vercel is
+  // serverless; voor een gedeelde CRM met een handvol AM's is dit ruim live
+  // genoeg en zonder extra infra. We slaan de poll over terwijl iemand in een
+  // invoerveld typt (inline-edit/zoeken) of er al een laadactie loopt.
+  const fetchPeopleRef = useRef(fetchPeople);
+  fetchPeopleRef.current = fetchPeople;
+  const loadingPageRef = useRef(loadingPage);
+  loadingPageRef.current = loadingPage;
+  useEffect(() => {
+    function maybeRefresh() {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") return;
+      if (loadingPageRef.current) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      void fetchPeopleRef.current(true);
+    }
+    const id = setInterval(maybeRefresh, 15000);
+    window.addEventListener("focus", maybeRefresh);
+    document.addEventListener("visibilitychange", maybeRefresh);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", maybeRefresh);
+      document.removeEventListener("visibilitychange", maybeRefresh);
+    };
+  }, []);
+
   // Visible/order werken nu met (built-in + custom) ColumnKey-strings.
   // Custom-column keys hebben prefix "custom:" (zie services/customColumns.ts).
   const allKeys = useMemo<string[]>(

@@ -1,8 +1,8 @@
 // Dicteren.ai — Admin: CRM organisatie detail (GET + PATCH + DELETE)
 //
-// Scope-regel: account_manager mag alleen eigen rijen lezen/wijzigen
-// (account_owner_id = self.id). 403 als niet eigenaar.
-// Admin: geen filter, alle rijen.
+// Toegang: alle staff (admin + account_manager) mogen elke organisatie lezen,
+// bewerken en verwijderen — geen owner-gate meer (besluit 2026-06-09). Eén
+// gedeelde pijplijn.
 
 import { NextResponse } from "next/server";
 import { requireScopedAm, requireStaffApi } from "@/lib/auth/session";
@@ -17,20 +17,15 @@ type Params = Promise<{ id: string }>;
 
 async function assertOwnership(
   orgId: string,
-  guard: { isAdmin: boolean; ownerUserId: string | null },
+  _guard: { isAdmin: boolean; ownerUserId: string | null },
 ): Promise<Response | null> {
-  if (guard.isAdmin) return null;
+  // Geen owner-gate meer: alle staff mogen elke organisatie inzien/bewerken.
+  // Alleen een bestaans-check zodat een verwijderde org netjes 404 geeft.
   const org = await getCrmOrganization(orgId);
   if (!org) {
     return NextResponse.json(
       { success: false, error: "Niet gevonden" },
       { status: 404 },
-    );
-  }
-  if (org.accountOwnerId !== guard.ownerUserId) {
-    return NextResponse.json(
-      { success: false, error: "Geen toegang tot deze organisatie" },
-      { status: 403 },
     );
   }
   return null;
@@ -112,8 +107,8 @@ export async function PATCH(
     "callScript",
     "resellerNotes",
   ];
-  // Alleen admin mag account_owner_id veranderen (overdracht naar andere AM)
-  if (guard.isAdmin) allowed.push("accountOwnerId");
+  // Iedereen mag de eigenaar (account_owner_id) hertoewijzen — gedeelde pijplijn.
+  allowed.push("accountOwnerId");
 
   for (const key of allowed) {
     if (key in body) patch[key] = body[key];
