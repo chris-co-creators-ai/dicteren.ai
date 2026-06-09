@@ -923,6 +923,7 @@ export async function sendBrandIdentityRequestEmail(params: {
     text: brandIdentityRequestText(params),
     // Reageren gaat rechtstreeks naar de account manager, niet naar de
     // algemene inbox — de partner stuurt de bestanden terug in de reply.
+    from: "Dicteren.ai <info@dicteren.ai>",
     replyTo: params.accountManagerEmail,
     tags: [{ name: "category", value: "brand_identity_request" }],
     log: { category: "other" },

@@ -71,6 +71,8 @@ interface SendEmailParams {
   html: string;
   text?: string;
   replyTo?: string;
+  /** Override de afzender. Default: RESEND_FROM_EMAIL / DEFAULT_FROM (licenties@). */
+  from?: string;
   tags?: { name: string; value: string }[];
   idempotencyKey?: string;
   /** Audit context — emitted to email_logs for admin visibility. */
@@ -94,12 +96,13 @@ async function writeLog(args: {
   resendId?: string | null;
   errorMessage?: string | null;
   errorCode?: string | null;
+  from?: string;
 }) {
   try {
     await db.insert(emailLogs).values({
       resendId: args.resendId ?? null,
       toAddress: args.to,
-      fromAddress: fromAddress(),
+      fromAddress: args.from ?? fromAddress(),
       subject: args.subject,
       category: args.ctx.category,
       status: args.status,
@@ -121,10 +124,12 @@ export async function sendEmail(
   params: SendEmailParams,
 ): Promise<ServiceResult<SendResult>> {
   const recipient = firstRecipient(params.to);
+  const from = params.from ?? fromAddress();
   const resend = client();
   if (!resend) {
     await writeLog({
       ctx: params.log,
+      from,
       to: recipient,
       subject: params.subject,
       idempotencyKey: params.idempotencyKey,
@@ -142,7 +147,7 @@ export async function sendEmail(
   for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
     const { data, error } = await resend.emails.send(
       {
-        from: fromAddress(),
+        from,
         to: params.to,
         subject: params.subject,
         html: params.html,
@@ -180,6 +185,7 @@ export async function sendEmail(
 
     await writeLog({
       ctx: params.log,
+      from,
       to: recipient,
       subject: params.subject,
       idempotencyKey: params.idempotencyKey,
