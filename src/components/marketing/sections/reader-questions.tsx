@@ -24,7 +24,7 @@ const QUESTIONS: { q: string; a: string[] }[] = [
   {
     q: "Hoeveel sneller is praten dan?",
     a: [
-      "Je spreekt 150 woorden per minuut. Wie typt en zelf formuleert, haalt er hooguit 30. Onderzoekers van Stanford University maten in 2016 dat spreken 3 keer sneller is dan typen.",
+      "Je spreekt 150 woorden per minuut. Wie typt en zelf formuleert, haalt er hooguit 30. Onderzoekers van Stanford University toonden in 2016 aan dat spreken 3 keer sneller is dan typen.",
       "En dat gat kost je meer dan tijd. Je brein kort je gedachten in zodat je vingers het bijhouden, zonder dat je het doorhebt. Praat je je tekst in, dan staat alles er. Daarom is een gedicteerde prompt aan Claude of ChatGPT completer dan een getypte.",
     ],
   },

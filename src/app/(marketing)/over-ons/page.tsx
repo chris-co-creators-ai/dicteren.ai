@@ -48,7 +48,8 @@ export default function OverOnsPage() {
             <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-[color:var(--text-muted)] sm:mx-0">
               Christian werkte tien jaar lang aan het laten groeien van
               bedrijven, met data en software. Onderzoekers van Stanford
-              University maten in 2016 dat spreken 3 keer sneller is dan typen.
+              University toonden in 2016 aan dat spreken 3 keer sneller is dan
+              typen.
               Daarom bouwt hij nu Dicteren.ai vanuit Nederland: praten in plaats
               van typen, lokaal op je eigen computer.
             </p>
