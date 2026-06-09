@@ -198,7 +198,9 @@ export async function POST(request: Request) {
       source: "self-signup",
     }),
   );
-  const redirectUrl = `${base}/checkout/success?order=${order.id}`;
+  // Na betaling landt de klant direct in z'n eigen omgeving (licenties), niet
+  // op een losse success-pagina. De PurchaseBanner toont daar de bevestiging.
+  const redirectUrl = `${base}/account/licenses?betaald=${order.id}`;
   const webhookUrl = webhookUrlFor(base);
 
   // Methode-keuze komt van onze eigen checkout-stap. Alleen first-payment-
