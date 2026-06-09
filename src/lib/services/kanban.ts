@@ -4,6 +4,7 @@
 // (wie mag wat) staan in de route-guards (requireStaffApi). Alle mutaties
 // loggen naar de audit-trail. Zie .claude/prds/kanban-boards.
 import "server-only";
+import { randomUUID } from "crypto";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { authUsers } from "@/lib/db/schema/auth-bridge";
@@ -12,7 +13,16 @@ import {
   kanbanColumns,
   kanbanTasks,
   kanbanTaskComments,
+  kanbanTaskAttachments,
+  type KanbanTaskAttachment,
 } from "@/lib/db/schema/kanban";
+import {
+  signUpload,
+  signDownload,
+  deleteObject,
+  buildTaskAttachmentKey,
+  validateAsset,
+} from "@/lib/services/r2";
 import { logEvent } from "@/lib/services/audit";
 
 const STAFF_ROLES = ["admin", "account_manager"];
@@ -225,6 +235,7 @@ export type BoardTask = {
   subtaskCount: number;
   doneSubtaskCount: number;
   commentCount: number;
+  attachmentCount: number;
 };
 
 /** Top-level taken van een bord (geen subtaken), met assignee + tellers. */
@@ -287,12 +298,24 @@ export async function listBoardTasks(boardId: string): Promise<BoardTask[]> {
     .groupBy(kanbanTaskComments.taskId);
   const commentMap = new Map(comments.map((c) => [c.taskId, c.n]));
 
+  // Bijlage-tellers.
+  const atts = await db
+    .select({
+      taskId: kanbanTaskAttachments.taskId,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(kanbanTaskAttachments)
+    .where(inArray(kanbanTaskAttachments.taskId, ids))
+    .groupBy(kanbanTaskAttachments.taskId);
+  const attMap = new Map(atts.map((a) => [a.taskId, a.n]));
+
   return rows.map((r) => ({
     ...r,
     priority: r.priority as BoardTask["priority"],
     subtaskCount: subTotal.get(r.id) ?? 0,
     doneSubtaskCount: subDone.get(r.id) ?? 0,
     commentCount: commentMap.get(r.id) ?? 0,
+    attachmentCount: attMap.get(r.id) ?? 0,
   }));
 }
 
@@ -552,4 +575,96 @@ export async function listAssignedTasks(
     ...r,
     priority: r.priority as AssignedKanbanTask["priority"],
   }));
+}
+
+// ───── Bijlagen (screenshots/afbeeldingen bij een taak) ─────────────
+
+export type TaskAttachmentWithUrl = KanbanTaskAttachment & {
+  url: string | null;
+};
+
+// Stap 1: server tekent een presigned PUT-URL voor een nieuwe bijlage.
+export async function signTaskAttachmentUpload(
+  taskId: string,
+  fileName: string,
+  mimeType: string,
+  sizeBytes: number,
+): Promise<{ ok: true; uploadUrl: string; r2Key: string } | { ok: false; error: string }> {
+  const check = validateAsset(mimeType, sizeBytes);
+  if (!check.ok) return { ok: false, error: check.error };
+  const r2Key = buildTaskAttachmentKey(taskId, randomUUID(), fileName);
+  const uploadUrl = await signUpload(r2Key, mimeType);
+  return { ok: true, uploadUrl, r2Key };
+}
+
+// Stap 2: registreer de metadata ná de geslaagde PUT naar R2.
+export async function addTaskAttachment(args: {
+  taskId: string;
+  r2Key: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  width?: number | null;
+  height?: number | null;
+  uploadedByUserId: string;
+}): Promise<KanbanTaskAttachment> {
+  const [att] = await db
+    .insert(kanbanTaskAttachments)
+    .values({
+      taskId: args.taskId,
+      r2Key: args.r2Key,
+      fileName: args.fileName,
+      mimeType: args.mimeType,
+      sizeBytes: args.sizeBytes,
+      width: args.width ?? null,
+      height: args.height ?? null,
+      uploadedByUserId: args.uploadedByUserId,
+    })
+    .returning();
+  await logEvent({
+    action: "admin.action",
+    entityType: "kanban_task_attachment",
+    entityId: att.id,
+    actorId: args.uploadedByUserId,
+    metadata: { kind: "attachment_added", taskId: args.taskId, fileName: att.fileName },
+  });
+  return att;
+}
+
+// Bijlagen van een taak, met verse presigned GET-URL (kort geldig).
+export async function listTaskAttachments(
+  taskId: string,
+): Promise<TaskAttachmentWithUrl[]> {
+  const rows = await db
+    .select()
+    .from(kanbanTaskAttachments)
+    .where(eq(kanbanTaskAttachments.taskId, taskId))
+    .orderBy(asc(kanbanTaskAttachments.createdAt));
+  return Promise.all(
+    rows.map(async (a) => ({
+      ...a,
+      url: await signDownload(a.r2Key, 3600).catch(() => null),
+    })),
+  );
+}
+
+export async function deleteTaskAttachment(
+  id: string,
+  actorId: string,
+): Promise<void> {
+  const [att] = await db
+    .select()
+    .from(kanbanTaskAttachments)
+    .where(eq(kanbanTaskAttachments.id, id))
+    .limit(1);
+  if (!att) return;
+  await db.delete(kanbanTaskAttachments).where(eq(kanbanTaskAttachments.id, id));
+  await deleteObject(att.r2Key).catch((e) => console.warn("[kanban] R2 delete faalde", e));
+  await logEvent({
+    action: "admin.action",
+    entityType: "kanban_task_attachment",
+    entityId: id,
+    actorId,
+    metadata: { kind: "attachment_deleted", taskId: att.taskId },
+  });
 }

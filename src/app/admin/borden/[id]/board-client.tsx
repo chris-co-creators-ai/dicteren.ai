@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   DragDropContext,
   Droppable,
@@ -15,6 +16,11 @@ import {
   Send,
   Flag,
   CalendarDays,
+  Paperclip,
+  Upload,
+  Trash2,
+  FileText,
+  Pencil,
 } from "lucide-react";
 
 type Column = {
@@ -38,6 +44,7 @@ type Task = {
   subtaskCount: number;
   doneSubtaskCount: number;
   commentCount: number;
+  attachmentCount: number;
 };
 type TeamMember = { id: string; name: string; email: string; role: string | null };
 
@@ -104,6 +111,30 @@ export function BoardClient({
   const [selected, setSelected] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [boardName, setBoardName] = useState(board.name);
+  const [editingName, setEditingName] = useState(false);
+
+  async function saveBoardName() {
+    const name = boardName.trim();
+    setEditingName(false);
+    if (!name || name === board.name) {
+      setBoardName(board.name);
+      return;
+    }
+    const res = await fetch(`/api/admin/kanban/boards/${board.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      board.name = name;
+      toast.success("Bordnaam bijgewerkt");
+    } else {
+      setBoardName(board.name);
+      toast.error(data.error ?? "Bijwerken mislukt");
+    }
+  }
 
   const sortedCols = useMemo(
     () => [...columns].sort((a, b) => a.position - b.position),
@@ -170,6 +201,7 @@ export function BoardClient({
           subtaskCount: 0,
           doneSubtaskCount: 0,
           commentCount: 0,
+          attachmentCount: 0,
         },
       ]);
     }
@@ -192,7 +224,29 @@ export function BoardClient({
           ← Borden
         </a>
         <div className="h-5 w-px bg-[color:var(--border-soft)]" />
-        <h1 className="text-lg font-bold tracking-tight text-[color:var(--navy)]">{board.name}</h1>
+        {editingName ? (
+          <input
+            autoFocus
+            value={boardName}
+            onChange={(e) => setBoardName(e.target.value)}
+            onBlur={saveBoardName}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveBoardName();
+              if (e.key === "Escape") { setBoardName(board.name); setEditingName(false); }
+            }}
+            className="rounded-md border border-[color:var(--navy)] px-2 py-0.5 text-lg font-bold tracking-tight text-[color:var(--navy)] focus:outline-none"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setBoardName(board.name); setEditingName(true); }}
+            className="group inline-flex items-center gap-1.5"
+            title="Klik om de bordnaam te wijzigen"
+          >
+            <span className="text-lg font-bold tracking-tight text-[color:var(--navy)]">{board.name}</span>
+            <Pencil className="size-3.5 text-[color:var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
+          </button>
+        )}
         {board.description && (
           <span className="hidden text-sm text-[color:var(--text-muted)] md:inline">· {board.description}</span>
         )}
@@ -301,6 +355,11 @@ export function BoardClient({
                                       <MessageSquare className="size-3" /> {t.commentCount}
                                     </span>
                                   )}
+                                  {t.attachmentCount > 0 && (
+                                    <span className="inline-flex items-center gap-0.5 text-[0.65rem] font-semibold text-[color:var(--text-soft)]">
+                                      <Paperclip className="size-3" /> {t.attachmentCount}
+                                    </span>
+                                  )}
                                   {t.assigneeUserId && (
                                     <span className="ml-auto">
                                       <Avatar id={t.assigneeUserId} name={t.assigneeName} size={22} />
@@ -365,6 +424,17 @@ export function BoardClient({
 
 type Subtask = { id: string; title: string; completedAt: string | null; assigneeName: string | null };
 type Comment = { id: string; authorUserId: string; authorName: string | null; body: string; mentions: string[] | null; createdAt: string };
+type Attachment = {
+  id: string;
+  r2Key: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  url: string | null;
+  createdAt: string;
+};
 
 function TaskPanel({
   task,
@@ -387,11 +457,16 @@ function TaskPanel({
 }) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [lightbox, setLightbox] = useState<Attachment | null>(null);
   const [newSub, setNewSub] = useState("");
   const [comment, setComment] = useState("");
   const [mentions, setMentions] = useState<string[]>([]);
   const [title, setTitle] = useState(task.title);
   const [desc, setDesc] = useState(task.description ?? "");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTitle(task.title);
@@ -400,13 +475,58 @@ function TaskPanel({
     Promise.all([
       fetch(`/api/admin/kanban/tasks/${task.id}/subtasks`).then((r) => r.json()),
       fetch(`/api/admin/kanban/tasks/${task.id}/comments`).then((r) => r.json()),
-    ]).then(([s, c]) => {
+      fetch(`/api/admin/kanban/tasks/${task.id}/attachments`).then((r) => r.json()),
+    ]).then(([s, c, a]) => {
       if (!active) return;
       if (s.success) setSubtasks(s.subtasks);
       if (c.success) setComments(c.comments);
+      if (a.success) setAttachments(a.attachments);
     });
     return () => { active = false; };
   }, [task.id]);
+
+  async function reloadAttachments() {
+    const a = await fetch(`/api/admin/kanban/tasks/${task.id}/attachments`).then((r) => r.json());
+    if (a.success) {
+      setAttachments(a.attachments);
+      onCountsChanged({ attachmentCount: a.attachments.length });
+    }
+  }
+
+  async function uploadFiles(files: File[]) {
+    const list = files.filter((f) => f.size > 0);
+    if (!list.length) return;
+    setUploading(true);
+    try {
+      for (const file of list) {
+        const signRes = await fetch(`/api/admin/kanban/tasks/${task.id}/attachments/sign`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ fileName: file.name || "screenshot.png", mimeType: file.type, sizeBytes: file.size }),
+        });
+        const sign = await signRes.json();
+        if (!sign.success) { toast.error(sign.error ?? "Upload mislukt"); continue; }
+        const put = await fetch(sign.uploadUrl, { method: "PUT", body: file, headers: { "content-type": file.type } });
+        if (!put.ok) { toast.error("Upload naar opslag mislukt"); continue; }
+        await fetch(`/api/admin/kanban/tasks/${task.id}/attachments`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ r2Key: sign.r2Key, fileName: file.name || "screenshot.png", mimeType: file.type, sizeBytes: file.size }),
+        });
+      }
+      await reloadAttachments();
+    } catch {
+      toast.error("Upload mislukt");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeAttachment(id: string) {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+    await fetch(`/api/admin/kanban/tasks/${task.id}/attachments/${id}`, { method: "DELETE" });
+    onCountsChanged({ attachmentCount: Math.max(0, attachments.length - 1) });
+  }
 
   function api(body: Record<string, unknown>) {
     return fetch(`/api/admin/kanban/tasks/${task.id}`, {
@@ -468,6 +588,31 @@ function TaskPanel({
   const assignee = team.find((m) => m.id === task.assigneeUserId);
 
   return (
+    <>
+    {lightbox && lightbox.url && (
+      <div
+        className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 p-6"
+        onClick={() => setLightbox(null)}
+      >
+        <button
+          type="button"
+          onClick={() => setLightbox(null)}
+          className="absolute right-5 top-5 rounded-md bg-white/10 p-2 text-white hover:bg-white/20"
+        >
+          <X className="size-6" />
+        </button>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={lightbox.url}
+          alt={lightbox.fileName}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+        />
+        <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-md bg-black/60 px-3 py-1 text-xs text-white">
+          {lightbox.fileName}
+        </span>
+      </div>
+    )}
     <div className="fixed inset-0 z-[70] flex justify-end bg-black/30 backdrop-blur-[1px]" onClick={onClose}>
       <div
         className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-white shadow-2xl"
@@ -551,6 +696,83 @@ function TaskPanel({
               placeholder="Voeg details toe…"
               className="w-full rounded-lg border border-[color:var(--border-soft)] px-2.5 py-2 text-sm"
             />
+          </div>
+
+          {/* Bijlagen (screenshots) */}
+          <div className="mt-5">
+            <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">
+              Bijlagen {attachments.length > 0 && `· ${attachments.length}`}
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                if (files.length) void uploadFiles(files);
+                e.target.value = "";
+              }}
+            />
+            <div
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                const files = Array.from(e.dataTransfer.files ?? []);
+                if (files.length) void uploadFiles(files);
+              }}
+              onPaste={(e) => {
+                const files = Array.from(e.clipboardData.files ?? []);
+                if (files.length) void uploadFiles(files);
+              }}
+              className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-3 py-4 text-center text-xs transition-colors ${
+                dragOver
+                  ? "border-[color:var(--navy)] bg-[color:var(--bg)]"
+                  : "border-[color:var(--border-soft)] text-[color:var(--text-muted)] hover:border-[color:var(--navy)]"
+              }`}
+            >
+              <Upload className="size-4" />
+              {uploading ? "Uploaden…" : "Sleep een screenshot hierin, plak (Ctrl/Cmd+V) of klik om te kiezen"}
+            </div>
+            {attachments.length > 0 && (
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {attachments.map((a) => {
+                  const isImage = a.mimeType.startsWith("image/");
+                  return (
+                    <div key={a.id} className="group relative aspect-square overflow-hidden rounded-md border border-[color:var(--border-soft)]">
+                      <button
+                        type="button"
+                        onClick={() => isImage && a.url && setLightbox(a)}
+                        className="size-full"
+                        title={a.fileName}
+                      >
+                        {isImage && a.url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={a.url} alt={a.fileName} className="size-full bg-[color:var(--bg)] object-cover" />
+                        ) : (
+                          <span className="flex size-full flex-col items-center justify-center gap-1 bg-[color:var(--bg)] p-1 text-[0.6rem] text-[color:var(--text-muted)]">
+                            <FileText className="size-5" />
+                            <span className="line-clamp-2 break-all">{a.fileName}</span>
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(a.id)}
+                        className="absolute right-1 top-1 hidden rounded-md bg-black/60 p-1 text-white group-hover:block"
+                        title="Verwijderen"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Subtaken */}
@@ -653,6 +875,7 @@ function TaskPanel({
         </div>
       </div>
     </div>
+    </>
   );
 }
 

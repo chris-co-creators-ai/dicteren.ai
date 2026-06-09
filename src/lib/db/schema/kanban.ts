@@ -133,7 +133,33 @@ export const kanbanTaskComments = pgTable(
   (t) => [index("kanban_task_comments_task_idx").on(t.taskId)],
 );
 
+// Bijlagen bij een taak (screenshots/afbeeldingen, document). De file staat in
+// R2 (bucket dicteren-content, prefix tasks/); deze tabel is de index/metadata.
+export const kanbanTaskAttachments = pgTable(
+  "kanban_task_attachments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => kanbanTasks.id, { onDelete: "cascade" }),
+    r2Key: text("r2_key").notNull(),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull().default(0),
+    width: integer("width"),
+    height: integer("height"),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("kanban_task_attachments_task_idx").on(t.taskId)],
+);
+
 export type KanbanBoard = typeof kanbanBoards.$inferSelect;
 export type KanbanColumn = typeof kanbanColumns.$inferSelect;
 export type KanbanTask = typeof kanbanTasks.$inferSelect;
 export type KanbanTaskComment = typeof kanbanTaskComments.$inferSelect;
+export type KanbanTaskAttachment = typeof kanbanTaskAttachments.$inferSelect;
