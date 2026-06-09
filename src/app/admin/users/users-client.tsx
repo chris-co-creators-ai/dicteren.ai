@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   Ban,
   Building2,
   Check,
@@ -80,6 +81,14 @@ export function UsersClient({ users }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [confirmPending, setConfirmPending] = useState<{
+    userId: string;
+    action: string;
+    extra?: Record<string, unknown>;
+    successMessage?: string;
+    urlOverride?: string;
+    message: string;
+  } | null>(null);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -113,15 +122,13 @@ export function UsersClient({ users }: Props) {
     });
   }, [users, search, roleFilter, statusFilter]);
 
-  async function performAction(
+  async function executeAction(
     userId: string,
     action: string,
     extra?: Record<string, unknown>,
-    confirmMessage?: string,
     successMessage?: string,
     urlOverride?: string,
   ) {
-    if (confirmMessage && !confirm(confirmMessage)) return;
     setBusy(`${userId}:${action}`);
     try {
       const res = await fetch(urlOverride ?? `/api/admin/users/${userId}`, {
@@ -149,6 +156,30 @@ export function UsersClient({ users }: Props) {
     setBusy(null);
     setOpenMenuId(null);
     setTimeout(() => setToast(null), 4000);
+  }
+
+  // Acties met een bevestigingstekst openen de gestylede ConfirmModal; de rest
+  // (input-prompts gebeuren al in de MenuItem) gaat direct door.
+  function performAction(
+    userId: string,
+    action: string,
+    extra?: Record<string, unknown>,
+    confirmMessage?: string,
+    successMessage?: string,
+    urlOverride?: string,
+  ) {
+    if (confirmMessage) {
+      setConfirmPending({
+        userId,
+        action,
+        extra,
+        successMessage,
+        urlOverride,
+        message: confirmMessage,
+      });
+      return;
+    }
+    void executeAction(userId, action, extra, successMessage, urlOverride);
   }
 
   async function copyEmail(email: string) {
@@ -385,7 +416,74 @@ export function UsersClient({ users }: Props) {
           }}
         />
       )}
+
+      {confirmPending && (
+        <ConfirmModal
+          message={confirmPending.message}
+          busy={busy !== null}
+          onCancel={() => setConfirmPending(null)}
+          onConfirm={() => {
+            const p = confirmPending;
+            setConfirmPending(null);
+            void executeAction(
+              p.userId,
+              p.action,
+              p.extra,
+              p.successMessage,
+              p.urlOverride,
+            );
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function ConfirmModal({
+  message,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-[color:var(--red)]" />
+          <p className="text-sm text-[color:var(--navy)]">{message}</p>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="rounded-lg border border-[color:var(--border-soft)] bg-white px-4 py-2 text-sm font-semibold text-[color:var(--navy)] hover:bg-[color:var(--surface-2)] disabled:opacity-50"
+          >
+            Annuleren
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: "var(--red)" }}
+          >
+            {busy ? "Bezig…" : "Bevestigen"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
