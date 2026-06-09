@@ -10,6 +10,7 @@ De publieke marketing- en informatiepagina's: homepage, prijzen, product, voor-w
 
 ## Local Contracts
 
+- **Copy-gate vooraf (NOOIT overslaan).** Vóór je hier één regel tekst schrijft of wijzigt: lees volledig `.claude/docs/tone-of-voice.md`, `.claude/docs/copy/powerwoorden.md`, de relevante `.claude/docs/wetenschap/**` en `.claude/skills/dicteren-app-truth.md`. Schrijf zoals een Nederlander praat (geen stijve taal als "maten"). Verzin nooit Christians stem of verhaal. **Publiceer/push copy pas na Christians expliciete akkoord — de auto-push geldt voor code, niet voor copy.** Volledige gate: root-`CLAUDE.md`.
 - **Elke feitelijke claim toetsen aan `.claude/skills/dicteren-app-truth.md`.** Staat de claim daar niet met bron: niet schrijven. Drift = eerst de skill bijwerken, dan de copy.
 - **TOV is leidend** (`.claude/docs/tone-of-voice.md`): B1 NL, zinnen onder 17 woorden, actief, geen em-dashes, geen rule-of-three, geen AI-vocab. Humanizer-skill vooraf laden.
 - **Cijfer-claims** alleen met peer-reviewed bron uit `.claude/docs/wetenschap/` (status "geverifieerd") + instituut + jaartal in de tekst.
