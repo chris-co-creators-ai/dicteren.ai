@@ -14,7 +14,6 @@ import {
   type BillingPeriod,
   type PricingSnapshot,
 } from "@/lib/services/pricingTiers";
-import { BuyButton } from "@/components/checkout/buy-button";
 
 type Billing = "month" | "quarter" | "year";
 
@@ -213,13 +212,12 @@ export function PrijzenClient({ pricing }: { pricing: PricingSnapshot }) {
             >
               Start gratis trial
             </Link>
-            <BuyButton
-              planSlug={CONSUMER_SLUG[billing]}
-              kind="consumer"
-              label={`Of reken direct af (€${currentPlan.price} ${currentPlan.sub})`}
-              className="mt-2 w-full text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)] hover:underline"
-              redirectAfterAuth="/account/billing"
-            />
+            <Link
+              href={`/checkout?plan=${CONSUMER_SLUG[billing]}`}
+              className="mt-2 block w-full text-center text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)] hover:underline"
+            >
+              {`Of reken direct af (€${currentPlan.price} ${currentPlan.sub})`}
+            </Link>
             <ul className="mt-5 flex flex-col gap-2.5">
               {[
                 "Alles uit de gratis proefperiode",

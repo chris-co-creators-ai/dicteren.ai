@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     discountCode?: string | null;
     affiliateCode?: string | null;
     affiliateSlug?: string | null;
+    method?: string | null;
   };
   try {
     body = await request.json();
@@ -200,6 +201,15 @@ export async function POST(request: Request) {
   const redirectUrl = `${base}/checkout/success?order=${order.id}`;
   const webhookUrl = webhookUrlFor(base);
 
+  // Methode-keuze komt van onze eigen checkout-stap. Alleen first-payment-
+  // capabele methodes toestaan (iDEAL/creditcard); een ongeldige of lege
+  // waarde valt terug op undefined → Mollie toont z'n eigen keuzescherm.
+  const allowedMethods = ["ideal", "creditcard"];
+  const method =
+    body.method && allowedMethods.includes(body.method)
+      ? body.method
+      : undefined;
+
   // Recurring plan + Mollie customer → sequenceType "first" so mandate is set
   // and we can schedule auto-renewals from the webhook.
   const mollie =
@@ -212,6 +222,7 @@ export async function POST(request: Request) {
           redirectUrl,
           webhookUrl,
           metadata,
+          method,
         })
       : await createPayment({
           amountCents,
@@ -219,6 +230,7 @@ export async function POST(request: Request) {
           redirectUrl,
           webhookUrl,
           metadata,
+          method,
         });
 
   if (!mollie.success) {

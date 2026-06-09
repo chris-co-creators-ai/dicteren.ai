@@ -49,6 +49,9 @@ export const RATE_LIMITS = {
   // ruim voor "ik klik per ongeluk dubbel".
   "checkout:consumer": { limit: 10, windowSeconds: 60 },
   "checkout:organization": { limit: 10, windowSeconds: 60 },
+  // Kortingscode-validatie op de checkout-stap. Read-only, maar rate-limit
+  // tegen code-enumeratie. 30/min/IP is ruim voor normaal typen + retry.
+  "checkout:validate-discount": { limit: 30, windowSeconds: 60 },
 
   // Zakelijke trial: 1 trial per user (server-dedup), dit dekt mass-account-
   // spam af. 5/dag/user is ruim voor legitieme dubbel-klik/retry.
