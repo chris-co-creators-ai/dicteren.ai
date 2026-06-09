@@ -45,6 +45,13 @@ export default function OverOnsPage() {
             <div className="mt-1 text-sm font-medium text-[color:var(--text-muted)]">
               Oprichter van Dicteren.ai
             </div>
+            <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-[color:var(--text-muted)] sm:mx-0">
+              Christian werkte tien jaar lang aan het laten groeien van
+              bedrijven, met data en software. Onderzoekers van Stanford
+              University maten in 2016 dat spreken 3 keer sneller is dan typen.
+              Daarom bouwt hij nu Dicteren.ai vanuit Nederland: praten in plaats
+              van typen, lokaal op je eigen computer.
+            </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5 sm:justify-start">
               <span
                 className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
