@@ -5,7 +5,7 @@
 // in /admin/settings/staff. Toggle via opts.includeStaff voor admin-need.
 
 import "server-only";
-import { and, desc, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { db, dbAuth } from "@/lib/db";
 import {
   authMember,
@@ -13,7 +13,7 @@ import {
   authSession,
   authUser,
 } from "@/lib/db/auth-schema";
-import { affiliateReferrals, affiliates, licenses } from "@/lib/db/schema";
+import { affiliateReferrals, affiliates, licenses, subscriptions } from "@/lib/db/schema";
 
 const STAFF_ROLES = ["admin", "account_manager"] as const;
 
@@ -35,6 +35,9 @@ export type AdminUserRow = {
   latestLicenseType: "beta" | "consumer" | "team" | "partner" | null;
   hasAffiliateReferral: boolean;
   affiliateName: string | null;
+  /** Actieve (niet-geannuleerde) abonnementen — voor de opzeg-actie in de dropdown. */
+  activeSubscriptionId: string | null;
+  activeSubscriptionCount: number;
 };
 
 export async function listAdminUsers(
@@ -176,6 +179,24 @@ export async function listAdminUsers(
     refRows.map((r) => [r.userId, r.affiliateName ?? null]),
   );
 
+  // 7. Actieve abonnementen per user (voor de directe opzeg-actie in de dropdown).
+  const subRows = await db
+    .select({ id: subscriptions.id, userId: subscriptions.userId })
+    .from(subscriptions)
+    .where(
+      and(
+        inArray(subscriptions.userId, ids),
+        ne(subscriptions.status, "canceled"),
+      ),
+    );
+  const subsByUser = new Map<string, string[]>();
+  for (const s of subRows) {
+    if (!s.userId) continue;
+    const arr = subsByUser.get(s.userId) ?? [];
+    arr.push(s.id);
+    subsByUser.set(s.userId, arr);
+  }
+
   return users.map((u) => {
     const lic = latestByUserCorrect.get(u.id);
     return {
@@ -195,6 +216,8 @@ export async function listAdminUsers(
       latestLicenseType: lic?.type ?? null,
       hasAffiliateReferral: refByUser.has(u.id),
       affiliateName: refByUser.get(u.id) ?? null,
+      activeSubscriptionId: subsByUser.get(u.id)?.[0] ?? null,
+      activeSubscriptionCount: subsByUser.get(u.id)?.length ?? 0,
     };
   });
 }

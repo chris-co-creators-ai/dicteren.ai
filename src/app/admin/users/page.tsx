@@ -87,6 +87,8 @@ export default async function AdminUsersPage({
             latestLicenseType: u.latestLicenseType,
             hasAffiliateReferral: u.hasAffiliateReferral,
             affiliateName: u.affiliateName,
+            activeSubscriptionId: u.activeSubscriptionId,
+            activeSubscriptionCount: u.activeSubscriptionCount,
           }))}
         />
       </main>

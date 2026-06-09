@@ -22,6 +22,7 @@ import {
   UserCheck,
   UserCog,
   Users,
+  XCircle,
 } from "lucide-react";
 import { CreateUserModal } from "./create-user-modal";
 import { SourceBadge } from "@/components/admin/SourceBadge";
@@ -44,6 +45,8 @@ type User = {
   latestLicenseType: "beta" | "consumer" | "team" | "partner" | null;
   hasAffiliateReferral: boolean;
   affiliateName: string | null;
+  activeSubscriptionId: string | null;
+  activeSubscriptionCount: number;
 };
 
 type Props = { users: User[] };
@@ -116,15 +119,16 @@ export function UsersClient({ users }: Props) {
     extra?: Record<string, unknown>,
     confirmMessage?: string,
     successMessage?: string,
+    urlOverride?: string,
   ) {
     if (confirmMessage && !confirm(confirmMessage)) return;
     setBusy(`${userId}:${action}`);
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
+      const res = await fetch(urlOverride ?? `/api/admin/users/${userId}`, {
         method: action === "delete" ? "DELETE" : "POST",
         headers: { "content-type": "application/json" },
         body:
-          action === "delete"
+          action === "delete" || urlOverride
             ? undefined
             : JSON.stringify({ action, ...extra }),
       });
@@ -404,6 +408,7 @@ function ActionMenuTrigger({
     extra?: Record<string, unknown>,
     confirm?: string,
     success?: string,
+    urlOverride?: string,
   ) => void;
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -547,6 +552,31 @@ function ActionMenuTrigger({
             );
           }}
         />
+        {user.activeSubscriptionCount === 1 && user.activeSubscriptionId && (
+          <MenuItem
+            icon={XCircle}
+            label="Abonnement opzeggen"
+            onClick={() =>
+              onAction(
+                user.id,
+                "cancel-subscription",
+                undefined,
+                `Abonnement van ${user.email} opzeggen? Mollie stopt de incasso; de licentie loopt door tot de einddatum.`,
+                "Abonnement opgezegd.",
+                `/api/admin/subscriptions/${user.activeSubscriptionId}/cancel`,
+              )
+            }
+          />
+        )}
+        {user.activeSubscriptionCount > 1 && (
+          <MenuItem
+            icon={XCircle}
+            label="Abonnementen beheren…"
+            onClick={() => {
+              window.location.href = `/admin/crm/${user.id}`;
+            }}
+          />
+        )}
         <div className="my-1 h-px bg-muted" />
         {!user.emailVerified && (
           <MenuItem
