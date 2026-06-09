@@ -8,9 +8,15 @@
 // public.licenses/orders/etc. blijven kloppen na migratie.
 //
 // Email-callbacks: zie web/src/lib/services/email.ts (sendPasswordResetEmail,
-// sendEmailVerificationEmail, sendOrganizationInviteEmail). We awaiten ze
-// NIET in productie om timing-attack info te vermijden — Resend SDK is snel
-// genoeg dat dit geen UX-issue is.
+// sendEmailVerificationEmail, sendOrganizationInviteEmail). We AWAITEN ze,
+// conform Resends officiele docs (send-with-vercel-functions): await
+// resend.emails.send met {data,error}-afhandeling. Fire-and-forget (void)
+// brak op Vercel: de functie bevriest na de response en de losgelaten fetch
+// wordt afgebroken voor hij Resend bereikt (status failed, resend_id null,
+// "Unable to fetch data. The request could not be resolved.").
+// Trade-off: de response duurt iets langer als het account bestaat (milde
+// account-existence timing-leak). Bewust geaccepteerd: betrouwbare aflevering
+// weegt zwaarder dan dat marginale risico.
 
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -140,9 +146,10 @@ export const auth = betterAuth({
     autoSignIn: true,
     minPasswordLength: 8,
     sendResetPassword: async ({ user, url }) => {
-      // Fire-and-forget (zie comment boven). Resend faalt loud genoeg in
-      // email_logs voor admin-debugging.
-      void sendPasswordResetEmail({
+      // Awaited (zie comment boven): de hook wacht tot Resend de mail
+      // accepteert, zodat de fetch niet door de Vercel-functie-freeze
+      // wordt afgekapt. Fouten landen in email_logs voor admin-debugging.
+      await sendPasswordResetEmail({
         to: user.email,
         name: user.name ?? undefined,
         resetUrl: url,
@@ -157,7 +164,7 @@ export const auth = betterAuth({
     // verified e-mails opbouwen tegen throwaway-spam (CRM-segmentatie).
     sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
-      void sendEmailVerificationEmail({
+      await sendEmailVerificationEmail({
         to: user.email,
         name: user.name ?? undefined,
         verifyUrl: url,
@@ -186,7 +193,7 @@ export const auth = betterAuth({
         } catch (err) {
           console.warn("[org-invite] license-code lookup failed", err);
         }
-        void sendOrganizationInviteEmail({
+        await sendOrganizationInviteEmail({
           to: data.email,
           inviterName: data.inviter.user.name ?? data.inviter.user.email,
           organizationName: data.organization.name,
