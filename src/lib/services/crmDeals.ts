@@ -255,6 +255,15 @@ export async function addCrmContact(args: {
   return row;
 }
 
+export async function getCrmContact(id: string): Promise<CrmContact | null> {
+  const [row] = await db
+    .select()
+    .from(crmContacts)
+    .where(eq(crmContacts.id, id))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function updateCrmContact(args: {
   id: string;
   patch: Partial<NewCrmContact>;

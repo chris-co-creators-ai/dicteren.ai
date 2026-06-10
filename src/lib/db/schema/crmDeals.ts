@@ -184,6 +184,10 @@ export const crmContacts = pgTable(
     name: text("name").notNull(),
     email: text("email").notNull(),
     phone: text("phone"),
+    // Mobiel naast vast (migratie 0038). Voornaam/achternaam staan verderop
+    // bij de Clay person-enrichment-velden; `name` blijft de display/fallback
+    // en wordt gesynct bij edits.
+    mobilePhone: text("mobile_phone"),
     roleAtCompany: text("role_at_company"),
     isPrimary: boolean("is_primary").notNull().default(false),
     authUserId: uuid("auth_user_id").references(() => authUsers.id, {

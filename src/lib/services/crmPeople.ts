@@ -36,6 +36,18 @@ export type CrmPersonRow = {
   email: string;
   /** Alleen gevuld voor prospects (crm_contacts.phone); klanten hebben geen telefoonveld. */
   phone: string | null;
+  /** Contactpersoon-velden (prospects; migratie 0038). */
+  firstName: string | null;
+  lastName: string | null;
+  mobilePhone: string | null;
+  roleAtCompany: string | null;
+  /** Org-bedrijfsvelden in de Personen-grid (prospects met org). */
+  orgKvk: string | null;
+  orgVatNumber: string | null;
+  orgBrancheVereniging: string | null;
+  orgAantalVestigingen: number | null;
+  orgHoofdkantoor: string | null;
+  orgSpecialisatie: string | null;
   emailVerified: boolean;
   role: string | null;
   createdAt: string;
@@ -142,6 +154,16 @@ export async function loadCrmPeoplePage(args: {
         name: r.name,
         email: r.email,
         phone: null,
+        firstName: null,
+        lastName: null,
+        mobilePhone: null,
+        roleAtCompany: null,
+        orgKvk: null,
+        orgVatNumber: null,
+        orgBrancheVereniging: null,
+        orgAantalVestigingen: null,
+        orgHoofdkantoor: null,
+        orgSpecialisatie: null,
         emailVerified: r.emailVerified,
         role: r.role,
         createdAt: r.createdAt.toISOString(),
@@ -206,6 +228,16 @@ export async function loadCrmPeoplePage(args: {
         name: p.name,
         email: p.email,
         phone: p.phone,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        mobilePhone: p.mobilePhone,
+        roleAtCompany: p.roleAtCompany,
+        orgKvk: p.orgKvk,
+        orgVatNumber: p.orgVatNumber,
+        orgBrancheVereniging: p.orgBrancheVereniging,
+        orgAantalVestigingen: p.orgAantalVestigingen,
+        orgHoofdkantoor: p.orgHoofdkantoor,
+        orgSpecialisatie: p.orgSpecialisatie,
         emailVerified: true,
         role: null,
         createdAt: p.createdAt,

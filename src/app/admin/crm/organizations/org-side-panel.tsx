@@ -91,8 +91,11 @@ type OrgAttachment = {
 type Contact = {
   id: string;
   name: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
   phone: string | null;
+  mobilePhone: string | null;
   roleAtCompany: string | null;
   isPrimary: boolean;
   authUserId: string | null;
@@ -1295,16 +1298,22 @@ function PrimaryContactSection({
   onChanged: () => void;
 }) {
   const primary = contacts.find((c) => c.isPrimary) ?? contacts[0] ?? null;
-  const [name, setName] = useState(primary?.name ?? "");
+  const [firstName, setFirstName] = useState(primary?.firstName ?? "");
+  const [lastName, setLastName] = useState(primary?.lastName ?? "");
   const [email, setEmail] = useState(primary?.email ?? "");
   const [phone, setPhone] = useState(primary?.phone ?? "");
+  const [mobile, setMobile] = useState(primary?.mobilePhone ?? "");
   const [role, setRole] = useState(primary?.roleAtCompany ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setName(primary?.name ?? "");
+    // Fallback: oude contacten hebben alleen `name` — splits voor het form.
+    const nameParts = (primary?.name ?? "").split(" ");
+    setFirstName(primary?.firstName ?? nameParts[0] ?? "");
+    setLastName(primary?.lastName ?? nameParts.slice(1).join(" "));
     setEmail(primary?.email ?? "");
     setPhone(primary?.phone ?? "");
+    setMobile(primary?.mobilePhone ?? "");
     setRole(primary?.roleAtCompany ?? "");
     // Sync zodra een (ander) primair contact binnenkomt via loadAll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1318,10 +1327,14 @@ function PrimaryContactSection({
     }
     setSaving(true);
     try {
+      const full = `${firstName.trim()} ${lastName.trim()}`.trim();
       const body = {
-        name: name.trim() || email.trim(),
+        name: full || email.trim(),
+        firstName: firstName.trim() || null,
+        lastName: lastName.trim() || null,
         email: email.trim(),
         phone: phone.trim() || null,
+        mobilePhone: mobile.trim() || null,
         roleAtCompany: role.trim() || null,
       };
       const res = primary
@@ -1351,10 +1364,12 @@ function PrimaryContactSection({
   return (
     <Section title="Contactpersoon">
       <div className="grid grid-cols-2 gap-2">
-        <TextField label="Naam" value={name} onChange={setName} />
+        <TextField label="Voornaam" value={firstName} onChange={setFirstName} />
+        <TextField label="Achternaam" value={lastName} onChange={setLastName} />
         <TextField label="Functietitel" value={role} onChange={setRole} />
         <TextField label="E-mail" value={email} onChange={setEmail} />
         <TextField label="Telefoon" value={phone} onChange={setPhone} />
+        <TextField label="Mobiel" value={mobile} onChange={setMobile} />
       </div>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-[color:var(--text-muted)]">

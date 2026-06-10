@@ -7,6 +7,16 @@ export type ColumnKey =
   | "customer"
   | "email"
   | "phone"
+  | "contactFirstName"
+  | "contactLastName"
+  | "contactRole"
+  | "contactMobile"
+  | "orgKvk"
+  | "orgVatNumber"
+  | "orgBrancheVereniging"
+  | "orgAantalVestigingen"
+  | "orgHoofdkantoor"
+  | "orgSpecialisatie"
   | "stage"
   | "temperature"
   | "assignee"
@@ -45,6 +55,13 @@ export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
   "city",
   "email",
   "phone",
+  // Contactpersoon-cluster rechts van Telefoon (verzoek Christian 2026-06-10).
+  // De belronde is hiermee breder dan één scherm; bewuste keuze: volledige
+  // contactdata weegt zwaarder dan scroll-vrij.
+  "contactFirstName",
+  "contactLastName",
+  "contactRole",
+  "contactMobile",
   "stage",
   "assignee",
   "action",
@@ -59,6 +76,10 @@ export const BELRONDE_WIDTHS: Partial<Record<ColumnKey, number>> = {
   city: 80,
   email: 145,
   phone: 105,
+  contactFirstName: 100,
+  contactLastName: 110,
+  contactRole: 130,
+  contactMobile: 110,
   stage: 95,
   assignee: 100,
   action: 115,
@@ -72,6 +93,16 @@ export const COLUMN_LABELS: Record<ColumnKey, string> = {
   customer: "Klant",
   email: "E-mail",
   phone: "Telefoon",
+  contactFirstName: "Voornaam",
+  contactLastName: "Achternaam",
+  contactRole: "Functietitel",
+  contactMobile: "Mobiel",
+  orgKvk: "KvK",
+  orgVatNumber: "BTW-nummer",
+  orgBrancheVereniging: "Branchevereniging",
+  orgAantalVestigingen: "Vestigingen",
+  orgHoofdkantoor: "Hoofdkantoor",
+  orgSpecialisatie: "Specialisatie",
   stage: "Stage",
   temperature: "Temperatuur",
   assignee: "Account manager",
@@ -156,6 +187,16 @@ export const COLUMN_WIDTH_DEFAULTS: Record<string, number> = {
   customer: 240,
   email: 170,
   phone: 120,
+  contactFirstName: 110,
+  contactLastName: 120,
+  contactRole: 150,
+  contactMobile: 120,
+  orgKvk: 110,
+  orgVatNumber: 140,
+  orgBrancheVereniging: 150,
+  orgAantalVestigingen: 100,
+  orgHoofdkantoor: 140,
+  orgSpecialisatie: 160,
   stage: 130,
   temperature: 120,
   assignee: 150,

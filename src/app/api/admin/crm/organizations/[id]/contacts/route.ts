@@ -68,8 +68,11 @@ export async function POST(
     data: {
       crmOrganizationId: orgId,
       name,
+      firstName: (body.firstName as string | null) ?? null,
+      lastName: (body.lastName as string | null) ?? null,
       email,
       phone: (body.phone as string | null) ?? null,
+      mobilePhone: (body.mobilePhone as string | null) ?? null,
       roleAtCompany: (body.roleAtCompany as string | null) ?? null,
       isPrimary: Boolean(body.isPrimary),
       notes: (body.notes as string | null) ?? null,

@@ -93,6 +93,16 @@ type Customer = {
   name: string;
   email: string;
   phone: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  mobilePhone: string | null;
+  roleAtCompany: string | null;
+  orgKvk: string | null;
+  orgVatNumber: string | null;
+  orgBrancheVereniging: string | null;
+  orgAantalVestigingen: number | null;
+  orgHoofdkantoor: string | null;
+  orgSpecialisatie: string | null;
   role: string | null;
   emailVerified: boolean;
   createdAt: string;
@@ -185,6 +195,26 @@ type ProspectEnrichmentClient = {
 // People-stage (customerStage) → org-pipeline-status. Spiegelt
 // ORG_STATUS_TO_STAGE in services/prospect.ts zodat een prospect-edit in
 // de Personen-tab de juiste org-status zet.
+// Velden die direct op crm_contacts leven (contacts-PATCH); de rest van de
+// inline-edits loopt via de enrichment-route.
+const CONTACT_PATCH_FIELDS = new Set([
+  "name",
+  "firstName",
+  "lastName",
+  "mobilePhone",
+  "roleAtCompany",
+]);
+
+// Kolom-key → crm_organizations-veld (org-PATCH, zoals stage).
+const ORG_PATCH_FIELDS: Record<string, string> = {
+  orgKvk: "kvk",
+  orgVatNumber: "vatNumber",
+  orgBrancheVereniging: "brancheVereniging",
+  orgAantalVestigingen: "aantalVestigingen",
+  orgHoofdkantoor: "hoofdkantoor",
+  orgSpecialisatie: "specialisatie",
+};
+
 const STAGE_TO_ORG_STATUS: Record<CrmStage, string> = {
   lead: "lead",
   prospect: "contacted",
@@ -888,10 +918,32 @@ export function CrmView({
     field: string,
     value: string | null,
   ): Promise<void> {
-    const url =
-      field === "name"
-        ? `/api/admin/crm/contacts/${id}`
-        : `/api/admin/crm/contacts/${id}/enrichment`;
+    // Org-bedrijfsvelden schrijven naar de organisatie (zoals stage al doet).
+    const orgField = ORG_PATCH_FIELDS[field];
+    if (orgField) {
+      const orgId = rowsById.get(id)?.organizationId;
+      if (!orgId) {
+        toast.error("Geen organisatie gekoppeld aan deze prospect");
+        return;
+      }
+      await fetch(`/api/admin/crm/organizations/${orgId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          [orgField]:
+            orgField === "aantalVestigingen"
+              ? value
+                ? Number(value)
+                : null
+              : value,
+        }),
+      });
+      refresh();
+      return;
+    }
+    const url = CONTACT_PATCH_FIELDS.has(field)
+      ? `/api/admin/crm/contacts/${id}`
+      : `/api/admin/crm/contacts/${id}/enrichment`;
     await fetch(url, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -943,12 +995,17 @@ export function CrmView({
   }
 
   // Visible kolommen in juiste volgorde. Combineer built-in + custom keys.
+  // Filter ook op bestaande keys: een verwijderde custom kolom die nog in
+  // iemands opgeslagen prefs zit mag geen spookkolom renderen.
   const visibleSet = useMemo(() => new Set(visible), [visible]);
+  const allKeySet = useMemo(() => new Set(allKeys), [allKeys]);
   const orderedColumns = useMemo(() => {
     const known = new Set(order);
     const tail = allKeys.filter((c) => !known.has(c));
-    return [...order, ...tail].filter((c) => visibleSet.has(c));
-  }, [order, visibleSet, allKeys]);
+    return [...order, ...tail].filter(
+      (c) => visibleSet.has(c) && allKeySet.has(c),
+    );
+  }, [order, visibleSet, allKeys, allKeySet]);
 
   const activeList = lists.find((l) => l.id === activeListId);
 
@@ -3089,6 +3146,126 @@ function CellRenderer({
         </a>
       );
     }
+    case "contactFirstName":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.firstName}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("firstName", v)}
+        />
+      );
+    case "contactLastName":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.lastName}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("lastName", v)}
+        />
+      );
+    case "contactRole":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.roleAtCompany}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("roleAtCompany", v)}
+        />
+      );
+    case "contactMobile": {
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      // Inline editbaar; gevulde waarde is meteen een bel-link.
+      if (row.mobilePhone) {
+        const clean = row.mobilePhone.replace(/[^0-9+\- ()]/g, "");
+        return (
+          <span className="flex items-center gap-1">
+            <a
+              href={`tel:${clean}`}
+              className="min-w-0 flex-1 truncate text-xs font-semibold text-[color:var(--navy)] hover:underline"
+              title={`Bel ${row.mobilePhone}`}
+            >
+              {row.mobilePhone}
+            </a>
+          </span>
+        );
+      }
+      return (
+        <EditableText
+          value={row.mobilePhone}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("mobilePhone", v)}
+        />
+      );
+    }
+    case "orgKvk":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.orgKvk}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("orgKvk", v)}
+        />
+      );
+    case "orgVatNumber":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.orgVatNumber}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("orgVatNumber", v)}
+        />
+      );
+    case "orgBrancheVereniging":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.orgBrancheVereniging}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("orgBrancheVereniging", v)}
+        />
+      );
+    case "orgAantalVestigingen":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={
+            row.orgAantalVestigingen == null
+              ? null
+              : String(row.orgAantalVestigingen)
+          }
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("orgAantalVestigingen", v)}
+        />
+      );
+    case "orgHoofdkantoor":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.orgHoofdkantoor}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("orgHoofdkantoor", v)}
+        />
+      );
+    case "orgSpecialisatie":
+      if (!isProspect)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <EditableText
+          value={row.orgSpecialisatie}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("orgSpecialisatie", v)}
+        />
+      );
     case "stage":
       return (
         <StageChip

@@ -52,6 +52,10 @@ export function InlineProspectRow({
 }: Props) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [contactRole, setContactRole] = useState("");
+  const [mobile, setMobile] = useState("");
   const [company, setCompany] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
@@ -76,13 +80,15 @@ export function InlineProspectRow({
     setSubmitting(true);
     setError(null);
     try {
+      const fullName =
+        name || `${firstName.trim()} ${lastName.trim()}`.trim() || null;
       const res = await fetch("/api/admin/prospects", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           prospect: {
             email,
-            name: name || null,
+            name: fullName,
             company: company || null,
             phone: phone || null,
             stage,
@@ -110,6 +116,23 @@ export function InlineProspectRow({
           body: JSON.stringify({
             ...(city.trim() ? { city: city.trim() } : {}),
             ...(industry ? { industry } : {}),
+          }),
+        }).catch(() => undefined);
+      }
+      // Contactpersoon-velden (voornaam/achternaam/functie/mobiel) leven op
+      // crm_contacts; de prospect-create kent ze niet — tweede call.
+      if (
+        contactId &&
+        (firstName.trim() || lastName.trim() || contactRole.trim() || mobile.trim())
+      ) {
+        await fetch(`/api/admin/crm/contacts/${contactId}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            ...(firstName.trim() ? { firstName: firstName.trim() } : {}),
+            ...(lastName.trim() ? { lastName: lastName.trim() } : {}),
+            ...(contactRole.trim() ? { roleAtCompany: contactRole.trim() } : {}),
+            ...(mobile.trim() ? { mobilePhone: mobile.trim() } : {}),
           }),
         }).catch(() => undefined);
       }
@@ -166,6 +189,42 @@ export function InlineProspectRow({
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="Telefoon"
+            className={INPUT_CLS}
+          />
+        );
+      case "contactFirstName":
+        return (
+          <input
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="Voornaam"
+            className={INPUT_CLS}
+          />
+        );
+      case "contactLastName":
+        return (
+          <input
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="Achternaam"
+            className={INPUT_CLS}
+          />
+        );
+      case "contactRole":
+        return (
+          <input
+            value={contactRole}
+            onChange={(e) => setContactRole(e.target.value)}
+            placeholder="Functietitel"
+            className={INPUT_CLS}
+          />
+        );
+      case "contactMobile":
+        return (
+          <input
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value)}
+            placeholder="Mobiel"
             className={INPUT_CLS}
           />
         );

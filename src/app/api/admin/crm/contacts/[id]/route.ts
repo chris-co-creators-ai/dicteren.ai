@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { requireStaffApi } from "@/lib/auth/session";
 import {
   deleteCrmContact,
+  getCrmContact,
   updateCrmContact,
 } from "@/lib/services/crmDeals";
 
@@ -31,14 +32,38 @@ export async function PATCH(
   const patch: Record<string, unknown> = {};
   const allowed = [
     "name",
+    "firstName",
+    "lastName",
     "email",
     "phone",
+    "mobilePhone",
     "roleAtCompany",
     "isPrimary",
     "notes",
   ];
   for (const key of allowed) {
     if (key in body) patch[key] = body[key];
+  }
+
+  // Naam-sync: bewerkt iemand voor- of achternaam zonder expliciete naam,
+  // dan blijft `name` (de display/fallback overal) consistent.
+  if (
+    !("name" in patch) &&
+    ("firstName" in patch || "lastName" in patch)
+  ) {
+    const current = await getCrmContact(id);
+    if (current) {
+      const first =
+        "firstName" in patch
+          ? String(patch.firstName ?? "")
+          : current.firstName ?? "";
+      const last =
+        "lastName" in patch
+          ? String(patch.lastName ?? "")
+          : current.lastName ?? "";
+      const full = `${first} ${last}`.trim();
+      if (full) patch.name = full;
+    }
   }
 
   const updated = await updateCrmContact({

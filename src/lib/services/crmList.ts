@@ -52,6 +52,18 @@ export type CrmPeopleListRow = {
   notes: string | null;
   organizationId: string | null;
   createdAt: string;
+  /** Contactpersoon-velden (alleen prospects; klanten NULL). Migratie 0038. */
+  firstName: string | null;
+  lastName: string | null;
+  mobilePhone: string | null;
+  roleAtCompany: string | null;
+  /** Org-bedrijfsvelden voor de Personen-grid (alleen prospects met org). */
+  orgKvk: string | null;
+  orgVatNumber: string | null;
+  orgBrancheVereniging: string | null;
+  orgAantalVestigingen: number | null;
+  orgHoofdkantoor: string | null;
+  orgSpecialisatie: string | null;
 };
 
 /** De gedeelde UNION-bron. Identiek voor de page-query en de count-query. */
@@ -73,6 +85,16 @@ const PEOPLE_CTE = sql`
       NULL::text                       AS company_size_range,
       NULL::int                        AS lead_score,
       NULL::text                       AS last_disposition,
+      NULL::text                       AS first_name,
+      NULL::text                       AS last_name,
+      NULL::text                       AS mobile_phone,
+      NULL::text                       AS role_at_company,
+      NULL::text                       AS org_kvk,
+      NULL::text                       AS org_vat_number,
+      NULL::text                       AS org_branche_vereniging,
+      NULL::int                        AS org_aantal_vestigingen,
+      NULL::text                       AS org_hoofdkantoor,
+      NULL::text                       AS org_specialisatie,
       u."createdAt"                    AS created_at
     FROM auth."user" u
     LEFT JOIN public.customer_attributes ca ON ca.user_id = u.id
@@ -107,6 +129,16 @@ const PEOPLE_CTE = sql`
       c.company_size_range               AS company_size_range,
       c.lead_score                       AS lead_score,
       o.last_disposition                 AS last_disposition,
+      c.first_name                       AS first_name,
+      c.last_name                        AS last_name,
+      c.mobile_phone                     AS mobile_phone,
+      c.role_at_company                  AS role_at_company,
+      o.kvk                              AS org_kvk,
+      o.vat_number                       AS org_vat_number,
+      o.branche_vereniging               AS org_branche_vereniging,
+      o.aantal_vestigingen               AS org_aantal_vestigingen,
+      o.hoofdkantoor                     AS org_hoofdkantoor,
+      o.specialisatie                    AS org_specialisatie,
       c.created_at                       AS created_at
     FROM public.crm_contacts c
     LEFT JOIN public.crm_organizations o ON o.id = c.crm_organization_id
@@ -200,9 +232,21 @@ export async function listCrmPeoplePage(args: {
     notes: string | null;
     organization_id: string | null;
     created_at: string | Date;
+    first_name: string | null;
+    last_name: string | null;
+    mobile_phone: string | null;
+    role_at_company: string | null;
+    org_kvk: string | null;
+    org_vat_number: string | null;
+    org_branche_vereniging: string | null;
+    org_aantal_vestigingen: number | null;
+    org_hoofdkantoor: string | null;
+    org_specialisatie: string | null;
   }>(
     sql`${PEOPLE_CTE}
-        SELECT id, kind, name, email, phone, company, crm_stage, temperature, assignee_id, notes, organization_id, created_at
+        SELECT id, kind, name, email, phone, company, crm_stage, temperature, assignee_id, notes, organization_id, created_at,
+               first_name, last_name, mobile_phone, role_at_company,
+               org_kvk, org_vat_number, org_branche_vereniging, org_aantal_vestigingen, org_hoofdkantoor, org_specialisatie
         FROM people${whereClause(conds)}
         ORDER BY created_at DESC, id DESC
         LIMIT ${limit + 1}`,
@@ -222,6 +266,16 @@ export async function listCrmPeoplePage(args: {
     assigneeId: r.assignee_id,
     notes: r.notes,
     organizationId: r.organization_id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    mobilePhone: r.mobile_phone,
+    roleAtCompany: r.role_at_company,
+    orgKvk: r.org_kvk,
+    orgVatNumber: r.org_vat_number,
+    orgBrancheVereniging: r.org_branche_vereniging,
+    orgAantalVestigingen: r.org_aantal_vestigingen,
+    orgHoofdkantoor: r.org_hoofdkantoor,
+    orgSpecialisatie: r.org_specialisatie,
     createdAt:
       r.created_at instanceof Date
         ? (r.created_at as Date).toISOString()
