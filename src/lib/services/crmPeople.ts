@@ -14,6 +14,7 @@ import {
   type CrmPeopleCursor,
 } from "./crmList";
 import { listCustomerFunnel, classifyStage } from "./identity";
+import { dispositionByOrgIds, type OrgDispositionState } from "./crmDeals";
 import {
   attributesByUser,
   defaultStageFor,
@@ -77,6 +78,13 @@ export type CrmPersonRow = {
   organizationId: string | null;
   /** Clay-aligned GTM-verrijking; alleen gevuld voor prospects. */
   enrichment: ProspectEnrichment | null;
+  /** Call-center: laatste beluitkomst + volgende actie + vlaggen (org-niveau). */
+  lastDisposition: string | null;
+  lastDispositionAt: string | null;
+  nextAction: string | null;
+  nextActionAt: string | null;
+  doNotCall: boolean;
+  wrongNumber: boolean;
 };
 
 export async function loadCrmPeoplePage(args: {
@@ -97,10 +105,13 @@ export async function loadCrmPeoplePage(args: {
 
   const customerIds = page.filter((r) => r.kind === "customer").map((r) => r.id);
   const prospectIds = page.filter((r) => r.kind === "prospect").map((r) => r.id);
+  const prospectOrgIds = page
+    .filter((r) => r.kind === "prospect" && r.organizationId)
+    .map((r) => r.organizationId as string);
 
   const lists = await listLeadLists({ userId: args.sessionUserId });
   const visibleListIds = lists.map((l) => l.id);
-  const [funnelRows, attrs, memberships, contactMemberships, enrichments] =
+  const [funnelRows, attrs, memberships, contactMemberships, enrichments, dispositions] =
     await Promise.all([
       customerIds.length
         ? listCustomerFunnel({ userIds: customerIds })
@@ -113,6 +124,7 @@ export async function loadCrmPeoplePage(args: {
       prospectIds.length
         ? enrichmentByContact(prospectIds)
         : Promise.resolve(new Map<string, ProspectEnrichment>()),
+      dispositionByOrgIds(prospectOrgIds),
     ]);
   const funnelById = new Map(funnelRows.map((r) => [r.id, r]));
 
@@ -174,8 +186,17 @@ export async function loadCrmPeoplePage(args: {
         company: null,
         organizationId: null,
         enrichment: null,
+        lastDisposition: null,
+        lastDispositionAt: null,
+        nextAction: null,
+        nextActionAt: null,
+        doNotCall: false,
+        wrongNumber: false,
       });
     } else {
+      const dispo: OrgDispositionState | undefined = p.organizationId
+        ? dispositions.get(p.organizationId)
+        : undefined;
       rows.push({
         id: p.id,
         name: p.name,
@@ -211,6 +232,14 @@ export async function loadCrmPeoplePage(args: {
         company: p.company,
         organizationId: p.organizationId,
         enrichment: enrichments.get(p.id) ?? null,
+        lastDisposition: dispo?.lastDisposition ?? null,
+        lastDispositionAt: dispo?.lastDispositionAt
+          ? dispo.lastDispositionAt.toISOString()
+          : null,
+        nextAction: dispo?.nextAction ?? null,
+        nextActionAt: dispo?.nextActionAt ? dispo.nextActionAt.toISOString() : null,
+        doNotCall: dispo?.doNotCall ?? false,
+        wrongNumber: dispo?.wrongNumber ?? false,
       });
     }
   }

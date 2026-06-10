@@ -25,6 +25,7 @@ import {
 import { authUsers } from "@/lib/db/schema/auth-bridge";
 import { licenses } from "@/lib/db/schema/licensing";
 import { logEvent } from "./audit";
+import { DISPOSITION_BY_KEY } from "./crmCallDisposition";
 
 // ───── Organizations ─────
 
@@ -400,6 +401,111 @@ export async function addCrmOrgTask(args: {
     payload: { title: row.title, kind: row.kind, dueAt: row.dueAt },
   });
   return row;
+}
+
+/** Verwerk een call-center dispositie: log de interactie, zet (indien van toepassing)
+ *  een vervolgtaak met datum, en werk de org bij (laatste dispositie, volgende actie,
+ *  do-not-call / verkeerd-nummer-vlag). Raakt de stage nooit aan. */
+export async function applyDisposition(args: {
+  orgId: string;
+  dispositionKey: string;
+  dueAt?: Date | null; // alleen gebruikt bij dateMode 'am_choice'
+  actorUserId: string;
+}): Promise<{ taskId: string | null; nextActionAt: Date | null }> {
+  const d = DISPOSITION_BY_KEY[args.dispositionKey];
+  if (!d) throw new Error(`Onbekende dispositie: ${args.dispositionKey}`);
+  const now = new Date();
+
+  // Due-datum van de vervolgtaak bepalen.
+  let dueAt: Date | null = null;
+  if (d.task !== "none") {
+    if (d.dateMode === "auto") {
+      dueAt = new Date(now);
+      dueAt.setDate(dueAt.getDate() + (d.defaultDays ?? 0));
+    } else if (d.dateMode === "am_choice") {
+      dueAt = args.dueAt ?? null;
+    }
+  }
+
+  // 1. Interactie loggen (timeline + touch).
+  await db.insert(crmEvents).values({
+    crmOrganizationId: args.orgId,
+    actorUserId: args.actorUserId,
+    kind: "interaction_logged",
+    payload: { disposition: d.key, label: d.label, group: d.group, dueAt },
+  });
+
+  // 2. Vervolgtaak (bij callback/task/nurture).
+  let taskId: string | null = null;
+  if (d.task !== "none" && d.taskTitle) {
+    const [task] = await db
+      .insert(crmOrgTasks)
+      .values({
+        crmOrganizationId: args.orgId,
+        title: d.taskTitle,
+        kind: d.key,
+        dueAt,
+        createdByUserId: args.actorUserId,
+      })
+      .returning({ id: crmOrgTasks.id });
+    taskId = task.id;
+  }
+
+  // 3. Org bijwerken: laatste dispositie, volgende actie + de vlaggen.
+  const patch: Record<string, unknown> = {
+    lastDisposition: d.key,
+    lastDispositionAt: now,
+    updatedAt: now,
+  };
+  if (d.task !== "none" && d.taskTitle) {
+    patch.nextAction = d.taskTitle;
+    patch.nextActionAt = dueAt;
+  }
+  if (d.flag === "do_not_call") patch.doNotCall = true;
+  if (d.flag === "wrong_number") patch.wrongNumber = true;
+  await db.update(crmOrganizations).set(patch).where(eq(crmOrganizations.id, args.orgId));
+
+  return { taskId, nextActionAt: dueAt };
+}
+
+export type OrgDispositionState = {
+  lastDisposition: string | null;
+  lastDispositionAt: Date | null;
+  nextAction: string | null;
+  nextActionAt: Date | null;
+  doNotCall: boolean;
+  wrongNumber: boolean;
+};
+
+/** Batched: dispositie-/volgende-actie-state per organisatie (voor de CRM-lijst). */
+export async function dispositionByOrgIds(
+  orgIds: string[],
+): Promise<Map<string, OrgDispositionState>> {
+  const map = new Map<string, OrgDispositionState>();
+  if (!orgIds.length) return map;
+  const rows = await db
+    .select({
+      id: crmOrganizations.id,
+      lastDisposition: crmOrganizations.lastDisposition,
+      lastDispositionAt: crmOrganizations.lastDispositionAt,
+      nextAction: crmOrganizations.nextAction,
+      nextActionAt: crmOrganizations.nextActionAt,
+      doNotCall: crmOrganizations.doNotCall,
+      wrongNumber: crmOrganizations.wrongNumber,
+    })
+    .from(crmOrganizations)
+    .where(inArray(crmOrganizations.id, orgIds));
+  for (const r of rows) {
+    map.set(r.id, {
+      lastDisposition: r.lastDisposition,
+      lastDispositionAt: r.lastDispositionAt,
+      nextAction: r.nextAction,
+      nextActionAt: r.nextActionAt,
+      doNotCall: r.doNotCall,
+      wrongNumber: r.wrongNumber,
+    });
+  }
+  return map;
 }
 
 export async function completeCrmOrgTask(

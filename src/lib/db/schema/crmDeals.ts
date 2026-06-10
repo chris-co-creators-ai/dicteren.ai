@@ -113,6 +113,12 @@ export const crmOrganizations = pgTable(
     nextAction: text("next_action"),
     nextActionAt: timestamp("next_action_at", { withTimezone: true }),
 
+    // Call-center: laatste beluitkomst + permanente vlaggen (zie crmCallDisposition.ts)
+    lastDisposition: text("last_disposition"),
+    lastDispositionAt: timestamp("last_disposition_at", { withTimezone: true }),
+    doNotCall: boolean("do_not_call").notNull().default(false),
+    wrongNumber: boolean("wrong_number").notNull().default(false),
+
     // Deal-data (wat we de klant aanbieden)
     proposedSeats: integer("proposed_seats"),
     proposedAmountCents: integer("proposed_amount_cents"),

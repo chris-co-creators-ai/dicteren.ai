@@ -8,6 +8,9 @@ export type ColumnKey =
   | "stage"
   | "temperature"
   | "assignee"
+  | "action"
+  | "disposition"
+  | "nextAction"
   | "segment"
   | "trial"
   | "mollie"
@@ -36,6 +39,9 @@ export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
   "stage",
   "temperature",
   "assignee",
+  "action",
+  "disposition",
+  "nextAction",
   "segment",
   "trial",
   "mollie",
@@ -53,6 +59,9 @@ export const COLUMN_LABELS: Record<ColumnKey, string> = {
   stage: "Stage",
   temperature: "Temperatuur",
   assignee: "Account manager",
+  action: "Actie",
+  disposition: "Laatste contact",
+  nextAction: "Volgende actie",
   segment: "Segment",
   trial: "Trial",
   mollie: "Mollie",
@@ -91,6 +100,9 @@ export const COLUMN_WIDTH_DEFAULTS: Record<string, number> = {
   stage: 130,
   temperature: 120,
   assignee: 150,
+  action: 140,
+  disposition: 150,
+  nextAction: 180,
   segment: 110,
   trial: 130,
   mollie: 120,

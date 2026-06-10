@@ -43,6 +43,11 @@ import {
   type ColumnKey,
   type ColumnPrefs,
 } from "@/lib/services/columnPrefsShared";
+import {
+  dispositionsByGroup,
+  dispositionLabel,
+  DISPOSITION_BY_KEY,
+} from "@/lib/services/crmCallDisposition";
 import { MKB_BRANCHES } from "@/lib/services/mkbBranches";
 import { KanbanView } from "./kanban-view";
 import { AddProspectModal } from "./add-prospect-modal";
@@ -124,6 +129,13 @@ type Customer = {
   company?: string | null;
   organizationId?: string | null;
   enrichment?: ProspectEnrichmentClient | null;
+  // Call-center (org-niveau, alleen prospects).
+  lastDisposition?: string | null;
+  lastDispositionAt?: string | null;
+  nextAction?: string | null;
+  nextActionAt?: string | null;
+  doNotCall?: boolean;
+  wrongNumber?: boolean;
 };
 
 // Clay-aligned GTM-verrijking (alleen prospects). Client-spiegel van
@@ -701,6 +713,19 @@ export function CrmView({
     }
     if (calls.length === 0) return;
     await Promise.all(calls);
+    refresh();
+  }
+
+  async function rowDisposition(
+    orgId: string,
+    dispositionKey: string,
+    dueAt?: string | null,
+  ) {
+    await fetch(`/api/admin/crm/organizations/${orgId}/disposition`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ dispositionKey, dueAt: dueAt ?? null }),
+    });
     refresh();
   }
 
@@ -1337,6 +1362,9 @@ export function CrmView({
                               onOpenProfile={() => setPersonFor(r)}
                               onFieldSave={(field, value) =>
                                 fieldSave(r.id, field, value)
+                              }
+                              onDisposition={(orgId, key, dueAt) =>
+                                rowDisposition(orgId, key, dueAt)
                               }
                             />
                           )}
@@ -2551,6 +2579,69 @@ function CustomCell({
   );
 }
 
+// Quick-action dropdown per rij: kies een beluitkomst. Dispositions die een datum
+// vragen (am_choice) tonen een datumveld; auto-dispositions vuren direct.
+function DispositionPicker({
+  doNotCall,
+  onPick,
+}: {
+  doNotCall: boolean;
+  onPick: (key: string, dueAt?: string | null) => void;
+}) {
+  const [pending, setPending] = useState<string | null>(null);
+  if (doNotCall) {
+    return (
+      <span className="text-[0.625rem] font-semibold text-[color:var(--danger,#dc2626)]">
+        ⛔ Niet bellen
+      </span>
+    );
+  }
+  if (pending) {
+    return (
+      <input
+        type="date"
+        autoFocus
+        className="w-full rounded-md border border-[color:var(--border-soft)] bg-white px-1 py-1 text-xs"
+        onChange={(e) => {
+          if (e.target.value) {
+            onPick(pending, new Date(e.target.value).toISOString());
+            setPending(null);
+          }
+        }}
+        onBlur={() => setPending(null)}
+      />
+    );
+  }
+  return (
+    <select
+      value=""
+      onChange={(e) => {
+        const key = e.target.value;
+        if (!key) return;
+        const d = DISPOSITION_BY_KEY[key];
+        if (d?.dateMode === "am_choice") {
+          setPending(key);
+        } else {
+          onPick(key);
+        }
+        e.target.value = "";
+      }}
+      className="w-full rounded-md border border-[color:var(--border-soft)] bg-white px-2 py-1 text-xs"
+    >
+      <option value="">Actie…</option>
+      {dispositionsByGroup().map((g) => (
+        <optgroup key={g.group} label={g.label}>
+          {g.items.map((d) => (
+            <option key={d.key} value={d.key}>
+              {d.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
+
 function CellRenderer({
   col,
   row,
@@ -2560,6 +2651,7 @@ function CellRenderer({
   onOpenNotes,
   onOpenProfile,
   onFieldSave,
+  onDisposition,
 }: {
   col: ColumnKey;
   row: Customer;
@@ -2574,6 +2666,7 @@ function CellRenderer({
   onOpenNotes: () => void;
   onOpenProfile?: () => void;
   onFieldSave?: (field: string, value: string | null) => void | Promise<void>;
+  onDisposition?: (orgId: string, key: string, dueAt?: string | null) => void;
 }) {
   const isProspect = row.kind === "prospect";
   switch (col) {
@@ -2651,6 +2744,55 @@ function CellRenderer({
           ))}
         </select>
       );
+    case "action": {
+      if (!isProspect || !row.organizationId) {
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      }
+      const orgId = row.organizationId;
+      return (
+        <DispositionPicker
+          doNotCall={row.doNotCall ?? false}
+          onPick={(key, dueAt) => onDisposition?.(orgId, key, dueAt)}
+        />
+      );
+    }
+    case "disposition":
+      return row.lastDisposition ? (
+        <span
+          className="block truncate text-xs text-[color:var(--text-muted)]"
+          title={row.lastDispositionAt ? formatDate(row.lastDispositionAt) : undefined}
+        >
+          {dispositionLabel(row.lastDisposition)}
+          {row.doNotCall ? " · ⛔" : ""}
+          {row.wrongNumber ? " · ☎✗" : ""}
+        </span>
+      ) : (
+        <span className="text-[color:var(--text-soft)]">—</span>
+      );
+    case "nextAction": {
+      if (!row.nextAction) {
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      }
+      const due = row.nextActionAt ? new Date(row.nextActionAt) : null;
+      const overdue = due ? due.getTime() < Date.now() : false;
+      return (
+        <span className="block truncate text-xs" title={row.nextAction}>
+          {row.nextAction}
+          {due ? (
+            <span
+              className={
+                overdue
+                  ? "font-semibold text-[color:var(--danger,#dc2626)]"
+                  : "text-[color:var(--text-soft)]"
+              }
+            >
+              {" · "}
+              {formatDate(row.nextActionAt as string)}
+            </span>
+          ) : null}
+        </span>
+      );
+    }
     case "segment": {
       const seg = SEGMENT_META[row.segment];
       return (
