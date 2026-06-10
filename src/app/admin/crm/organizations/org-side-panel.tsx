@@ -609,6 +609,7 @@ function ResellerTab({
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendMsg, setSendMsg] = useState<string | null>(null);
+  const [confirmSend, setConfirmSend] = useState(false);
   useEffect(() => setNotes(org.resellerNotes ?? ""), [org.resellerNotes]);
 
   async function save() {
@@ -655,15 +656,43 @@ function ResellerTab({
           lettertype, hex-codes, teamfoto's, korte omschrijving). De partner
           reageert rechtstreeks op jouw mail met de bestanden.
         </p>
-        <button
-          type="button"
-          onClick={requestBrandIdentity}
-          disabled={sending}
-          className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
-          style={{ background: "var(--navy)" }}
-        >
-          {sending ? "Versturen..." : "Brand-identity opvragen"}
-        </button>
+        {/* Tweestaps-bevestiging: dit verstuurt ECHT een mail naar de partner. */}
+        {confirmSend ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-red-700">
+              Weet je het zeker? Dit stuurt direct een mail naar het contact.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmSend(false);
+                void requestBrandIdentity();
+              }}
+              disabled={sending}
+              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+            >
+              Ja, verstuur de mail
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmSend(false)}
+              className="rounded-lg border bg-white px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: "var(--border)" }}
+            >
+              Annuleer
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmSend(true)}
+            disabled={sending}
+            className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+            style={{ background: "var(--navy)" }}
+          >
+            {sending ? "Versturen..." : "Brand-identity opvragen"}
+          </button>
+        )}
         {sendMsg && (
           <p className="text-xs font-medium text-[color:var(--navy)]">{sendMsg}</p>
         )}

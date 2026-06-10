@@ -31,6 +31,10 @@ export type CrmPeopleFilters = {
   industry?: string | null;
   companySizeRange?: string | null;
   minScore?: number | null;
+  /** Call-center: filter op laatste dispositie (org-niveau, alleen prospects). */
+  disposition?: string | null;
+  /** Belronde-hygiëne: verberg stage lost/churned (default in de UI). */
+  excludeLost?: boolean | null;
 };
 
 export type CrmPeopleCursor = { createdAt: string; id: string };
@@ -68,6 +72,7 @@ const PEOPLE_CTE = sql`
       NULL::text                       AS industry,
       NULL::text                       AS company_size_range,
       NULL::int                        AS lead_score,
+      NULL::text                       AS last_disposition,
       u."createdAt"                    AS created_at
     FROM auth."user" u
     LEFT JOIN public.customer_attributes ca ON ca.user_id = u.id
@@ -100,6 +105,7 @@ const PEOPLE_CTE = sql`
       c.industry                         AS industry,
       c.company_size_range               AS company_size_range,
       c.lead_score                       AS lead_score,
+      o.last_disposition                 AS last_disposition,
       c.created_at                       AS created_at
     FROM public.crm_contacts c
     LEFT JOIN public.crm_organizations o ON o.id = c.crm_organization_id
@@ -138,6 +144,17 @@ function buildConditions(filters: CrmPeopleFilters): SQL[] {
   }
   if (typeof filters.minScore === "number") {
     conds.push(sql`people.lead_score >= ${filters.minScore}`);
+  }
+  if (filters.disposition === "none") {
+    conds.push(sql`people.last_disposition IS NULL`);
+  } else if (filters.disposition) {
+    conds.push(sql`people.last_disposition = ${filters.disposition}`);
+  }
+  if (filters.excludeLost) {
+    // NULL-stage (klant zonder attributes-rij) telt als niet-verloren.
+    conds.push(
+      sql`(people.crm_stage IS NULL OR people.crm_stage NOT IN ('lost', 'churned'))`,
+    );
   }
   if (filters.listId) {
     conds.push(

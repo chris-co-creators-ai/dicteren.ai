@@ -9,6 +9,7 @@ import {
   Columns3,
   Expand,
   Eye,
+  ChevronDown,
   EyeOff,
   FileSpreadsheet,
   GripVertical,
@@ -401,6 +402,13 @@ export function CrmView({
   const [industryFilter, setIndustryFilter] = useState<string>("");
   const [sizeFilter, setSizeFilter] = useState<string>("all");
   const [minScoreFilter, setMinScoreFilter] = useState<string>("");
+  // Call-center: filter op laatste dispositie ("Actie") + verberg-verloren.
+  // Verloren (lost/churned) is default verborgen: een belronde wil geen
+  // afgewezen prospects in beeld. Stage-filter op Verloren/Churned wint.
+  const [dispositionFilter, setDispositionFilter] = useState<string>("all");
+  const [hideLost, setHideLost] = useState(true);
+  const effectiveHideLost =
+    hideLost && stageFilter !== "lost" && stageFilter !== "churned";
   // Secundaire filters (owner/discount/branche/grootte/score) ingeklapt zodat
   // de belronde-toolbar op een laptop één regel blijft.
   const [showMoreFilters, setShowMoreFilters] = useState(false);
@@ -445,6 +453,8 @@ export function CrmView({
     if (industryFilter.trim()) p.set("industry", industryFilter.trim());
     if (sizeFilter !== "all") p.set("size", sizeFilter);
     if (minScoreFilter.trim()) p.set("minScore", minScoreFilter.trim());
+    if (dispositionFilter !== "all") p.set("disposition", dispositionFilter);
+    if (effectiveHideLost) p.set("excludeLost", "1");
     if (!reset && cursor) {
       p.set("cursorCreatedAt", cursor.createdAt);
       p.set("cursorId", cursor.id);
@@ -483,6 +493,8 @@ export function CrmView({
     industryFilter,
     sizeFilter,
     minScoreFilter,
+    dispositionFilter,
+    effectiveHideLost,
   ]);
 
   // Na een mutatie: herlaad de huidige gefilterde eerste pagina.
@@ -603,6 +615,24 @@ export function CrmView({
     setOrder((prev) => [...cols, ...prev.filter((c) => !cols.includes(c))]);
   }
 
+  // Kolom-herordening: sleep een header naar links/rechts (HTML5 dnd, zelfde
+  // patroon als de kolom-manager). Persistentie via de bestaande order-prefs.
+  const dragColRef = useRef<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+
+  function moveColumn(src: string, target: string) {
+    if (src === target) return;
+    setOrder((prev) => {
+      const known = new Set(prev);
+      const full = [...prev, ...allKeys.filter((c) => !known.has(c))];
+      const without = full.filter((c) => c !== src);
+      const idx = without.indexOf(target);
+      if (idx === -1) return prev;
+      without.splice(idx, 0, src);
+      return without;
+    });
+  }
+
   // Kolom-resize: drag op de rechterrand van een header. Pointer-events zodat
   // het ook buiten de cel doorloopt. Klemt tussen min/max.
   const resizeRef = useRef<{ key: string; startX: number; startW: number } | null>(
@@ -649,6 +679,16 @@ export function CrmView({
       if (kindFilter !== "all" && (r.kind ?? "customer") !== kindFilter)
         return false;
       if (stageFilter !== "all" && r.crmStage !== stageFilter) return false;
+      if (
+        effectiveHideLost &&
+        (r.crmStage === "lost" || r.crmStage === "churned")
+      )
+        return false;
+      if (dispositionFilter !== "all") {
+        if (dispositionFilter === "none") {
+          if (r.lastDisposition) return false;
+        } else if (r.lastDisposition !== dispositionFilter) return false;
+      }
       if (tempFilter !== "all" && r.crmTemperature !== tempFilter)
         return false;
       if (assigneeFilter !== "all") {
@@ -689,6 +729,8 @@ export function CrmView({
     ownerFilter,
     discountFilter,
     search,
+    dispositionFilter,
+    effectiveHideLost,
   ]);
 
   const selectedCount = selected.size;
@@ -903,6 +945,39 @@ export function CrmView({
 
   const activeList = lists.find((l) => l.id === activeListId);
 
+  // Lijsten per eigenaar (AM) voor de dropdown-rij. Volgorde = adminUsers;
+  // lijsten van niet-(meer-)staff vallen onder "Overig".
+  const listOwnerGroups = useMemo(() => {
+    const byOwner = new Map<string, LeadListOption[]>();
+    for (const l of lists) {
+      const key = l.ownerUserId ?? "__none__";
+      const arr = byOwner.get(key) ?? [];
+      arr.push(l);
+      byOwner.set(key, arr);
+    }
+    const groups: {
+      ownerId: string;
+      ownerName: string;
+      lists: LeadListOption[];
+    }[] = [];
+    for (const u of adminUsers) {
+      const own = byOwner.get(u.id);
+      if (own?.length) {
+        groups.push({
+          ownerId: u.id,
+          ownerName: u.name.split(" ")[0],
+          lists: own,
+        });
+        byOwner.delete(u.id);
+      }
+    }
+    const rest = [...byOwner.values()].flat();
+    if (rest.length) {
+      groups.push({ ownerId: "__rest__", ownerName: "Overig", lists: rest });
+    }
+    return groups;
+  }, [lists, adminUsers]);
+
   return (
     <>
       <div className="flex flex-col gap-2.5 px-5 py-3 lg:px-7">
@@ -943,19 +1018,17 @@ export function CrmView({
               label="Alle leads"
               count={customers.length}
             />
-            {lists.map((l) => (
-              <TabButton
-                key={l.id}
-                active={activeListId === l.id}
-                onClick={() => setActiveListId(l.id)}
-                label={l.name}
-                count={l.memberCount}
-                color={LIST_COLOR_BG[l.color]}
-                onDelete={
-                  isAdmin || l.ownerUserId === currentUserId
-                    ? () => deleteList(l.id)
-                    : undefined
-                }
+            {/* Lijsten gegroepeerd per AM: één dropdown per eigenaar zodat de
+                rij niet uit beeld loopt bij veel lijsten. */}
+            {listOwnerGroups.map((g) => (
+              <OwnerListsDropdown
+                key={g.ownerId}
+                ownerName={g.ownerName}
+                lists={g.lists}
+                activeListId={activeListId}
+                onPick={setActiveListId}
+                canDelete={(l) => isAdmin || l.ownerUserId === currentUserId}
+                onDelete={deleteList}
               />
             ))}
             {canCreateList && (
@@ -1035,6 +1108,15 @@ export function CrmView({
               }))}
             />
             <FilterSelect
+              value={dispositionFilter}
+              onChange={setDispositionFilter}
+              label="Alle acties"
+              specialNone="Nog geen actie"
+              options={dispositionsByGroup().flatMap((g) =>
+                g.items.map((d) => ({ value: d.key, label: d.label })),
+              )}
+            />
+            <FilterSelect
               value={assigneeFilter}
               onChange={setAssigneeFilter}
               label="Alle managers"
@@ -1044,6 +1126,19 @@ export function CrmView({
                 label: u.name,
               }))}
             />
+            <button
+              onClick={() => setHideLost((v) => !v)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-1.5 text-xs font-semibold",
+                hideLost
+                  ? "text-[color:var(--navy)]"
+                  : "text-[color:var(--text-muted)]",
+              )}
+              style={{ background: "var(--bg)" }}
+              title="Verberg prospects op stage Verloren/Churned (stage-filter op Verloren wint)"
+            >
+              {hideLost ? "✓ " : ""}Verberg verloren
+            </button>
             <button
               onClick={() => setShowMoreFilters((v) => !v)}
               className={cn(
@@ -1166,7 +1261,7 @@ export function CrmView({
                 title="Uitgebreid prospect-form (volledige velden + lijsten)"
               >
                 <UserPlus className="size-3.5" strokeWidth={2.2} />
-                Volledig form
+                Prospect toevoegen
               </button>
               <div
                 className="inline-flex rounded-lg border border-[color:var(--border-soft)] bg-white p-0.5"
@@ -1332,7 +1427,38 @@ export function CrmView({
                     return (
                       <th
                         key={col}
-                        className="group relative h-9 border-b border-r border-[color:var(--border-soft)] px-2 text-left text-xs font-medium"
+                        draggable
+                        onDragStart={(e) => {
+                          // Slepen vanaf de resize-greep = resizen, geen reorder.
+                          if (resizeRef.current) {
+                            e.preventDefault();
+                            return;
+                          }
+                          dragColRef.current = col;
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          if (dragOverCol !== col) setDragOverCol(col);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (dragColRef.current) {
+                            moveColumn(dragColRef.current, col);
+                          }
+                          dragColRef.current = null;
+                          setDragOverCol(null);
+                        }}
+                        onDragEnd={() => {
+                          dragColRef.current = null;
+                          setDragOverCol(null);
+                        }}
+                        title="Sleep de kolom naar links of rechts om te verplaatsen"
+                        className={cn(
+                          "group relative h-9 cursor-grab border-b border-r border-[color:var(--border-soft)] px-2 text-left text-xs font-medium active:cursor-grabbing",
+                          dragOverCol === col &&
+                            "border-l-2 border-l-[color:var(--orange)] bg-[color:var(--bg-deep)]",
+                        )}
                       >
                         <span className="flex items-center gap-1.5">
                           <Icon
@@ -1370,12 +1496,12 @@ export function CrmView({
                   <InlineProspectRow
                     adminUsers={adminUsers}
                     activeListId={activeListId}
+                    columns={orderedColumns}
                     onCancel={() => setAddingInline(false)}
                     onSaved={() => {
                       setAddingInline(false);
                       refresh();
                     }}
-                    colSpan={orderedColumns.length + 1}
                   />
                 )}
                 {filtered.length === 0 && !addingInline ? (
@@ -1553,7 +1679,7 @@ export function CrmView({
       )}
 
       {showColumnManager && (
-        <ColumnManagerModal
+        <ColumnManagerPanel
           visible={visible}
           order={order}
           customColumns={customColumns}
@@ -2431,6 +2557,102 @@ function EnrichSelect({
         ))}
       </select>
     </label>
+  );
+}
+
+// Eén dropdown per lijst-eigenaar (AM). Toont de voornaam; opent een paneel
+// met diens lijsten. Houdt de lijsten-rij kort, ook bij tientallen lijsten.
+function OwnerListsDropdown({
+  ownerName,
+  lists,
+  activeListId,
+  onPick,
+  canDelete,
+  onDelete,
+}: {
+  ownerName: string;
+  lists: LeadListOption[];
+  activeListId: string;
+  onPick: (id: string) => void;
+  canDelete: (l: LeadListOption) => boolean;
+  onDelete: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const activeOwn = lists.find((l) => l.id === activeListId);
+  return (
+    <div className="relative shrink-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs",
+          activeOwn
+            ? "bg-[color:var(--bg-deep)] font-bold text-[color:var(--navy)]"
+            : "font-medium text-[color:var(--text-muted)] hover:text-[color:var(--navy)]",
+        )}
+        title={`Lijsten van ${ownerName}`}
+      >
+        {activeOwn && (
+          <span
+            className="size-2 rounded-full"
+            style={{ background: LIST_COLOR_BG[activeOwn.color] ?? "#6B7280" }}
+          />
+        )}
+        {ownerName}
+        {activeOwn ? ` · ${activeOwn.name}` : ""}
+        <span className="rounded-full bg-[color:var(--bg)] px-1.5 text-[0.625rem] font-bold tabular-nums">
+          {lists.length}
+        </span>
+        <ChevronDown
+          className={cn("size-3 transition-transform", open && "rotate-180")}
+          strokeWidth={2.4}
+        />
+      </button>
+      {open && (
+        <>
+          {/* Klik-buiten sluit het paneel */}
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full z-40 mt-1 min-w-56 rounded-lg border border-[color:var(--border-soft)] bg-white py-1 shadow-lg">
+            {lists.map((l) => (
+              <div
+                key={l.id}
+                className={cn(
+                  "group flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-[color:var(--bg)]",
+                  l.id === activeListId
+                    ? "font-bold text-[color:var(--navy)]"
+                    : "text-[color:var(--text-muted)]",
+                )}
+              >
+                <button
+                  onClick={() => {
+                    onPick(l.id);
+                    setOpen(false);
+                  }}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                >
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: LIST_COLOR_BG[l.color] ?? "#6B7280" }}
+                  />
+                  <span className="truncate">{l.name}</span>
+                  <span className="ml-auto tabular-nums text-[0.625rem]">
+                    {l.memberCount}
+                  </span>
+                </button>
+                {canDelete(l) && (
+                  <button
+                    onClick={() => onDelete(l.id)}
+                    className="hidden shrink-0 text-[color:var(--text-soft)] hover:text-red-600 group-hover:block"
+                    title="Verwijder lijst"
+                  >
+                    <Trash2 className="size-3" strokeWidth={2.2} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -3489,7 +3711,10 @@ function CreateListModal({
   );
 }
 
-function ColumnManagerModal({
+// Side-panel (geen modal): elke toggle of versleping werkt DIRECT door in de
+// grid ernaast — de parent-state verandert meteen en de debounced prefs-effect
+// persisteert. Geen Toepassen-knop meer nodig.
+function ColumnManagerPanel({
   visible,
   order,
   customColumns,
@@ -3506,41 +3731,35 @@ function ColumnManagerModal({
   onClose: () => void;
   onCustomChange: () => void;
 }) {
-  const [localOrder, setLocalOrder] = useState<string[]>(() => {
-    const known = new Set(order);
-    const tail = allKeys.filter((c) => !known.has(c));
-    return [...order, ...tail];
-  });
-  const [localVisible, setLocalVisible] = useState<Set<string>>(
-    new Set(visible),
-  );
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [showAddCustom, setShowAddCustom] = useState(false);
 
+  const known = new Set(order);
+  const fullOrder = [...order, ...allKeys.filter((c) => !known.has(c))];
+  const visibleSet = new Set(visible);
+
   function toggle(col: string) {
-    const next = new Set(localVisible);
+    const next = new Set(visibleSet);
     if (next.has(col)) next.delete(col);
     else next.add(col);
-    setLocalVisible(next);
+    onChange(
+      fullOrder.filter((c) => next.has(c)),
+      fullOrder,
+    );
   }
 
   function onDragOver(idx: number, e: React.DragEvent) {
     e.preventDefault();
     if (!dragKey) return;
-    const fromIdx = localOrder.indexOf(dragKey);
+    const fromIdx = fullOrder.indexOf(dragKey);
     if (fromIdx === -1 || fromIdx === idx) return;
-    const next = [...localOrder];
+    const next = [...fullOrder];
     const [moved] = next.splice(fromIdx, 1);
     next.splice(idx, 0, moved);
-    setLocalOrder(next);
-  }
-
-  function apply() {
     onChange(
-      localOrder.filter((c) => localVisible.has(c)),
-      localOrder,
+      next.filter((c) => visibleSet.has(c)),
+      next,
     );
-    onClose();
   }
 
   async function deleteCustomColumn(id: string) {
@@ -3560,10 +3779,24 @@ function ColumnManagerModal({
   }
 
   return (
-    <Modal onClose={onClose} title="Kolommen beheren">
+    <aside className="fixed right-0 top-0 z-50 flex h-full w-80 flex-col border-l border-[color:var(--border-soft)] bg-white shadow-2xl">
+      <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--border-soft)] px-4 py-3">
+        <h2 className="text-base font-bold text-[color:var(--navy)]">
+          Kolommen
+        </h2>
+        <button
+          onClick={onClose}
+          className="grid size-8 place-items-center rounded-full hover:bg-[color:var(--bg)]"
+          aria-label="Sluiten"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <p className="mb-3 text-xs text-[color:var(--text-muted)]">
-        Toggle zichtbaarheid met het oog. Sleep een rij om de volgorde te
-        wijzigen. Auto-save naar je profiel.
+        Elke wijziging is direct zichtbaar in de tabel. Toggle zichtbaarheid
+        met het oog, sleep een rij om de volgorde te wijzigen. Auto-save naar
+        je profiel.
       </p>
       <button
         type="button"
@@ -3574,8 +3807,8 @@ function ColumnManagerModal({
         Custom kolom toevoegen
       </button>
       <ul className="divide-y divide-[color:var(--border-soft)] rounded-xl border border-[color:var(--border-soft)]">
-        {localOrder.map((col, idx) => {
-          const isVisible = localVisible.has(col);
+        {fullOrder.map((col, idx) => {
+          const isVisible = visibleSet.has(col);
           const isCustom = col.startsWith("custom:");
           const customDef = isCustom
             ? customColumns.find((c) => c.key === col)
@@ -3633,13 +3866,6 @@ function ColumnManagerModal({
           );
         })}
       </ul>
-      <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onClose} className="btn btn-secondary">
-          Annuleer
-        </button>
-        <button onClick={apply} className="btn btn-primary">
-          Toepassen
-        </button>
       </div>
 
       {showAddCustom && (
@@ -3651,7 +3877,7 @@ function ColumnManagerModal({
           }}
         />
       )}
-    </Modal>
+    </aside>
   );
 }
 

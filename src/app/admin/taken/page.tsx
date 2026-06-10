@@ -32,38 +32,17 @@ export default async function AdminTakenPage() {
   });
   const boardTasks = await listAssignedTasks(session.user.id);
 
-  const startToday = new Date();
-  startToday.setHours(0, 0, 0, 0);
-  const startTomorrow = new Date(startToday);
-  startTomorrow.setDate(startTomorrow.getDate() + 1);
-  const startDayAfter = new Date(startToday);
-  startDayAfter.setDate(startDayAfter.getDate() + 2);
-
-  const overdue: TaskRow[] = [];
-  const today: TaskRow[] = [];
-  const tomorrow: TaskRow[] = [];
-  const later: TaskRow[] = [];
-
-  for (const t of tasks) {
-    const row: TaskRow = {
-      taskId: t.taskId,
-      title: t.title,
-      kind: t.kind,
-      dueAt: t.dueAt ? t.dueAt.toISOString() : null,
-      notes: t.notes,
-      orgId: t.orgId,
-      orgName: t.orgName,
-    };
-    if (!t.dueAt) {
-      later.push(row);
-      continue;
-    }
-    const due = t.dueAt.getTime();
-    if (due < startToday.getTime()) overdue.push(row);
-    else if (due < startTomorrow.getTime()) today.push(row);
-    else if (due < startDayAfter.getTime()) tomorrow.push(row);
-    else later.push(row);
-  }
+  // Groeperen, filteren en sorteren gebeurt client-side in TakenView (filters
+  // op actie + datum zonder server-roundtrip; max 200 taken).
+  const rows: TaskRow[] = tasks.map((t) => ({
+    taskId: t.taskId,
+    title: t.title,
+    kind: t.kind,
+    dueAt: t.dueAt ? t.dueAt.toISOString() : null,
+    notes: t.notes,
+    orgId: t.orgId,
+    orgName: t.orgName,
+  }));
 
   return (
     <>
@@ -109,12 +88,7 @@ export default async function AdminTakenPage() {
             </div>
           </div>
         )}
-        <TakenView
-          overdue={overdue}
-          today={today}
-          tomorrow={tomorrow}
-          later={later}
-        />
+        <TakenView tasks={rows} />
       </div>
     </>
   );

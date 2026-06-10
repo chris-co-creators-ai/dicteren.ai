@@ -542,6 +542,26 @@ export async function completeCrmOrgTask(
   return row;
 }
 
+/** Vervaldatum (her)zetten op een open taak — elke taak hoort een datum te
+ *  hebben voor opvolging; /admin/taken biedt hiervoor een inline zetter. */
+export async function setCrmOrgTaskDueDate(
+  taskId: string,
+  dueAt: Date,
+): Promise<CrmOrgTask | null> {
+  const [row] = await db
+    .update(crmOrgTasks)
+    .set({ dueAt, updatedAt: new Date() })
+    .where(
+      and(
+        eq(crmOrgTasks.id, taskId),
+        isNull(crmOrgTasks.completedAt),
+        isNull(crmOrgTasks.deletedAt),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 export async function deleteCrmOrgTask(taskId: string): Promise<boolean> {
   const result = await db
     .update(crmOrgTasks)

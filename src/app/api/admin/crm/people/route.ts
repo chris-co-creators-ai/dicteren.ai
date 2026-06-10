@@ -26,6 +26,8 @@ export async function GET(request: Request) {
     industry: p.get("industry") || null,
     companySizeRange: p.get("size") || null,
     minScore: p.get("minScore") ? Number(p.get("minScore")) : null,
+    disposition: p.get("disposition") || null,
+    excludeLost: p.get("excludeLost") === "1",
     // Iedereen ziet alle personen — geen per-AM-scope meer (besluit 2026-06-09).
     scopeAssignedTo: null,
   };

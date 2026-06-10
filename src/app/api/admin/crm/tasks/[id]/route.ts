@@ -5,6 +5,7 @@ import { requireStaffApi } from "@/lib/auth/session";
 import {
   completeCrmOrgTask,
   deleteCrmOrgTask,
+  setCrmOrgTaskDueDate,
 } from "@/lib/services/crmDeals";
 
 type Params = Promise<{ id: string }>;
@@ -34,6 +35,24 @@ export async function PATCH(
       );
     }
     return NextResponse.json({ success: true, data: done });
+  }
+
+  if (typeof body.dueAt === "string" && body.dueAt) {
+    const due = new Date(body.dueAt);
+    if (Number.isNaN(due.getTime())) {
+      return NextResponse.json(
+        { success: false, error: "Ongeldige datum" },
+        { status: 400 },
+      );
+    }
+    const updated = await setCrmOrgTaskDueDate(id, due);
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, error: "Niet gevonden of al klaar" },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ success: true, data: updated });
   }
 
   return NextResponse.json(

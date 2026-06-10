@@ -84,10 +84,12 @@ export default async function AdminCrmPage({
   for (const r of rows) stages[classifyStage(r)]++;
 
   // Eerste pagina personen (server-side gefilterd + gepagineerd). Client laadt
-  // verdere pagina's + filter-wissels via /api/admin/crm/people.
+  // verdere pagina's + filter-wissels via /api/admin/crm/people. excludeLost
+  // matcht de client-default ("Verberg verloren" aan) zodat de eerste pagina
+  // dezelfde set toont als elke refetch daarna.
   const peoplePage = await loadCrmPeoplePage({
     sessionUserId: session.user.id,
-    filters: { scopeAssignedTo: scopeOwnerId ?? null },
+    filters: { scopeAssignedTo: scopeOwnerId ?? null, excludeLost: true },
     limit: 50,
   });
 

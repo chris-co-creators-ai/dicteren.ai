@@ -25,6 +25,7 @@ const FIELD_OPTIONS = [
 type FieldKey = (typeof FIELD_OPTIONS)[number]["key"];
 
 import { parseCsv } from "@/lib/csv";
+import { MKB_BRANCHES } from "@/lib/services/mkbBranches";
 
 export function AddProspectModal({
   adminUsers,
@@ -128,6 +129,8 @@ function ManualForm({
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
+  const [industry, setIndustry] = useState("");
   const [notes, setNotes] = useState("");
   const [stage, setStage] = useState<string>("prospect");
   const [temperature, setTemperature] = useState<string>("cold");
@@ -163,6 +166,19 @@ function ManualForm({
       setError(data.error ?? "Toevoegen mislukt.");
       setSubmitting(false);
       return;
+    }
+    // Stad/branche zijn enrichment-velden: apart wegschrijven (zelfde route
+    // als de inline-edit in de grid). Best-effort — blokkeert het aanmaken niet.
+    const contactId: string | undefined = data.data?.contactId;
+    if (contactId && (city.trim() || industry)) {
+      await fetch(`/api/admin/crm/contacts/${contactId}/enrichment`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...(city.trim() ? { city: city.trim() } : {}),
+          ...(industry ? { industry } : {}),
+        }),
+      }).catch(() => undefined);
     }
     onDone();
   }
@@ -204,6 +220,27 @@ function ManualForm({
           onChange={(e) => setPhone(e.target.value)}
           className="input"
         />
+      </Field>
+      <Field label="Stad">
+        <input
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          className="input"
+        />
+      </Field>
+      <Field label="Branche">
+        <select
+          value={industry}
+          onChange={(e) => setIndustry(e.target.value)}
+          className="input"
+        >
+          <option value="">— Kies een branche</option>
+          {MKB_BRANCHES.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label="Stage">
         <select
