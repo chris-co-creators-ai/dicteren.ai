@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
   Apple,
@@ -27,15 +27,14 @@ type Os = "mac" | "win";
 const MAC_DMG_URL =
   "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_aarch64.dmg";
 
-// Tijdelijk vergrendeld (besluit Christian, 2026-06-09).
-const MAC_LOCKED = true;
-
 const WIN_SETUP_URL =
   "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_x64-setup.exe";
 
-// Tijdelijk vergrendeld (besluit Christian, 2026-06-09). Windows-build is
-// bovendien nog ONGESIGNEERD (Azure Trusted Signing volgt).
-const WIN_LOCKED = true;
+// Soft password-gate (besluit Christian, 2026-06-10). De builds staan publiek
+// op R2; dit wachtwoord verbergt alleen de knoppen op de pagina, het is geen
+// harde beveiliging. Windows-build is nog ONGESIGNEERD (Azure Trusted Signing
+// volgt).
+const DOWNLOAD_PASSWORD = "Blablabla1!";
 
 const OS_INFO: Record<
   Os,
@@ -49,9 +48,9 @@ const OS_INFO: Record<
   },
   win: {
     label: "Windows",
-    sub: "Binnenkort beschikbaar",
+    sub: "64-bit installer",
     icon: Monitor,
-    available: false,
+    available: true,
   },
 };
 
@@ -96,6 +95,22 @@ const TROUBLESHOOTING = [
 
 export default function DownloadPage() {
   const [os, setOs] = useState<Os>("mac");
+  const [unlocked, setUnlocked] = useState(false);
+  const [pw, setPw] = useState("");
+  const [pwError, setPwError] = useState(false);
+
+  const downloadUrl = os === "mac" ? MAC_DMG_URL : WIN_SETUP_URL;
+  const osLabel = os === "mac" ? "macOS" : "Windows";
+
+  function handleUnlock(e: FormEvent) {
+    e.preventDefault();
+    if (pw === DOWNLOAD_PASSWORD) {
+      setUnlocked(true);
+      setPwError(false);
+    } else {
+      setPwError(true);
+    }
+  }
 
   return (
     <>
@@ -143,36 +158,38 @@ export default function DownloadPage() {
         </div>
 
         <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-          {os === "mac" ? (
-            MAC_DMG_URL && !MAC_LOCKED ? (
-              <a href={MAC_DMG_URL} className="btn btn-primary btn-lg">
-                <DownloadIcon className="size-4" />
-                Download voor macOS
-              </a>
-            ) : (
-              <button
-                className="btn btn-primary btn-lg cursor-not-allowed opacity-60"
-                disabled
-                aria-disabled
-              >
-                <Lock className="size-4" />
-                macOS · binnenkort beschikbaar
-              </button>
-            )
-          ) : WIN_SETUP_URL && !WIN_LOCKED ? (
-            <a href={WIN_SETUP_URL} className="btn btn-primary btn-lg">
+          {unlocked ? (
+            <a href={downloadUrl} className="btn btn-primary btn-lg">
               <DownloadIcon className="size-4" />
-              Download voor Windows
+              Download voor {osLabel}
             </a>
           ) : (
-            <button
-              className="btn btn-primary btn-lg cursor-not-allowed opacity-60"
-              disabled
-              aria-disabled
+            <form
+              onSubmit={handleUnlock}
+              className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center"
             >
-              <Lock className="size-4" />
-              Windows · binnenkort beschikbaar
-            </button>
+              <input
+                type="password"
+                value={pw}
+                onChange={(e) => {
+                  setPw(e.target.value);
+                  setPwError(false);
+                }}
+                placeholder="Wachtwoord"
+                aria-label="Wachtwoord voor download"
+                aria-invalid={pwError}
+                className={cn(
+                  "h-12 rounded-full border bg-white px-5 text-sm outline-none transition-colors",
+                  pwError
+                    ? "border-red-400"
+                    : "border-[color:var(--border-soft)] focus:border-[color:var(--navy)]",
+                )}
+              />
+              <button type="submit" className="btn btn-primary btn-lg">
+                <Lock className="size-4" />
+                Ontgrendel download
+              </button>
+            </form>
           )}
           <Link
             href="/auth/sign-up?next=/trial/start"
@@ -181,6 +198,9 @@ export default function DownloadPage() {
             Start trial-account
           </Link>
         </div>
+        {pwError && (
+          <p className="mt-3 text-sm text-red-500">Wachtwoord klopt niet.</p>
+        )}
       </section>
 
       {/* After download */}
