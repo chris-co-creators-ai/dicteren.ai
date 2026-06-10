@@ -62,7 +62,7 @@ export const DISPOSITIONS: Disposition[] = [
 
   // --- Gesproken — vervolg ---
   { key: "call_back_later", label: "Bel later terug", group: "spoke_followup", task: "callback", taskTitle: "Terugbellen (afspraak)", dateMode: "am_choice" },
-  { key: "send_deck", label: "Partnerdeck sturen", group: "spoke_followup", task: "task", taskTitle: "Partnerdeck sturen", dateMode: "auto", defaultDays: 0 },
+  { key: "send_deck", label: "Partnerdeck sturen", group: "spoke_followup", task: "task", taskTitle: "Partnerdeck sturen", dateMode: "am_choice" },
   { key: "send_quote", label: "Offerte sturen", group: "spoke_followup", task: "task", taskTitle: "Offerte sturen", dateMode: "am_choice" },
   { key: "plan_demo", label: "Demo / afspraak plannen", group: "spoke_followup", task: "task", taskTitle: "Demo plannen", dateMode: "am_choice" },
   { key: "thinking", label: "Bedenktijd / nabellen", group: "spoke_followup", task: "callback", taskTitle: "Nabellen", dateMode: "am_choice" },
