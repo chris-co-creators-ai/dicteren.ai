@@ -5,6 +5,8 @@
 
 export type ColumnKey =
   | "customer"
+  | "email"
+  | "phone"
   | "stage"
   | "temperature"
   | "assignee"
@@ -41,6 +43,8 @@ export type ColumnKey =
 export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
   "customer",
   "city",
+  "email",
+  "phone",
   "stage",
   "assignee",
   "action",
@@ -48,16 +52,18 @@ export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
   "nextAction",
 ];
 
-// Strakkere breedtes voor de belronde zodat de 7 kolommen samen onder de
+// Strakkere breedtes voor de belronde zodat de 9 kolommen samen onder de
 // ±1036px datakolom-ruimte van een 1440-scherm blijven.
 export const BELRONDE_WIDTHS: Record<string, number> = {
-  customer: 220,
-  city: 100,
-  stage: 110,
-  assignee: 120,
-  action: 140,
-  disposition: 130,
-  nextAction: 150,
+  customer: 173,
+  city: 80,
+  email: 145,
+  phone: 105,
+  stage: 95,
+  assignee: 100,
+  action: 115,
+  disposition: 100,
+  nextAction: 120,
 };
 
 // View-presets: één klik wisselt de zichtbare kolommen. Schrijft naar dezelfde
@@ -99,6 +105,8 @@ export const COLUMN_PRESETS: Record<
     label: "Alles",
     columns: [
       "customer",
+      "email",
+      "phone",
       "stage",
       "temperature",
       "assignee",
@@ -133,6 +141,8 @@ export const COLUMN_PRESETS: Record<
 
 export const COLUMN_LABELS: Record<ColumnKey, string> = {
   customer: "Klant",
+  email: "E-mail",
+  phone: "Telefoon",
   stage: "Stage",
   temperature: "Temperatuur",
   assignee: "Account manager",
@@ -174,6 +184,8 @@ export type ColumnPrefs = {
 export const DEFAULT_COLUMN_WIDTH = 150;
 export const COLUMN_WIDTH_DEFAULTS: Record<string, number> = {
   customer: 240,
+  email: 170,
+  phone: 120,
   stage: 130,
   temperature: 120,
   assignee: 150,

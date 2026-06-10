@@ -40,6 +40,7 @@ export type CrmPeopleListRow = {
   kind: CrmPeopleKind;
   name: string;
   email: string;
+  phone: string | null;
   company: string | null;
   crmStage: string | null;
   temperature: string | null;
@@ -57,6 +58,7 @@ const PEOPLE_CTE = sql`
       'customer'::text                 AS kind,
       u.name                           AS name,
       u.email                          AS email,
+      NULL::text                       AS phone,
       NULL::text                       AS company,
       ca.stage::text                   AS crm_stage,
       ca.temperature::text             AS temperature,
@@ -76,6 +78,7 @@ const PEOPLE_CTE = sql`
       'prospect'::text,
       c.name,
       c.email,
+      c.phone,
       CASE WHEN o.name = 'Onbekende organisatie' THEN NULL ELSE o.name END,
       CASE o.status
         WHEN 'lead' THEN 'lead'
@@ -168,6 +171,7 @@ export async function listCrmPeoplePage(args: {
     kind: CrmPeopleKind;
     name: string;
     email: string;
+    phone: string | null;
     company: string | null;
     crm_stage: string | null;
     temperature: string | null;
@@ -177,7 +181,7 @@ export async function listCrmPeoplePage(args: {
     created_at: string | Date;
   }>(
     sql`${PEOPLE_CTE}
-        SELECT id, kind, name, email, company, crm_stage, temperature, assignee_id, notes, organization_id, created_at
+        SELECT id, kind, name, email, phone, company, crm_stage, temperature, assignee_id, notes, organization_id, created_at
         FROM people${whereClause(conds)}
         ORDER BY created_at DESC, id DESC
         LIMIT ${limit + 1}`,
@@ -190,6 +194,7 @@ export async function listCrmPeoplePage(args: {
     kind: r.kind,
     name: r.name,
     email: r.email,
+    phone: r.phone,
     company: r.company,
     crmStage: r.crm_stage,
     temperature: r.temperature,

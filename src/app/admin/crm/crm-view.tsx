@@ -41,6 +41,7 @@ import {
   DEFAULT_COLUMN_WIDTH,
   DEFAULT_VISIBLE_COLUMNS,
   COLUMN_PRESETS,
+  BELRONDE_WIDTHS,
   type ColumnPresetKey,
   type ColumnKey,
   type ColumnPrefs,
@@ -88,6 +89,7 @@ type Customer = {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   role: string | null;
   emailVerified: boolean;
   createdAt: string;
@@ -537,9 +539,16 @@ export function CrmView({
     columnPrefs.columnWidths ?? {},
   );
 
-  /** Effectieve breedte van een kolom: user-override → default-map → fallback. */
+  /** Effectieve breedte van een kolom: user-override → belronde-default (als
+   *  de zichtbare set de belronde is, zodat de bel-weergave ook zonder
+   *  opgeslagen prefs zonder scroll past) → default-map → fallback. */
   function colWidth(key: string): number {
-    return widths[key] ?? COLUMN_WIDTH_DEFAULTS[key] ?? DEFAULT_COLUMN_WIDTH;
+    return (
+      widths[key] ??
+      (activePreset === "belronde" ? BELRONDE_WIDTHS[key] : undefined) ??
+      COLUMN_WIDTH_DEFAULTS[key] ??
+      DEFAULT_COLUMN_WIDTH
+    );
   }
 
   // Persistier prefs bij wijziging (debounced via 500ms).
@@ -2784,6 +2793,28 @@ function CellRenderer({
         </button>
       );
     }
+    case "email":
+      return (
+        <a
+          href={`mailto:${row.email}`}
+          className="block truncate text-xs text-blue-600 hover:underline"
+          title={row.email}
+        >
+          {row.email}
+        </a>
+      );
+    case "phone":
+      if (!row.phone)
+        return <span className="text-[color:var(--text-soft)]">—</span>;
+      return (
+        <a
+          href={`tel:${row.phone}`}
+          className="block truncate text-xs font-semibold text-[color:var(--navy)] hover:underline"
+          title={`Bel ${row.phone}`}
+        >
+          {row.phone}
+        </a>
+      );
     case "stage":
       return (
         <StageChip

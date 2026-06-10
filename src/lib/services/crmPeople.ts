@@ -34,6 +34,8 @@ export type CrmPersonRow = {
   id: string;
   name: string;
   email: string;
+  /** Alleen gevuld voor prospects (crm_contacts.phone); klanten hebben geen telefoonveld. */
+  phone: string | null;
   emailVerified: boolean;
   role: string | null;
   createdAt: string;
@@ -138,6 +140,7 @@ export async function loadCrmPeoplePage(args: {
         id: r.id,
         name: r.name,
         email: r.email,
+        phone: null,
         emailVerified: r.emailVerified,
         role: r.role,
         createdAt: r.createdAt.toISOString(),
@@ -201,6 +204,7 @@ export async function loadCrmPeoplePage(args: {
         id: p.id,
         name: p.name,
         email: p.email,
+        phone: p.phone,
         emailVerified: true,
         role: null,
         createdAt: p.createdAt,
