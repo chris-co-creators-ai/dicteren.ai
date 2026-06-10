@@ -2585,11 +2585,28 @@ function OwnerListsDropdown({
   onDelete: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Fixed-positie vanaf de knop: de lijsten-rij heeft overflow-x-auto en zou
+  // een absoluut paneel afknippen; position:fixed ontsnapt daaraan.
+  const [panelPos, setPanelPos] = useState<{ left: number; top: number }>({
+    left: 0,
+    top: 0,
+  });
+  const btnRef = useRef<HTMLButtonElement | null>(null);
   const activeOwn = lists.find((l) => l.id === activeListId);
+
+  function toggleOpen() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPanelPos({ left: r.left, top: r.bottom + 4 });
+    }
+    setOpen((v) => !v);
+  }
+
   return (
-    <div className="relative shrink-0">
+    <div className="shrink-0">
       <button
-        onClick={() => setOpen((v) => !v)}
+        ref={btnRef}
+        onClick={toggleOpen}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs",
           activeOwn
@@ -2617,8 +2634,11 @@ function OwnerListsDropdown({
       {open && (
         <>
           {/* Klik-buiten sluit het paneel */}
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-40 mt-1 min-w-56 rounded-lg border border-[color:var(--border-soft)] bg-white py-1 shadow-lg">
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-50 min-w-56 rounded-lg border border-[color:var(--border-soft)] bg-white py-1 shadow-lg"
+            style={{ left: panelPos.left, top: panelPos.top }}
+          >
             {lists.map((l) => (
               <div
                 key={l.id}
