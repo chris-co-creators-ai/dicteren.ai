@@ -312,7 +312,13 @@ export function OrgSidePanel({
             Laden...
           </div>
         ) : tab === "details" ? (
-          <DetailsTab org={org} admins={admins} onSave={patchOrg} />
+          <DetailsTab
+            org={org}
+            admins={admins}
+            onSave={patchOrg}
+            contacts={contacts}
+            onContactsChanged={loadAll}
+          />
         ) : (
           <div className="scroll-visible min-h-0 flex-1 overflow-y-auto px-4 py-3">
             {tab === "gesprek" ? (
@@ -1276,16 +1282,113 @@ function InlineStepTitle({
   );
 }
 
+// Contactpersoon-blok bovenaan de Details-tab: bewerkt (of maakt) het
+// primaire contact van de org. Eigen opslag-pad (contacts-route), los van de
+// org-velden eronder.
+function PrimaryContactSection({
+  orgId,
+  contacts,
+  onChanged,
+}: {
+  orgId: string;
+  contacts: Contact[];
+  onChanged: () => void;
+}) {
+  const primary = contacts.find((c) => c.isPrimary) ?? contacts[0] ?? null;
+  const [name, setName] = useState(primary?.name ?? "");
+  const [email, setEmail] = useState(primary?.email ?? "");
+  const [phone, setPhone] = useState(primary?.phone ?? "");
+  const [role, setRole] = useState(primary?.roleAtCompany ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setName(primary?.name ?? "");
+    setEmail(primary?.email ?? "");
+    setPhone(primary?.phone ?? "");
+    setRole(primary?.roleAtCompany ?? "");
+    // Sync zodra een (ander) primair contact binnenkomt via loadAll.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primary?.id]);
+
+  async function save() {
+    if (saving) return;
+    if (!email.trim()) {
+      toast.error("E-mail van het contact is verplicht");
+      return;
+    }
+    setSaving(true);
+    try {
+      const body = {
+        name: name.trim() || email.trim(),
+        email: email.trim(),
+        phone: phone.trim() || null,
+        roleAtCompany: role.trim() || null,
+      };
+      const res = primary
+        ? await fetch(`/api/admin/crm/contacts/${primary.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        : await fetch(`/api/admin/crm/organizations/${orgId}/contacts`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ ...body, isPrimary: true }),
+          });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "Contact niet opgeslagen");
+        return;
+      }
+      onChanged();
+    } catch {
+      toast.error("Contact niet opgeslagen (netwerkfout)");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Section title="Contactpersoon">
+      <div className="grid grid-cols-2 gap-2">
+        <TextField label="Naam" value={name} onChange={setName} />
+        <TextField label="Functietitel" value={role} onChange={setRole} />
+        <TextField label="E-mail" value={email} onChange={setEmail} />
+        <TextField label="Telefoon" value={phone} onChange={setPhone} />
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] text-[color:var(--text-muted)]">
+          {primary
+            ? "Primair contact — alle contacten staan onder de Contacten-tab."
+            : "Nog geen contactpersoon — opslaan maakt het primaire contact aan."}
+        </span>
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving}
+          className="shrink-0 rounded-lg bg-[color:var(--navy)] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+        >
+          {saving ? "Opslaan…" : "Contact opslaan"}
+        </button>
+      </div>
+    </Section>
+  );
+}
+
 // ───── Details tab ─────
 
 function DetailsTab({
   org,
   admins,
   onSave,
+  contacts,
+  onContactsChanged,
 }: {
   org: Org;
   admins: Admin[];
   onSave: (patch: Record<string, unknown>) => Promise<void>;
+  contacts: Contact[];
+  onContactsChanged: () => void;
 }) {
   const [f, setF] = useState(org);
   const [saving, setSaving] = useState(false);
@@ -1356,6 +1459,14 @@ function DetailsTab({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="scroll-visible min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3 text-sm">
+      {/* Contactpersoon eerst: in de Personen-tab is de rij een persoon — de
+          AM vult hier wie hij belt, daaronder pas het bedrijf. */}
+      <PrimaryContactSection
+        orgId={org.id}
+        contacts={contacts}
+        onChanged={onContactsChanged}
+      />
+
       <Section title="Bedrijf">
         <TextField label="Naam" value={f.name} onChange={(v) => setF({ ...f, name: v })} />
         <div className="grid grid-cols-2 gap-2">
