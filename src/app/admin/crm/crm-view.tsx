@@ -40,6 +40,8 @@ import {
   COLUMN_MAX_WIDTH,
   DEFAULT_COLUMN_WIDTH,
   DEFAULT_VISIBLE_COLUMNS,
+  COLUMN_PRESETS,
+  type ColumnPresetKey,
   type ColumnKey,
   type ColumnPrefs,
 } from "@/lib/services/columnPrefsShared";
@@ -396,6 +398,15 @@ export function CrmView({
   const [industryFilter, setIndustryFilter] = useState<string>("");
   const [sizeFilter, setSizeFilter] = useState<string>("all");
   const [minScoreFilter, setMinScoreFilter] = useState<string>("");
+  // Secundaire filters (owner/discount/branche/grootte/score) ingeklapt zodat
+  // de belronde-toolbar op een laptop één regel blijft.
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const extraFilterCount =
+    (ownerFilter !== "all" ? 1 : 0) +
+    (discountFilter !== "all" ? 1 : 0) +
+    (industryFilter ? 1 : 0) +
+    (sizeFilter !== "all" ? 1 : 0) +
+    (minScoreFilter ? 1 : 0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showColumnManager, setShowColumnManager] = useState(false);
   const [showCreateList, setShowCreateList] = useState(false);
@@ -546,6 +557,25 @@ export function CrmView({
     }, 500);
     return () => clearTimeout(t);
   }, [visible, order, widths]);
+
+  // View-preset: zet zichtbare kolommen + volgorde in één klik. Persistentie
+  // loopt via de bestaande debounced prefs-effect hierboven.
+  const activePreset = useMemo<ColumnPresetKey | null>(() => {
+    const current = [...visible].sort().join(",");
+    for (const key of Object.keys(COLUMN_PRESETS) as ColumnPresetKey[]) {
+      const cols = [...COLUMN_PRESETS[key].columns].sort().join(",");
+      if (cols === current) return key;
+    }
+    return null;
+  }, [visible]);
+
+  function applyPreset(key: ColumnPresetKey) {
+    const preset = COLUMN_PRESETS[key];
+    const cols = preset.columns as string[];
+    setVisible(cols);
+    setOrder((prev) => [...cols, ...prev.filter((c) => !cols.includes(c))]);
+    if (preset.widths) setWidths((prev) => ({ ...prev, ...preset.widths }));
+  }
 
   // Kolom-resize: drag op de rechterrand van een header. Pointer-events zodat
   // het ook buiten de cel doorloopt. Klemt tussen min/max.
@@ -985,55 +1015,77 @@ export function CrmView({
                 label: u.name,
               }))}
             />
-            <FilterSelect
-              value={ownerFilter}
-              onChange={setOwnerFilter}
-              label="Alle account owners"
-              specialNone="Zonder owner"
-              options={affiliates.map((a) => ({
-                value: a.id,
-                label: `${a.name} (${a.code})`,
-              }))}
-            />
-            <FilterSelect
-              value={discountFilter}
-              onChange={setDiscountFilter}
-              label="Alle discount-codes"
-              specialNone="Zonder code"
-              options={discountCodes.map((d) => ({
-                value: d.id,
-                label: d.code,
-              }))}
-            />
-            {/* GTM-targeting op prospect-verrijking */}
-            <FilterSelect
-              value={industryFilter || "all"}
-              onChange={(v) => setIndustryFilter(v === "all" ? "" : v)}
-              label="Alle branches"
-              options={MKB_BRANCHES.map((b) => ({ value: b, label: b }))}
-            />
-            <FilterSelect
-              value={sizeFilter}
-              onChange={setSizeFilter}
-              label="Alle groottes"
-              options={[
-                { value: "1-10", label: "1-10" },
-                { value: "11-50", label: "11-50" },
-                { value: "51-200", label: "51-200" },
-                { value: "201-1000", label: "201-1000" },
-                { value: "1000+", label: "1000+" },
-              ]}
-            />
-            <input
-              type="number"
-              value={minScoreFilter}
-              onChange={(e) => setMinScoreFilter(e.target.value)}
-              placeholder="Min. score"
-              min={0}
-              max={100}
-              className="w-24 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-2 text-sm outline-none focus:border-[color:var(--orange)]"
+            <button
+              onClick={() => setShowMoreFilters((v) => !v)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-2 text-xs font-semibold",
+                showMoreFilters || extraFilterCount > 0
+                  ? "text-[color:var(--navy)]"
+                  : "text-[color:var(--text-muted)]",
+              )}
               style={{ background: "var(--bg)" }}
-            />
+              title="Account owner, discount-code, branche, grootte en score"
+            >
+              Meer filters
+              {extraFilterCount > 0 && (
+                <span className="rounded-full bg-[color:var(--orange)] px-1.5 text-[0.625rem] font-bold text-white">
+                  {extraFilterCount}
+                </span>
+              )}
+            </button>
+            {showMoreFilters && (
+              <>
+                <FilterSelect
+                  value={ownerFilter}
+                  onChange={setOwnerFilter}
+                  label="Alle account owners"
+                  specialNone="Zonder owner"
+                  options={affiliates.map((a) => ({
+                    value: a.id,
+                    label: `${a.name} (${a.code})`,
+                  }))}
+                />
+                <FilterSelect
+                  value={discountFilter}
+                  onChange={setDiscountFilter}
+                  label="Alle discount-codes"
+                  specialNone="Zonder code"
+                  options={discountCodes.map((d) => ({
+                    value: d.id,
+                    label: d.code,
+                  }))}
+                />
+                {/* GTM-targeting op prospect-verrijking */}
+                <FilterSelect
+                  value={industryFilter || "all"}
+                  onChange={(v) => setIndustryFilter(v === "all" ? "" : v)}
+                  label="Alle branches"
+                  options={MKB_BRANCHES.map((b) => ({ value: b, label: b }))}
+                />
+                <FilterSelect
+                  value={sizeFilter}
+                  onChange={setSizeFilter}
+                  label="Alle groottes"
+                  options={[
+                    { value: "1-10", label: "1-10" },
+                    { value: "11-50", label: "11-50" },
+                    { value: "51-200", label: "51-200" },
+                    { value: "201-1000", label: "201-1000" },
+                    { value: "1000+", label: "1000+" },
+                  ]}
+                />
+                <input
+                  type="number"
+                  value={minScoreFilter}
+                  onChange={(e) => setMinScoreFilter(e.target.value)}
+                  placeholder="Min. score"
+                  min={0}
+                  max={100}
+                  className="w-24 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-2 text-sm outline-none focus:border-[color:var(--orange)]"
+                  style={{ background: "var(--bg)" }}
+                />
+              </>
+            )}
             <div className="ml-auto flex items-center gap-2">
               <div className="inline-flex rounded-lg border border-[color:var(--border-soft)] bg-white p-0.5">
                 <button
@@ -1087,6 +1139,25 @@ export function CrmView({
                 <UserPlus className="size-3.5" strokeWidth={2.2} />
                 Volledig form
               </button>
+              <div
+                className="inline-flex rounded-lg border border-[color:var(--border-soft)] bg-white p-0.5"
+                title="Kolom-preset: wissel tussen belronde- en beheer-weergave"
+              >
+                {(Object.keys(COLUMN_PRESETS) as ColumnPresetKey[]).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => applyPreset(key)}
+                    className={cn(
+                      "rounded px-2 py-1 text-xs font-semibold",
+                      activePreset === key
+                        ? "bg-[color:var(--bg-deep)] text-[color:var(--navy)]"
+                        : "text-[color:var(--text-muted)]",
+                    )}
+                  >
+                    {COLUMN_PRESETS[key].label}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={() => setShowColumnManager(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-2.5 py-1.5 text-xs font-semibold"

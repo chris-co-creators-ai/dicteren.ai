@@ -34,25 +34,102 @@ export type ColumnKey =
   | "linkedinUrl"
   | "revenueRange";
 
+// Bel-set: past zonder horizontale scroll op een 1440-scherm (container
+// ±1150px incl. checkbox- en actie-kolom). De Klant-kolom toont bij prospects
+// al het bedrijf; temperatuur en de klant-economie-kolommen zitten in de
+// Klantbeheer-preset.
 export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
   "customer",
+  "city",
   "stage",
-  "temperature",
   "assignee",
   "action",
   "disposition",
   "nextAction",
-  "segment",
-  "trial",
-  "mollie",
-  "discount",
-  "mails",
-  "licenses",
-  "memberSince",
-  "accountOwner",
-  "discountCode",
-  "lists",
 ];
+
+// Strakkere breedtes voor de belronde zodat de 7 kolommen samen onder de
+// ±1036px datakolom-ruimte van een 1440-scherm blijven.
+export const BELRONDE_WIDTHS: Record<string, number> = {
+  customer: 220,
+  city: 100,
+  stage: 110,
+  assignee: 120,
+  action: 140,
+  disposition: 130,
+  nextAction: 150,
+};
+
+// View-presets: één klik wisselt de zichtbare kolommen. Schrijft naar dezelfde
+// per-user column-prefs als de kolom-manager.
+export type ColumnPresetKey = "belronde" | "klantbeheer" | "alles";
+
+export const COLUMN_PRESETS: Record<
+  ColumnPresetKey,
+  { label: string; columns: ColumnKey[]; widths?: Record<string, number> }
+> = {
+  belronde: {
+    label: "Belronde",
+    columns: DEFAULT_VISIBLE_COLUMNS,
+    widths: BELRONDE_WIDTHS,
+  },
+  klantbeheer: {
+    label: "Klantbeheer",
+    columns: [
+      "customer",
+      "stage",
+      "temperature",
+      "assignee",
+      "action",
+      "disposition",
+      "nextAction",
+      "segment",
+      "trial",
+      "mollie",
+      "discount",
+      "mails",
+      "licenses",
+      "memberSince",
+      "accountOwner",
+      "discountCode",
+      "lists",
+    ],
+  },
+  alles: {
+    label: "Alles",
+    columns: [
+      "customer",
+      "stage",
+      "temperature",
+      "assignee",
+      "action",
+      "disposition",
+      "nextAction",
+      "segment",
+      "trial",
+      "mollie",
+      "discount",
+      "mails",
+      "licenses",
+      "memberSince",
+      "accountOwner",
+      "discountCode",
+      "lists",
+      "niche",
+      "industry",
+      "companySize",
+      "reach",
+      "leadScore",
+      "jobTitle",
+      "seniority",
+      "city",
+      "companyName",
+      "companyDomain",
+      "linkedinUrl",
+      "revenueRange",
+    ],
+  },
+};
 
 export const COLUMN_LABELS: Record<ColumnKey, string> = {
   customer: "Klant",

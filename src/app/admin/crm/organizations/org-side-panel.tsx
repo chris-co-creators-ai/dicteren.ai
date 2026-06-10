@@ -22,6 +22,10 @@ import {
   type ActivityType,
   type ActivityDirection,
 } from "@/lib/config/crmActivity";
+import {
+  dispositionsByGroup,
+  DISPOSITION_BY_KEY,
+} from "@/lib/services/crmCallDisposition";
 import { NL_PROVINCES } from "@/lib/services/nlProvinces";
 import { toast } from "sonner";
 
@@ -99,6 +103,7 @@ const STATUSES = [
 ];
 
 const TABS = [
+  { key: "gesprek", label: "Gesprek" },
   { key: "details", label: "Details" },
   { key: "belscript", label: "Belscript" },
   { key: "faq", label: "FAQ" },
@@ -147,7 +152,7 @@ export function OrgSidePanel({
   onChanged,
   docked = false,
 }: Props) {
-  const [tab, setTab] = useState<TabKey>("details");
+  const [tab, setTab] = useState<TabKey>("gesprek");
   const [org, setOrg] = useState<Org | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -254,7 +259,7 @@ export function OrgSidePanel({
                 key={t.key}
                 type="button"
                 onClick={() => setTab(t.key)}
-                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                className={`whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
                   tab === t.key
                     ? "bg-[color:var(--navy)] text-white"
                     : "text-[color:var(--text-muted)] hover:bg-[color:var(--bg)]"
@@ -276,7 +281,17 @@ export function OrgSidePanel({
           <DetailsTab org={org} admins={admins} onSave={patchOrg} />
         ) : (
           <div className="scroll-visible min-h-0 flex-1 overflow-y-auto px-4 py-3">
-            {tab === "belscript" ? (
+            {tab === "gesprek" ? (
+              <GesprekTab
+                orgId={orgId}
+                org={org}
+                contacts={contacts}
+                events={events}
+                onChanged={loadAll}
+                onParentChanged={onChanged}
+                onOpenTab={setTab}
+              />
+            ) : tab === "belscript" ? (
               <BelscriptTab org={org} onSave={patchOrg} />
             ) : tab === "faq" ? (
               <FaqTab />
@@ -1344,6 +1359,313 @@ function PaymentTab({
 
 // ───── Timeline tab ─────
 
+// ───── Gesprek-tab (bel-cockpit) ─────
+//
+// Default-tab van het panel. Alles wat een AM tijdens een telefoongesprek
+// nodig heeft op één scherm: contact + tel-link, snel notuleren (één vrij
+// veld, geen verplichte keuzes), dispositie, taak-voor-mij en de laatste
+// interacties. Hergebruikt de bestaande routes; geen nieuw schema.
+function GesprekTab({
+  orgId,
+  org,
+  contacts,
+  events,
+  onChanged,
+  onParentChanged,
+  onOpenTab,
+}: {
+  orgId: string;
+  org: Org;
+  contacts: Contact[];
+  events: TimelineEvent[];
+  onChanged: () => void;
+  onParentChanged: () => void;
+  onOpenTab: (tab: TabKey) => void;
+}) {
+  const [note, setNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [dispoKey, setDispoKey] = useState("");
+  const [dispoDue, setDispoDue] = useState("");
+  const [savingDispo, setSavingDispo] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDue, setTaskDue] = useState("");
+  const [savingTask, setSavingTask] = useState(false);
+
+  const primary = contacts.find((c) => c.isPrimary) ?? contacts[0] ?? null;
+  const recentInteractions = events
+    .filter((e) => e.kind === "interaction_logged")
+    .slice(0, 3);
+  const needsDate =
+    dispoKey && DISPOSITION_BY_KEY[dispoKey]?.dateMode === "am_choice";
+
+  async function saveNote() {
+    if (!note.trim()) return;
+    setSavingNote(true);
+    const res = await fetch(
+      `/api/admin/crm/organizations/${orgId}/interactions`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          type: "call",
+          direction: "outbound",
+          note: note.trim(),
+        }),
+      },
+    );
+    setSavingNote(false);
+    if (!res.ok) {
+      toast.error("Notitie niet opgeslagen");
+      return;
+    }
+    setNote("");
+    onChanged();
+  }
+
+  async function applyDispo() {
+    if (!dispoKey) return;
+    setSavingDispo(true);
+    const res = await fetch(
+      `/api/admin/crm/organizations/${orgId}/disposition`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          dispositionKey: dispoKey,
+          ...(needsDate && dispoDue ? { dueAt: dispoDue } : {}),
+        }),
+      },
+    );
+    setSavingDispo(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error ?? "Dispositie niet opgeslagen");
+      return;
+    }
+    setDispoKey("");
+    setDispoDue("");
+    onChanged();
+    onParentChanged();
+  }
+
+  async function addMyTask() {
+    if (!taskTitle.trim()) return;
+    setSavingTask(true);
+    const res = await fetch(`/api/admin/crm/organizations/${orgId}/tasks`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: taskTitle.trim(),
+        kind: "follow_up",
+        dueAt: taskDue || null,
+      }),
+    });
+    setSavingTask(false);
+    if (!res.ok) {
+      toast.error("Taak niet aangemaakt");
+      return;
+    }
+    setTaskTitle("");
+    setTaskDue("");
+    onChanged();
+  }
+
+  return (
+    <div className="space-y-2 text-sm">
+      {/* Contact-kop: wie bel je + direct bellen */}
+      <Section title="Contact">
+        {primary ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-semibold text-[color:var(--navy)]">
+              {primary.name}
+            </span>
+            {primary.roleAtCompany && (
+              <span className="text-xs text-[color:var(--text-muted)]">
+                {primary.roleAtCompany}
+              </span>
+            )}
+            {org.city && (
+              <span className="text-xs text-[color:var(--text-muted)]">
+                {org.city}
+              </span>
+            )}
+            {primary.phone ? (
+              <a
+                href={`tel:${primary.phone}`}
+                className="inline-flex items-center gap-1 rounded-md bg-[color:var(--navy)] px-2 py-1 text-xs font-bold text-white"
+              >
+                <Phone className="size-3" strokeWidth={2.4} />
+                {primary.phone}
+              </a>
+            ) : (
+              <span className="text-xs text-[color:var(--text-muted)]">
+                Geen telefoonnummer
+              </span>
+            )}
+            {primary.email && (
+              <a
+                href={`mailto:${primary.email}`}
+                className="text-xs text-[color:var(--text-muted)] underline"
+              >
+                {primary.email}
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[color:var(--text-muted)]">
+              Nog geen contactpersoon.
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenTab("contacts")}
+              className="rounded-md border bg-white px-2 py-1 text-xs font-semibold"
+              style={{ borderColor: "var(--border)" }}
+            >
+              Contact toevoegen
+            </button>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => onOpenTab("belscript")}
+            className="rounded-md border bg-white px-2 py-1 text-xs font-semibold"
+            style={{ borderColor: "var(--border)" }}
+          >
+            Open belscript
+          </button>
+          {org.nextAction && (
+            <span className="text-xs text-[color:var(--text-muted)]">
+              Volgende actie: {org.nextAction}
+              {org.nextActionAt ? ` · ${fmtDate(org.nextActionAt)}` : ""}
+            </span>
+          )}
+        </div>
+      </Section>
+
+      {/* Snel notuleren: één vrij veld, direct opslaan */}
+      <Section title="Notuleren">
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          autoFocus
+          rows={3}
+          placeholder="Typ mee tijdens het gesprek… (opslaan logt een bel-notitie)"
+          className="w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
+          style={{ borderColor: "var(--border)" }}
+        />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={saveNote}
+            disabled={savingNote || !note.trim()}
+            className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+            style={{ background: "#FF8441" }}
+          >
+            Notitie opslaan
+          </button>
+        </div>
+      </Section>
+
+      {/* Dispositie: zelfde SSOT als de lijst-kolom */}
+      <Section title="Uitkomst van dit gesprek">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={dispoKey}
+            onChange={(e) => setDispoKey(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border bg-white px-2.5 py-1.5 text-sm"
+            style={{ borderColor: "var(--border)" }}
+          >
+            <option value="">Kies een uitkomst…</option>
+            {dispositionsByGroup().map((g) => (
+              <optgroup key={g.group} label={g.label}>
+                {g.items.map((d) => (
+                  <option key={d.key} value={d.key}>
+                    {d.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          {needsDate && (
+            <input
+              type="date"
+              value={dispoDue}
+              onChange={(e) => setDispoDue(e.target.value)}
+              className="rounded-lg border bg-white px-2.5 py-1.5 text-sm"
+              style={{ borderColor: "var(--border)" }}
+            />
+          )}
+          <button
+            type="button"
+            onClick={applyDispo}
+            disabled={savingDispo || !dispoKey || (Boolean(needsDate) && !dispoDue)}
+            className="rounded-lg bg-[color:var(--navy)] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+          >
+            Vastleggen
+          </button>
+        </div>
+        <p className="text-[10px] text-[color:var(--text-muted)]">
+          Zet automatisch de vervolgtaak en de volgende actie.
+        </p>
+      </Section>
+
+      {/* Taak voor mij: één regel */}
+      <Section title="Taak voor mij">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={taskTitle}
+            onChange={(e) => setTaskTitle(e.target.value)}
+            placeholder="Bijv. offerte nasturen"
+            className="min-w-0 flex-1 rounded-lg border bg-white px-2.5 py-1.5 text-sm"
+            style={{ borderColor: "var(--border)" }}
+          />
+          <input
+            type="date"
+            value={taskDue}
+            onChange={(e) => setTaskDue(e.target.value)}
+            className="rounded-lg border bg-white px-2.5 py-1.5 text-sm"
+            style={{ borderColor: "var(--border)" }}
+          />
+          <button
+            type="button"
+            onClick={addMyTask}
+            disabled={savingTask || !taskTitle.trim()}
+            className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+            style={{ background: "#FF8441" }}
+          >
+            Toevoegen
+          </button>
+        </div>
+      </Section>
+
+      {/* Laatste gesprekken met inhoud */}
+      <Section title="Laatste interacties">
+        {recentInteractions.length === 0 ? (
+          <p className="text-xs text-[color:var(--text-muted)]">
+            Nog geen interacties gelogd.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {recentInteractions.map((e) => (
+              <InteractionRow key={e.id} event={e} />
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => onOpenTab("timeline")}
+          className="text-xs font-semibold text-[color:var(--text-muted)] underline"
+        >
+          Volledige timeline
+        </button>
+      </Section>
+    </div>
+  );
+}
+
 function TimelineTab({
   events,
   orgId,
@@ -1402,8 +1724,9 @@ function TimelineTab({
   );
 }
 
-// Een handmatig gelogde interactie (kind="interaction_logged"): type + richting
-// + resultaat uit de payload, leesbaar weergegeven met het label uit de SSOT.
+// Een gelogde interactie (kind="interaction_logged"). Twee payload-vormen:
+// handmatig gelogd ({type, direction, outcome, note}) of een dispositie vanuit
+// de lijst-kolom of de Gesprek-tab ({disposition, label, group, dueAt}).
 function InteractionRow({ event }: { event: TimelineEvent }) {
   const p = (event.payload ?? {}) as {
     type?: string;
@@ -1411,8 +1734,14 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
     outcome?: string | null;
     note?: string | null;
     occurredAt?: string | null;
+    disposition?: string;
+    label?: string;
+    dueAt?: string | null;
   };
   const type = p.type as ActivityType | undefined;
+  const dispositionLabel2 =
+    p.label ??
+    (p.disposition ? DISPOSITION_BY_KEY[p.disposition]?.label : undefined);
   return (
     <div
       className="rounded-lg border bg-white p-3"
@@ -1420,7 +1749,7 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
     >
       <div className="flex items-center justify-between text-xs">
         <span className="font-bold text-[color:var(--navy)]">
-          {type ? activityTypeLabel(type) : "Interactie"}
+          {type ? activityTypeLabel(type) : dispositionLabel2 ?? "Interactie"}
           {p.direction
             ? ` · ${directionLabel(p.direction as ActivityDirection)}`
             : ""}
