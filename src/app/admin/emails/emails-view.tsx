@@ -95,6 +95,7 @@ export function EmailsView({
   categoryStats: { category: string; count: number }[];
 }) {
   const [tab, setTab] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [drawer, setDrawer] = useState<EmailRow | null>(null);
 
@@ -102,6 +103,7 @@ export function EmailsView({
     () =>
       emails.filter((r) => {
         if (!matchesTab(r, tab)) return false;
+        if (categoryFilter && r.category !== categoryFilter) return false;
         if (search) {
           const q = search.toLowerCase();
           return (
@@ -113,7 +115,7 @@ export function EmailsView({
         }
         return true;
       }),
-    [tab, search, emails],
+    [tab, categoryFilter, search, emails],
   );
 
   return (
@@ -148,20 +150,40 @@ export function EmailsView({
         {categoryStats.length > 0 && (
           <div className="rounded-xl border border-[color:var(--border-soft)] bg-white p-4">
             <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
-              Per categorie
+              Per categorie — klik om te filteren
             </div>
             <div className="mt-3 flex flex-wrap gap-3">
-              {categoryStats.map((c) => (
-                <span
-                  key={c.category}
-                  className="inline-flex items-center gap-2 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] px-2.5 py-1 text-xs"
+              {categoryStats.map((c) => {
+                const active = categoryFilter === c.category;
+                return (
+                  <button
+                    key={c.category}
+                    onClick={() =>
+                      setCategoryFilter(active ? null : c.category)
+                    }
+                    className={
+                      active
+                        ? "inline-flex items-center gap-2 rounded-md border border-[color:var(--navy)] bg-[color:var(--navy)] px-2.5 py-1 text-xs text-white"
+                        : "inline-flex items-center gap-2 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] px-2.5 py-1 text-xs hover:border-[color:var(--navy)]"
+                    }
+                  >
+                    <span className="font-semibold">
+                      {CATEGORY_LABEL[c.category] ?? c.category}
+                    </span>
+                    <span className={active ? "text-white/80" : "text-[color:var(--text-muted)]"}>
+                      {c.count}
+                    </span>
+                  </button>
+                );
+              })}
+              {categoryFilter && (
+                <button
+                  onClick={() => setCategoryFilter(null)}
+                  className="text-xs font-semibold text-[color:var(--text-muted)] underline"
                 >
-                  <span className="font-semibold">
-                    {CATEGORY_LABEL[c.category] ?? c.category}
-                  </span>
-                  <span className="text-[color:var(--text-muted)]">{c.count}</span>
-                </span>
-              ))}
+                  Filter wissen
+                </button>
+              )}
             </div>
           </div>
         )}
