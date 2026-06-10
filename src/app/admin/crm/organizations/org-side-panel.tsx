@@ -24,6 +24,7 @@ import {
 } from "@/lib/config/crmActivity";
 import {
   dispositionsByGroup,
+  dispositionLabel,
   DISPOSITION_BY_KEY,
 } from "@/lib/services/crmCallDisposition";
 import { NL_PROVINCES } from "@/lib/services/nlProvinces";
@@ -62,6 +63,7 @@ type Org = {
   industry: string | null;
   callScript: string | null;
   resellerNotes: string | null;
+  doNotCall: boolean;
 };
 
 type Contact = {
@@ -134,6 +136,11 @@ function fmtCents(cents: number | null): string {
   }).format(cents / 100);
 }
 
+/** tel:-href mag alleen cijfers, +, spaties en streepjes bevatten. */
+function sanitizePhone(raw: string): string {
+  return raw.replace(/[^0-9+\- ()]/g, "");
+}
+
 function fmtDate(iso: string | null, includeTime = false): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -157,25 +164,27 @@ export function OrgSidePanel({
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
-    const [orgRes, contactsRes, timelineRes, tasksRes] = await Promise.all([
-      fetch(`/api/admin/crm/organizations/${orgId}`),
-      fetch(`/api/admin/crm/organizations/${orgId}/contacts`),
-      fetch(`/api/admin/crm/organizations/${orgId}/timeline`),
-      fetch(`/api/admin/crm/organizations/${orgId}/tasks`),
-    ]);
-    const orgJson = await orgRes.json();
-    const contactsJson = await contactsRes.json();
-    const timelineJson = await timelineRes.json();
-    const tasksJson = await tasksRes.json();
-    if (orgJson.success) setOrg(orgJson.data);
-    if (contactsJson.success) setContacts(contactsJson.data);
-    if (timelineJson.success) setEvents(timelineJson.data);
-    if (tasksJson.success) setTasks(tasksJson.data);
-    setLoading(false);
+    try {
+      const [orgRes, contactsRes, timelineRes, tasksRes] = await Promise.all([
+        fetch(`/api/admin/crm/organizations/${orgId}`),
+        fetch(`/api/admin/crm/organizations/${orgId}/contacts`),
+        fetch(`/api/admin/crm/organizations/${orgId}/timeline`),
+        fetch(`/api/admin/crm/organizations/${orgId}/tasks`),
+      ]);
+      const orgJson = await orgRes.json();
+      const contactsJson = await contactsRes.json();
+      const timelineJson = await timelineRes.json();
+      const tasksJson = await tasksRes.json();
+      if (orgJson.success) setOrg(orgJson.data);
+      else toast.error("Organisatie niet gevonden (mogelijk verwijderd)");
+      if (contactsJson.success) setContacts(contactsJson.data);
+      if (timelineJson.success) setEvents(timelineJson.data);
+      if (tasksJson.success) setTasks(tasksJson.data);
+    } catch {
+      toast.error("Gegevens laden mislukt");
+    }
   }, [orgId]);
 
   useEffect(() => {
@@ -272,8 +281,10 @@ export function OrgSidePanel({
         </div>
 
         {/* Body — Details regelt z'n eigen scroll + vaste Opslaan-voet;
-            de overige tabs scrollen in dit middenvlak */}
-        {loading || !org ? (
+            de overige tabs scrollen in dit middenvlak. De gate hangt op !org
+            (niet op loading): een refetch na een save mag de actieve tab niet
+            unmounten, anders verliest een AM z'n half getypte notitie. */}
+        {!org ? (
           <div className="flex-1 px-4 py-12 text-center text-sm text-[color:var(--text-muted)]">
             Laden...
           </div>
@@ -1399,75 +1410,94 @@ function GesprekTab({
     dispoKey && DISPOSITION_BY_KEY[dispoKey]?.dateMode === "am_choice";
 
   async function saveNote() {
-    if (!note.trim()) return;
+    if (!note.trim() || savingNote) return;
     setSavingNote(true);
-    const res = await fetch(
-      `/api/admin/crm/organizations/${orgId}/interactions`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          type: "call",
-          direction: "outbound",
-          note: note.trim(),
-        }),
-      },
-    );
-    setSavingNote(false);
-    if (!res.ok) {
-      toast.error("Notitie niet opgeslagen");
-      return;
+    try {
+      const res = await fetch(
+        `/api/admin/crm/organizations/${orgId}/interactions`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            type: "call",
+            direction: "outbound",
+            note: note.trim(),
+          }),
+        },
+      );
+      if (!res.ok) {
+        toast.error("Notitie niet opgeslagen");
+        return;
+      }
+      setNote("");
+      onChanged();
+    } catch {
+      toast.error("Notitie niet opgeslagen (netwerkfout)");
+    } finally {
+      setSavingNote(false);
     }
-    setNote("");
-    onChanged();
   }
 
   async function applyDispo() {
-    if (!dispoKey) return;
+    if (!dispoKey || savingDispo) return;
     setSavingDispo(true);
-    const res = await fetch(
-      `/api/admin/crm/organizations/${orgId}/disposition`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          dispositionKey: dispoKey,
-          ...(needsDate && dispoDue ? { dueAt: dispoDue } : {}),
-        }),
-      },
-    );
-    setSavingDispo(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      toast.error(data?.error ?? "Dispositie niet opgeslagen");
-      return;
+    try {
+      const res = await fetch(
+        `/api/admin/crm/organizations/${orgId}/disposition`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            dispositionKey: dispoKey,
+            // Zelfde serialisatie als DispositionPicker in de lijst: ISO.
+            ...(needsDate && dispoDue
+              ? { dueAt: new Date(dispoDue).toISOString() }
+              : {}),
+          }),
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error ?? "Dispositie niet opgeslagen");
+        return;
+      }
+      setDispoKey("");
+      setDispoDue("");
+      onChanged();
+      onParentChanged();
+    } catch {
+      toast.error("Dispositie niet opgeslagen (netwerkfout)");
+    } finally {
+      setSavingDispo(false);
     }
-    setDispoKey("");
-    setDispoDue("");
-    onChanged();
-    onParentChanged();
   }
 
   async function addMyTask() {
-    if (!taskTitle.trim()) return;
+    if (!taskTitle.trim() || savingTask) return;
     setSavingTask(true);
-    const res = await fetch(`/api/admin/crm/organizations/${orgId}/tasks`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        title: taskTitle.trim(),
-        kind: "follow_up",
-        dueAt: taskDue || null,
-      }),
-    });
-    setSavingTask(false);
-    if (!res.ok) {
-      toast.error("Taak niet aangemaakt");
-      return;
+    try {
+      const res = await fetch(`/api/admin/crm/organizations/${orgId}/tasks`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: taskTitle.trim(),
+          kind: "follow_up",
+          dueAt: taskDue ? new Date(taskDue).toISOString() : null,
+        }),
+      });
+      if (!res.ok) {
+        toast.error("Taak niet aangemaakt");
+        return;
+      }
+      setTaskTitle("");
+      setTaskDue("");
+      onChanged();
+      onParentChanged();
+    } catch {
+      toast.error("Taak niet aangemaakt (netwerkfout)");
+    } finally {
+      setSavingTask(false);
     }
-    setTaskTitle("");
-    setTaskDue("");
-    onChanged();
   }
 
   return (
@@ -1489,9 +1519,13 @@ function GesprekTab({
                 {org.city}
               </span>
             )}
-            {primary.phone ? (
+            {org.doNotCall ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-1 text-xs font-bold text-red-700">
+                ⛔ Niet bellen (opt-out)
+              </span>
+            ) : primary.phone ? (
               <a
-                href={`tel:${primary.phone}`}
+                href={`tel:${sanitizePhone(primary.phone)}`}
                 className="inline-flex items-center gap-1 rounded-md bg-[color:var(--navy)] px-2 py-1 text-xs font-bold text-white"
               >
                 <Phone className="size-3" strokeWidth={2.4} />
@@ -1549,7 +1583,6 @@ function GesprekTab({
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          autoFocus
           rows={3}
           placeholder="Typ mee tijdens het gesprek… (opslaan logt een bel-notitie)"
           className="w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
@@ -1568,8 +1601,15 @@ function GesprekTab({
         </div>
       </Section>
 
-      {/* Dispositie: zelfde SSOT als de lijst-kolom */}
+      {/* Dispositie: zelfde SSOT als de lijst-kolom. Bij do_not_call is
+          dispositioneren geblokkeerd — net als de lijst-kolom dat doet. */}
       <Section title="Uitkomst van dit gesprek">
+        {org.doNotCall ? (
+          <p className="text-xs font-semibold text-red-700">
+            ⛔ Deze organisatie staat op niet-bellen. Geen disposities mogelijk.
+          </p>
+        ) : (
+        <>
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={dispoKey}
@@ -1609,6 +1649,8 @@ function GesprekTab({
         <p className="text-[10px] text-[color:var(--text-muted)]">
           Zet automatisch de vervolgtaak en de volgende actie.
         </p>
+        </>
+        )}
       </Section>
 
       {/* Taak voor mij: één regel */}
@@ -1739,9 +1781,8 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
     dueAt?: string | null;
   };
   const type = p.type as ActivityType | undefined;
-  const dispositionLabel2 =
-    p.label ??
-    (p.disposition ? DISPOSITION_BY_KEY[p.disposition]?.label : undefined);
+  const dispoLabel =
+    p.label ?? (p.disposition ? dispositionLabel(p.disposition) : undefined);
   return (
     <div
       className="rounded-lg border bg-white p-3"
@@ -1749,7 +1790,7 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
     >
       <div className="flex items-center justify-between text-xs">
         <span className="font-bold text-[color:var(--navy)]">
-          {type ? activityTypeLabel(type) : dispositionLabel2 ?? "Interactie"}
+          {type ? activityTypeLabel(type) : dispoLabel ?? "Interactie"}
           {p.direction
             ? ` · ${directionLabel(p.direction as ActivityDirection)}`
             : ""}

@@ -414,6 +414,19 @@ export async function applyDisposition(args: {
 }): Promise<{ taskId: string | null; nextActionAt: Date | null }> {
   const d = DISPOSITION_BY_KEY[args.dispositionKey];
   if (!d) throw new Error(`Onbekende dispositie: ${args.dispositionKey}`);
+
+  // Opt-out-guard: een org op niet-bellen accepteert geen disposities meer.
+  // De UI (lijst-kolom én Gesprek-tab) blokkeert dit al; dit is de server-gate.
+  const [orgRow] = await db
+    .select({ doNotCall: crmOrganizations.doNotCall })
+    .from(crmOrganizations)
+    .where(eq(crmOrganizations.id, args.orgId))
+    .limit(1);
+  if (!orgRow) throw new Error("Organisatie niet gevonden");
+  if (orgRow.doNotCall) {
+    throw new Error("Organisatie staat op niet-bellen (opt-out)");
+  }
+
   const now = new Date();
 
   // Due-datum van de vervolgtaak bepalen.

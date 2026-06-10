@@ -49,13 +49,24 @@ export async function POST(
 
   const dueAtRaw = body.dueAt as string | undefined;
   const dueAt = dueAtRaw ? new Date(dueAtRaw) : null;
+  if (dueAt && Number.isNaN(dueAt.getTime())) {
+    return NextResponse.json(
+      { success: false, error: "Ongeldige datum" },
+      { status: 400 },
+    );
+  }
+
+  // Controlled vocabulary: zelfde set als de Taken-tab-selector.
+  const TASK_KINDS = new Set(["follow_up", "email", "phone", "demo", "other"]);
+  const kindRaw = String(body.kind ?? "other");
+  const kind = TASK_KINDS.has(kindRaw) ? kindRaw : "other";
 
   const created = await addCrmOrgTask({
     actorUserId: session.user.id,
     data: {
       crmOrganizationId: orgId,
       title,
-      kind: (body.kind as string) ?? "other",
+      kind,
       dueAt,
       createdByUserId: session.user.id,
       notes: (body.notes as string | null) ?? null,

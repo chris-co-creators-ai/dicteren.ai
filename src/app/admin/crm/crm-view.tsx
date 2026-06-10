@@ -33,6 +33,7 @@ import {
 } from "./[userId]/support-actions";
 import { OrgSidePanel } from "./organizations/org-side-panel";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   COLUMN_LABELS,
   COLUMN_WIDTH_DEFAULTS,
@@ -545,14 +546,24 @@ export function CrmView({
   function colWidth(key: string): number {
     return (
       widths[key] ??
-      (activePreset === "belronde" ? BELRONDE_WIDTHS[key] : undefined) ??
+      (activePreset === "belronde"
+        ? BELRONDE_WIDTHS[key as ColumnKey]
+        : undefined) ??
       COLUMN_WIDTH_DEFAULTS[key] ??
       DEFAULT_COLUMN_WIDTH
     );
   }
 
-  // Persistier prefs bij wijziging (debounced via 500ms).
+  // Persistier prefs bij wijziging (debounced via 500ms). De eerste run wordt
+  // overgeslagen: bij mount is de state gelijk aan de server-prefs, en een
+  // write-per-pageview zou in een tweede tab opgeslagen wijzigingen
+  // terugdraaien (last-write-wins zonder merge).
+  const prefsDirtyRef = useRef(false);
   useEffect(() => {
+    if (!prefsDirtyRef.current) {
+      prefsDirtyRef.current = true;
+      return;
+    }
     const t = setTimeout(() => {
       void fetch("/api/admin/crm/column-prefs", {
         method: "PATCH",
@@ -568,9 +579,16 @@ export function CrmView({
   }, [visible, order, widths]);
 
   // View-preset: zet zichtbare kolommen + volgorde in één klik. Persistentie
-  // loopt via de bestaande debounced prefs-effect hierboven.
+  // loopt via de bestaande debounced prefs-effect hierboven. Custom-kolommen
+  // ("custom:…") staan buiten de presets: ze blijven staan bij een preset-klik
+  // en tellen niet mee in de actief-detectie. Preset-breedtes worden bewust
+  // NIET in de user-widths gemerged — colWidth past ze als render-fallback toe
+  // zolang de preset actief is, zodat eigen resizes nooit overschreven raken.
   const activePreset = useMemo<ColumnPresetKey | null>(() => {
-    const current = [...visible].sort().join(",");
+    const current = visible
+      .filter((c) => !c.startsWith("custom:"))
+      .sort()
+      .join(",");
     for (const key of Object.keys(COLUMN_PRESETS) as ColumnPresetKey[]) {
       const cols = [...COLUMN_PRESETS[key].columns].sort().join(",");
       if (cols === current) return key;
@@ -581,9 +599,8 @@ export function CrmView({
   function applyPreset(key: ColumnPresetKey) {
     const preset = COLUMN_PRESETS[key];
     const cols = preset.columns as string[];
-    setVisible(cols);
+    setVisible((prev) => [...cols, ...prev.filter((c) => c.startsWith("custom:"))]);
     setOrder((prev) => [...cols, ...prev.filter((c) => !cols.includes(c))]);
-    if (preset.widths) setWidths((prev) => ({ ...prev, ...preset.widths }));
   }
 
   // Kolom-resize: drag op de rechterrand van een header. Pointer-events zodat
@@ -705,7 +722,10 @@ export function CrmView({
   function openRecord(r: Customer) {
     if (r.kind === "prospect") {
       const orgId = r.organizationId;
-      if (!orgId) return;
+      if (!orgId) {
+        toast.error("Geen organisatie gekoppeld aan deze prospect");
+        return;
+      }
       // Toggle: zelfde rij nog eens = panel dicht.
       setDockedOrgId((cur) => (cur === orgId ? null : orgId));
     } else {
@@ -2793,28 +2813,33 @@ function CellRenderer({
         </button>
       );
     }
-    case "email":
+    case "email": {
+      // Geen querystring-smokkel (?bcc=…&body=…) de mailto-link in.
+      const cleanEmail = row.email.split("?")[0];
       return (
         <a
-          href={`mailto:${row.email}`}
+          href={`mailto:${cleanEmail}`}
           className="block truncate text-xs text-blue-600 hover:underline"
           title={row.email}
         >
           {row.email}
         </a>
       );
-    case "phone":
+    }
+    case "phone": {
       if (!row.phone)
         return <span className="text-[color:var(--text-soft)]">—</span>;
+      const cleanPhone = row.phone.replace(/[^0-9+\- ()]/g, "");
       return (
         <a
-          href={`tel:${row.phone}`}
+          href={`tel:${cleanPhone}`}
           className="block truncate text-xs font-semibold text-[color:var(--navy)] hover:underline"
           title={`Bel ${row.phone}`}
         >
           {row.phone}
         </a>
       );
+    }
     case "stage":
       return (
         <StageChip

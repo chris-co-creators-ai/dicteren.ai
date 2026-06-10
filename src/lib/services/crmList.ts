@@ -74,12 +74,15 @@ const PEOPLE_CTE = sql`
     WHERE (u.role IS NULL OR u.role NOT IN ('admin','account_manager'))
     UNION ALL
     SELECT
-      c.id::text,
-      'prospect'::text,
-      c.name,
-      c.email,
-      c.phone,
-      CASE WHEN o.name = 'Onbekende organisatie' THEN NULL ELSE o.name END,
+      -- Aliassen zijn functioneel overbodig (Postgres pakt de namen van de
+      -- eerste branch, puur positioneel) maar maken misalignment bij een
+      -- toekomstige kolom-wijziging direct zichtbaar in de diff.
+      c.id::text                         AS id,
+      'prospect'::text                   AS kind,
+      c.name                             AS name,
+      c.email                            AS email,
+      c.phone                            AS phone,
+      CASE WHEN o.name = 'Onbekende organisatie' THEN NULL ELSE o.name END AS company,
       CASE o.status
         WHEN 'lead' THEN 'lead'
         WHEN 'contacted' THEN 'prospect'
@@ -89,15 +92,15 @@ const PEOPLE_CTE = sql`
         WHEN 'won' THEN 'customer'
         WHEN 'lost' THEN 'lost'
         ELSE 'lead'
-      END,
-      o.temperature::text,
-      COALESCE(c.assigned_to_user_id, o.account_owner_id)::text,
-      c.notes,
-      c.crm_organization_id::text,
-      c.industry,
-      c.company_size_range,
-      c.lead_score,
-      c.created_at
+      END                                AS crm_stage,
+      o.temperature::text                AS temperature,
+      COALESCE(c.assigned_to_user_id, o.account_owner_id)::text AS assignee_id,
+      c.notes                            AS notes,
+      c.crm_organization_id::text        AS organization_id,
+      c.industry                         AS industry,
+      c.company_size_range               AS company_size_range,
+      c.lead_score                       AS lead_score,
+      c.created_at                       AS created_at
     FROM public.crm_contacts c
     LEFT JOIN public.crm_organizations o ON o.id = c.crm_organization_id
     WHERE c.auth_user_id IS NULL

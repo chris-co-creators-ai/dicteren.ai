@@ -54,7 +54,7 @@ export const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = [
 
 // Strakkere breedtes voor de belronde zodat de 9 kolommen samen onder de
 // ±1036px datakolom-ruimte van een 1440-scherm blijven.
-export const BELRONDE_WIDTHS: Record<string, number> = {
+export const BELRONDE_WIDTHS: Partial<Record<ColumnKey, number>> = {
   customer: 173,
   city: 80,
   email: 145,
@@ -66,78 +66,7 @@ export const BELRONDE_WIDTHS: Record<string, number> = {
   nextAction: 120,
 };
 
-// View-presets: één klik wisselt de zichtbare kolommen. Schrijft naar dezelfde
-// per-user column-prefs als de kolom-manager.
 export type ColumnPresetKey = "belronde" | "klantbeheer" | "alles";
-
-export const COLUMN_PRESETS: Record<
-  ColumnPresetKey,
-  { label: string; columns: ColumnKey[]; widths?: Record<string, number> }
-> = {
-  belronde: {
-    label: "Belronde",
-    columns: DEFAULT_VISIBLE_COLUMNS,
-    widths: BELRONDE_WIDTHS,
-  },
-  klantbeheer: {
-    label: "Klantbeheer",
-    columns: [
-      "customer",
-      "stage",
-      "temperature",
-      "assignee",
-      "action",
-      "disposition",
-      "nextAction",
-      "segment",
-      "trial",
-      "mollie",
-      "discount",
-      "mails",
-      "licenses",
-      "memberSince",
-      "accountOwner",
-      "discountCode",
-      "lists",
-    ],
-  },
-  alles: {
-    label: "Alles",
-    columns: [
-      "customer",
-      "email",
-      "phone",
-      "stage",
-      "temperature",
-      "assignee",
-      "action",
-      "disposition",
-      "nextAction",
-      "segment",
-      "trial",
-      "mollie",
-      "discount",
-      "mails",
-      "licenses",
-      "memberSince",
-      "accountOwner",
-      "discountCode",
-      "lists",
-      "niche",
-      "industry",
-      "companySize",
-      "reach",
-      "leadScore",
-      "jobTitle",
-      "seniority",
-      "city",
-      "companyName",
-      "companyDomain",
-      "linkedinUrl",
-      "revenueRange",
-    ],
-  },
-};
 
 export const COLUMN_LABELS: Record<ColumnKey, string> = {
   customer: "Klant",
@@ -171,6 +100,47 @@ export const COLUMN_LABELS: Record<ColumnKey, string> = {
   companyDomain: "Domein",
   linkedinUrl: "LinkedIn",
   revenueRange: "Omzet",
+};
+
+// View-presets: één klik wisselt de zichtbare kolommen. Schrijft naar dezelfde
+// per-user column-prefs als de kolom-manager. "alles" is afgeleid uit het
+// exhaustieve COLUMN_LABELS-record, zodat een nieuwe ColumnKey er automatisch
+// in zit (de compiler dwingt COLUMN_LABELS-volledigheid al af).
+export const COLUMN_PRESETS: Record<
+  ColumnPresetKey,
+  { label: string; columns: ColumnKey[]; widths?: Partial<Record<ColumnKey, number>> }
+> = {
+  belronde: {
+    label: "Belronde",
+    columns: DEFAULT_VISIBLE_COLUMNS,
+    widths: BELRONDE_WIDTHS,
+  },
+  klantbeheer: {
+    label: "Klantbeheer",
+    columns: [
+      "customer",
+      "stage",
+      "temperature",
+      "assignee",
+      "action",
+      "disposition",
+      "nextAction",
+      "segment",
+      "trial",
+      "mollie",
+      "discount",
+      "mails",
+      "licenses",
+      "memberSince",
+      "accountOwner",
+      "discountCode",
+      "lists",
+    ],
+  },
+  alles: {
+    label: "Alles",
+    columns: Object.keys(COLUMN_LABELS) as ColumnKey[],
+  },
 };
 
 export type ColumnPrefs = {

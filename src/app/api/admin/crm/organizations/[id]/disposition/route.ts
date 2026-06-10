@@ -32,13 +32,23 @@ export async function POST(request: Request, { params }: { params: Params }) {
 
   const dueAtRaw = body.dueAt as string | undefined;
   const dueAt = dueAtRaw ? new Date(dueAtRaw) : null;
+  if (dueAt && Number.isNaN(dueAt.getTime())) {
+    return NextResponse.json(
+      { success: false, error: "Ongeldige datum" },
+      { status: 400 },
+    );
+  }
 
-  const result = await applyDisposition({
-    orgId,
-    dispositionKey: key,
-    dueAt,
-    actorUserId: session.user.id,
-  });
-
-  return NextResponse.json({ success: true, data: result });
+  try {
+    const result = await applyDisposition({
+      orgId,
+      dispositionKey: key,
+      dueAt,
+      actorUserId: session.user.id,
+    });
+    return NextResponse.json({ success: true, data: result });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Dispositie mislukt";
+    return NextResponse.json({ success: false, error: message }, { status: 422 });
+  }
 }

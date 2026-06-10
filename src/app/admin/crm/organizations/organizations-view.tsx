@@ -572,6 +572,8 @@ const ORG_COLS: { key: string; label: string; w: number }[] = [
   { key: "contact", label: "Contact", w: 170 },
   { key: "tasks", label: "Taken", w: 60 },
 ];
+const ACTION_COL_WIDTH = 44;
+
 // Data-velden: verborgen in de compacte (default) belwerk-weergave,
 // zichtbaar via de "Alle velden"-toggle.
 const ORG_DATA_FIELD_KEYS = new Set([
@@ -605,7 +607,7 @@ function InlineOrgGrid({
   const cols = showAllFields
     ? ORG_COLS
     : ORG_COLS.filter((c) => !ORG_DATA_FIELD_KEYS.has(c.key));
-  const tableWidth = cols.reduce((s, c) => s + c.w, 0) + 44;
+  const tableWidth = cols.reduce((s, c) => s + c.w, 0) + ACTION_COL_WIDTH;
   return (
     <div
       className="overflow-x-auto rounded-xl border bg-white"
@@ -619,7 +621,7 @@ function InlineOrgGrid({
           {cols.map((c) => (
             <col key={c.key} style={{ width: c.w }} />
           ))}
-          <col style={{ width: 44 }} />
+          <col style={{ width: ACTION_COL_WIDTH }} />
         </colgroup>
         <thead>
           <tr style={{ background: "var(--bg)" }}>
@@ -643,149 +645,14 @@ function InlineOrgGrid({
         <tbody>
           {orgs.map((o) => (
             <tr key={o.id} className="group bg-white hover:bg-[color:var(--bg)]">
-              {/* Bedrijf */}
-              <Cell>
-                <GridText value={o.name} onSave={(v) => patchField(o.id, "name", v)} bold />
-              </Cell>
-              {/* Status */}
-              <Cell>
-                <select
-                  value={o.status}
-                  onChange={(e) => onStatusChange(o.id, e.target.value)}
-                  className="w-full cursor-pointer bg-transparent text-xs outline-none"
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </Cell>
-              {/* Temperatuur */}
-              <Cell>
-                <GridSelect
-                  value={o.temperature}
-                  options={TEMPS.map((t) => ({ value: t.key, label: t.label }))}
-                  onSave={(v) => patchField(o.id, "temperature", v)}
-                />
-              </Cell>
-              {/* Account manager */}
-              <Cell>
-                <GridSelect
-                  value={o.accountOwnerId}
-                  options={admins.map((a) => ({ value: a.id, label: a.name }))}
-                  onSave={(v) => patchField(o.id, "accountOwnerId", v)}
-                />
-              </Cell>
-              {showAllFields && (
-                <>
-                  {/* Branche */}
-                  <Cell>
-                    <GridSelect
-                      value={o.industry}
-                      options={MKB_BRANCHES.map((b) => ({ value: b, label: b }))}
-                      onSave={(v) => patchField(o.id, "industry", v)}
-                    />
-                  </Cell>
-                  {/* Branchevereniging */}
-                  <Cell>
-                    <GridText
-                      value={o.brancheVereniging}
-                      onSave={(v) => patchField(o.id, "brancheVereniging", v)}
-                    />
-                  </Cell>
-                  {/* Bedrijfsgrootte */}
-                  <Cell>
-                    <GridSelect
-                      value={o.companySize}
-                      options={COMPANY_SIZES.map((s) => ({ value: s, label: s }))}
-                      onSave={(v) => patchField(o.id, "companySize", v)}
-                    />
-                  </Cell>
-                  {/* Vestigingen */}
-                  <Cell>
-                    <GridNum
-                      value={o.aantalVestigingen}
-                      onSave={(v) => patchField(o.id, "aantalVestigingen", v)}
-                    />
-                  </Cell>
-                  {/* Hoofdkantoor */}
-                  <Cell>
-                    <GridText
-                      value={o.hoofdkantoor}
-                      onSave={(v) => patchField(o.id, "hoofdkantoor", v)}
-                    />
-                  </Cell>
-                </>
-              )}
-              {/* Stad */}
-              <Cell>
-                <GridText value={o.city} onSave={(v) => patchField(o.id, "city", v)} />
-              </Cell>
-              {showAllFields && (
-                <>
-                  {/* Provincie */}
-                  <Cell>
-                    <GridSelect
-                      value={o.province}
-                      options={NL_PROVINCES.map((p) => ({ value: p, label: p }))}
-                      onSave={(v) => patchField(o.id, "province", v)}
-                    />
-                  </Cell>
-                  {/* KVK */}
-                  <Cell>
-                    <GridText value={o.kvk} onSave={(v) => patchField(o.id, "kvk", v)} />
-                  </Cell>
-                  {/* BTW */}
-                  <Cell>
-                    <GridText value={o.vatNumber} onSave={(v) => patchField(o.id, "vatNumber", v)} />
-                  </Cell>
-                  {/* Specialisatie */}
-                  <Cell>
-                    <GridText
-                      value={o.specialisatie}
-                      onSave={(v) => patchField(o.id, "specialisatie", v)}
-                    />
-                  </Cell>
-                  {/* Bereik */}
-                  <Cell>
-                    <GridNum value={o.totalReach} onSave={(v) => patchField(o.id, "totalReach", v)} />
-                  </Cell>
-                </>
-              )}
-              {/* Seats */}
-              <Cell>
-                <GridNum
-                  value={o.proposedSeats}
-                  onSave={(v) => patchField(o.id, "proposedSeats", v)}
-                />
-              </Cell>
-              {/* Deal (read-only, € afgeleid) */}
-              <Cell>
-                <span className="font-semibold text-[color:var(--navy)]">
-                  {fmtCents(o.proposedAmountCents)}
-                </span>
-              </Cell>
-              {/* Contact (read-only) */}
-              <Cell>
-                {o.primaryContactName ? (
-                  <span className="truncate" title={o.primaryContactEmail ?? ""}>
-                    {o.primaryContactName}
-                  </span>
-                ) : (
-                  <span className="text-[color:var(--text-soft)]">—</span>
-                )}
-              </Cell>
-              {/* Taken (read-only) */}
-              <Cell>
-                {o.openTaskCount > 0 ? (
-                  <span className="font-semibold text-[color:var(--orange-600)]">
-                    {o.openTaskCount}
-                  </span>
-                ) : (
-                  <span className="text-[color:var(--text-soft)]">0</span>
-                )}
-              </Cell>
+              {/* Cellen komen uit dezelfde `cols`-bron als de header/colgroup,
+                  zodat filteren (Alle velden-toggle) nooit tot kolom-
+                  misalignment kan leiden. */}
+              {cols.map((c) => (
+                <Cell key={c.key}>
+                  {renderOrgCell(c.key, o, { admins, patchField, onStatusChange })}
+                </Cell>
+              ))}
               {/* Sticky actie-kolom */}
               <td
                 className="sticky right-0 z-10 h-8 border-b border-l bg-white px-1 text-center align-middle group-hover:bg-[color:var(--bg)]"
@@ -805,6 +672,148 @@ function InlineOrgGrid({
       </table>
     </div>
   );
+}
+
+// Eén renderer per kolom-key — de enige plek die weet hoe een org-cel eruitziet.
+function renderOrgCell(
+  key: string,
+  o: OrgRow,
+  ctx: {
+    admins: { id: string; name: string; email: string }[];
+    patchField: (orgId: string, field: string, value: unknown) => void;
+    onStatusChange: (orgId: string, status: string) => void;
+  },
+): React.ReactNode {
+  const { admins, patchField, onStatusChange } = ctx;
+  switch (key) {
+    case "name":
+      return <GridText value={o.name} onSave={(v) => patchField(o.id, "name", v)} bold />;
+    case "status":
+      return (
+        <select
+          value={o.status}
+          onChange={(e) => onStatusChange(o.id, e.target.value)}
+          className="w-full cursor-pointer bg-transparent text-xs outline-none"
+        >
+          {STATUSES.map((s) => (
+            <option key={s.key} value={s.key}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      );
+    case "temperature":
+      return (
+        <GridSelect
+          value={o.temperature}
+          options={TEMPS.map((t) => ({ value: t.key, label: t.label }))}
+          onSave={(v) => patchField(o.id, "temperature", v)}
+        />
+      );
+    case "owner":
+      return (
+        <GridSelect
+          value={o.accountOwnerId}
+          options={admins.map((a) => ({ value: a.id, label: a.name }))}
+          onSave={(v) => patchField(o.id, "accountOwnerId", v)}
+        />
+      );
+    case "industry":
+      return (
+        <GridSelect
+          value={o.industry}
+          options={MKB_BRANCHES.map((b) => ({ value: b, label: b }))}
+          onSave={(v) => patchField(o.id, "industry", v)}
+        />
+      );
+    case "brancheVereniging":
+      return (
+        <GridText
+          value={o.brancheVereniging}
+          onSave={(v) => patchField(o.id, "brancheVereniging", v)}
+        />
+      );
+    case "companySize":
+      return (
+        <GridSelect
+          value={o.companySize}
+          options={COMPANY_SIZES.map((s) => ({ value: s, label: s }))}
+          onSave={(v) => patchField(o.id, "companySize", v)}
+        />
+      );
+    case "aantalVestigingen":
+      return (
+        <GridNum
+          value={o.aantalVestigingen}
+          onSave={(v) => patchField(o.id, "aantalVestigingen", v)}
+        />
+      );
+    case "hoofdkantoor":
+      return (
+        <GridText
+          value={o.hoofdkantoor}
+          onSave={(v) => patchField(o.id, "hoofdkantoor", v)}
+        />
+      );
+    case "city":
+      return <GridText value={o.city} onSave={(v) => patchField(o.id, "city", v)} />;
+    case "province":
+      return (
+        <GridSelect
+          value={o.province}
+          options={NL_PROVINCES.map((p) => ({ value: p, label: p }))}
+          onSave={(v) => patchField(o.id, "province", v)}
+        />
+      );
+    case "kvk":
+      return <GridText value={o.kvk} onSave={(v) => patchField(o.id, "kvk", v)} />;
+    case "vatNumber":
+      return (
+        <GridText value={o.vatNumber} onSave={(v) => patchField(o.id, "vatNumber", v)} />
+      );
+    case "specialisatie":
+      return (
+        <GridText
+          value={o.specialisatie}
+          onSave={(v) => patchField(o.id, "specialisatie", v)}
+        />
+      );
+    case "totalReach":
+      return (
+        <GridNum value={o.totalReach} onSave={(v) => patchField(o.id, "totalReach", v)} />
+      );
+    case "proposedSeats":
+      return (
+        <GridNum
+          value={o.proposedSeats}
+          onSave={(v) => patchField(o.id, "proposedSeats", v)}
+        />
+      );
+    case "proposedAmountCents":
+      return (
+        <span className="font-semibold text-[color:var(--navy)]">
+          {fmtCents(o.proposedAmountCents)}
+        </span>
+      );
+    case "contact":
+      return o.primaryContactName ? (
+        <span className="truncate" title={o.primaryContactEmail ?? ""}>
+          {o.primaryContactName}
+        </span>
+      ) : (
+        <span className="text-[color:var(--text-soft)]">—</span>
+      );
+    case "tasks":
+      return o.openTaskCount > 0 ? (
+        <span className="font-semibold text-[color:var(--orange-600)]">
+          {o.openTaskCount}
+        </span>
+      ) : (
+        <span className="text-[color:var(--text-soft)]">0</span>
+      );
+    default:
+      return <span className="text-[color:var(--text-soft)]">—</span>;
+  }
 }
 
 function Cell({ children }: { children: React.ReactNode }) {
