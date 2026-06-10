@@ -200,7 +200,7 @@ export async function addProspect(args: {
 // (customerStage). Spiegelt STAGE_MAP zodat de Personen-tab één taal spreekt.
 const ORG_STATUS_TO_STAGE: Record<
   string,
-  "lead" | "prospect" | "mql" | "sql" | "customer" | "lost"
+  "lead" | "prospect" | "mql" | "sql" | "customer" | "lost" | "reseller"
 > = {
   lead: "lead",
   contacted: "prospect",
@@ -209,6 +209,7 @@ const ORG_STATUS_TO_STAGE: Record<
   negotiating: "sql",
   won: "customer",
   lost: "lost",
+  reseller: "reseller",
 };
 
 export type CrmProspectRow = {
@@ -218,7 +219,7 @@ export type CrmProspectRow = {
   phone: string | null;
   company: string | null;
   organizationId: string | null;
-  crmStage: "lead" | "prospect" | "mql" | "sql" | "customer" | "lost";
+  crmStage: "lead" | "prospect" | "mql" | "sql" | "customer" | "lost" | "reseller";
   crmTemperature: "cold" | "lukewarm" | "warm" | "hot" | null;
   assignedToUserId: string | null;
   notes: string | null;

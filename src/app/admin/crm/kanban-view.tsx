@@ -11,7 +11,8 @@ type CrmStage =
   | "sql"
   | "customer"
   | "lost"
-  | "churned";
+  | "churned"
+  | "reseller";
 
 type Temperature = "cold" | "lukewarm" | "warm" | "hot";
 
@@ -39,6 +40,7 @@ const COLUMNS: { key: CrmStage; label: string; color: string }[] = [
   { key: "mql", label: "MQL", color: "#A855F7" },
   { key: "sql", label: "SQL", color: "#EAB308" },
   { key: "customer", label: "Klant", color: "#22C55E" },
+  { key: "reseller", label: "Reseller", color: "#14B8A6" },
   { key: "lost", label: "Verloren", color: "#EF4444" },
   { key: "churned", label: "Churned", color: "#F97316" },
 ];

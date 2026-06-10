@@ -17,6 +17,8 @@ export const STAGE_RANK: Record<string, number> = {
   negotiating: 4,
   won: 5,
   lost: -1,
+  // Reseller-traject: parallel spoor zonder extra verplichte velden.
+  reseller: 1,
 };
 
 export type GateField = { key: string; label: string };

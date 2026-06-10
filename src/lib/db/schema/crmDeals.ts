@@ -17,6 +17,7 @@ import {
   timestamp,
   boolean,
   integer,
+  numeric,
   smallint,
   jsonb,
   pgEnum,
@@ -33,6 +34,7 @@ export const crmOrgStatus = pgEnum("crm_org_status", [
   "negotiating",    // klant heeft vragen, deal in beweging
   "won",            // eerste betaling binnen
   "lost",           // klant haakt af
+  "reseller",       // reseller-traject (onboarding-flow, migratie 0037)
 ]);
 
 export const crmOrgSource = pgEnum("crm_org_source", [
@@ -65,6 +67,7 @@ export const crmEventKind = pgEnum("crm_event_kind", [
   "task_added",
   "task_completed",
   "interaction_logged",
+  "reseller_promoted",
 ]);
 
 export const crmOrganizations = pgTable(
@@ -129,6 +132,16 @@ export const crmOrganizations = pgTable(
     // binnenhaalt, linkt dit naar de affiliate-record. FK staat in de migratie
     // (geen drizzle .references om circulaire schema-import te vermijden).
     affiliateId: uuid("affiliate_id"),
+
+    // Reseller-onboarding (migratie 0037): samenwerkings-afspraken + de
+    // affiliate die uit dit traject is gepromoveerd. FK in de migratie.
+    resellerCommissionPct: numeric("reseller_commission_pct", {
+      precision: 5,
+      scale: 2,
+    }),
+    resellerRecurring: boolean("reseller_recurring"),
+    resellerExpectedClients: integer("reseller_expected_clients"),
+    promotedAffiliateId: uuid("promoted_affiliate_id"),
 
     // Mollie + Better-Auth koppeling
     authOrganizationId: uuid("auth_organization_id").references(
@@ -311,6 +324,59 @@ export const crmOrgTasks = pgTable(
   ],
 );
 
+// Reseller-onboarding-checklist per org (migratie 0037). De AM bepaalt zelf
+// de stappen: toevoegen, hernoemen, herordenen, afvinken, verwijderen.
+export const crmResellerSteps = pgTable(
+  "crm_reseller_steps",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    crmOrganizationId: uuid("crm_organization_id")
+      .notNull()
+      .references(() => crmOrganizations.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    position: integer("position").notNull().default(0),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    doneByUserId: uuid("done_by_user_id").references(() => authUsers.id, {
+      onDelete: "set null",
+    }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("crm_reseller_steps_org_idx").on(t.crmOrganizationId, t.position),
+  ],
+);
+
+// Org-bijlagen (migratie 0037): documenten bij een reseller-/sales-org.
+// Files in R2-bucket dicteren-content onder prefix crm-orgs/ (zelfde infra
+// als kanban-taak-bijlagen).
+export const crmOrgAttachments = pgTable(
+  "crm_org_attachments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    crmOrganizationId: uuid("crm_organization_id")
+      .notNull()
+      .references(() => crmOrganizations.id, { onDelete: "cascade" }),
+    r2Key: text("r2_key").notNull(),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(
+      () => authUsers.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("crm_org_attachments_org_idx").on(t.crmOrganizationId)],
+);
+
 // Enrichment-laag (Clay-stijl) — append-only facts per (entity × field × provider).
 // Zie migratie 0020. Resolver-service kiest winnende waarde via
 // ORDER BY confidence DESC, verified_at DESC LIMIT 1.
@@ -420,3 +486,5 @@ export type CrmEnrichmentFact = typeof crmEnrichmentFacts.$inferSelect;
 export type NewCrmEnrichmentFact = typeof crmEnrichmentFacts.$inferInsert;
 export type CrmSignal = typeof crmSignals.$inferSelect;
 export type NewCrmSignal = typeof crmSignals.$inferInsert;
+export type CrmResellerStep = typeof crmResellerSteps.$inferSelect;
+export type CrmOrgAttachment = typeof crmOrgAttachments.$inferSelect;

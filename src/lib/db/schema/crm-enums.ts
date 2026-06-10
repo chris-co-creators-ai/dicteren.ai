@@ -13,6 +13,7 @@ export const customerStage = pgEnum("customer_stage", [
   "customer",
   "lost",
   "churned",
+  "reseller",
 ]);
 
 export const customerTemperature = pgEnum("customer_temperature", [

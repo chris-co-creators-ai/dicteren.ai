@@ -64,6 +64,28 @@ type Org = {
   callScript: string | null;
   resellerNotes: string | null;
   doNotCall: boolean;
+  // Reseller-onboarding (migratie 0037). numeric komt als string uit drizzle.
+  resellerCommissionPct: string | null;
+  resellerRecurring: boolean | null;
+  resellerExpectedClients: number | null;
+  promotedAffiliateId: string | null;
+};
+
+type ResellerStep = {
+  id: string;
+  title: string;
+  position: number;
+  doneAt: string | null;
+  notes: string | null;
+};
+
+type OrgAttachment = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+  downloadUrl: string;
 };
 
 type Contact = {
@@ -100,6 +122,7 @@ const STATUSES = [
   { key: "qualified", label: "Gekwalificeerd" },
   { key: "proposal_sent", label: "Betaal-link verzonden" },
   { key: "negotiating", label: "In gesprek" },
+  { key: "reseller", label: "Reseller" },
   { key: "won", label: "Klant" },
   { key: "lost", label: "Verloren" },
 ];
@@ -307,7 +330,7 @@ export function OrgSidePanel({
             ) : tab === "faq" ? (
               <FaqTab />
             ) : tab === "reseller" ? (
-              <ResellerTab org={org} onSave={patchOrg} />
+              <ResellerTab org={org} onSave={patchOrg} onChanged={loadAll} />
             ) : tab === "contacts" ? (
               <ContactsTab
                 orgId={orgId}
@@ -598,12 +621,17 @@ function FaqTab() {
   );
 }
 
+// De volledige reseller-onboarding-flow (PRD crm-reseller-flow):
+// traject starten → checklist afwerken (zelf in te delen) → afspraken
+// vastleggen → documenten delen → promoveren naar affiliate.
 function ResellerTab({
   org,
   onSave,
+  onChanged,
 }: {
   org: Org;
   onSave: (patch: Record<string, unknown>) => Promise<void>;
+  onChanged: () => void;
 }) {
   const [notes, setNotes] = useState(org.resellerNotes ?? "");
   const [saving, setSaving] = useState(false);
@@ -611,6 +639,182 @@ function ResellerTab({
   const [sendMsg, setSendMsg] = useState<string | null>(null);
   const [confirmSend, setConfirmSend] = useState(false);
   useEffect(() => setNotes(org.resellerNotes ?? ""), [org.resellerNotes]);
+
+  // Onboarding-stappen + documenten
+  const isReseller = org.status === "reseller";
+  const [steps, setSteps] = useState<ResellerStep[]>([]);
+  const [newStep, setNewStep] = useState("");
+  const [attachments, setAttachments] = useState<OrgAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+  const [confirmPromote, setConfirmPromote] = useState(false);
+  const [promoteMsg, setPromoteMsg] = useState<string | null>(null);
+
+  // Samenwerking-afspraken (lokale drafts, opslaan via PATCH org)
+  const [pct, setPct] = useState(org.resellerCommissionPct ?? "");
+  const [recurring, setRecurring] = useState(
+    org.resellerRecurring == null ? "" : org.resellerRecurring ? "ja" : "nee",
+  );
+  const [expected, setExpected] = useState(
+    org.resellerExpectedClients == null
+      ? ""
+      : String(org.resellerExpectedClients),
+  );
+  const [savingDeal, setSavingDeal] = useState(false);
+
+  const loadSteps = useCallback(async () => {
+    const res = await fetch(
+      `/api/admin/crm/organizations/${org.id}/reseller-steps`,
+    );
+    const data = await res.json().catch(() => null);
+    if (data?.success) setSteps(data.data);
+  }, [org.id]);
+
+  const loadAttachments = useCallback(async () => {
+    const res = await fetch(
+      `/api/admin/crm/organizations/${org.id}/attachments`,
+    );
+    const data = await res.json().catch(() => null);
+    if (data?.success) setAttachments(data.data);
+  }, [org.id]);
+
+  useEffect(() => {
+    if (isReseller) void loadSteps();
+    void loadAttachments();
+  }, [isReseller, loadSteps, loadAttachments]);
+
+  const doneCount = steps.filter((s) => s.doneAt).length;
+  const allDone = steps.length > 0 && doneCount === steps.length;
+
+  async function stepPatch(stepId: string, body: Record<string, unknown>) {
+    await fetch(
+      `/api/admin/crm/organizations/${org.id}/reseller-steps/${stepId}`,
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+    await loadSteps();
+  }
+
+  async function addStep() {
+    if (!newStep.trim()) return;
+    await fetch(`/api/admin/crm/organizations/${org.id}/reseller-steps`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: newStep.trim() }),
+    });
+    setNewStep("");
+    await loadSteps();
+  }
+
+  async function removeStep(stepId: string) {
+    await fetch(
+      `/api/admin/crm/organizations/${org.id}/reseller-steps/${stepId}`,
+      { method: "DELETE" },
+    );
+    await loadSteps();
+  }
+
+  /** Wissel een stap met z'n buur (↑/↓) door posities om te draaien. */
+  async function moveStep(idx: number, dir: -1 | 1) {
+    const a = steps[idx];
+    const b = steps[idx + dir];
+    if (!a || !b) return;
+    await Promise.all([
+      stepPatch(a.id, { position: b.position }),
+      stepPatch(b.id, { position: a.position }),
+    ]);
+  }
+
+  async function saveDeal() {
+    setSavingDeal(true);
+    try {
+      await onSave({
+        resellerCommissionPct: pct.trim() === "" ? null : pct.trim(),
+        resellerRecurring: recurring === "" ? null : recurring === "ja",
+        resellerExpectedClients:
+          expected.trim() === "" ? null : Number(expected),
+      });
+    } finally {
+      setSavingDeal(false);
+    }
+  }
+
+  async function uploadFile(file: File) {
+    setUploading(true);
+    try {
+      const signRes = await fetch(
+        `/api/admin/crm/organizations/${org.id}/attachments/sign`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            mimeType: file.type || "application/octet-stream",
+            sizeBytes: file.size,
+          }),
+        },
+      );
+      const sign = await signRes.json().catch(() => null);
+      if (!sign?.success) {
+        toast.error(sign?.error ?? "Upload voorbereiden mislukt");
+        return;
+      }
+      const put = await fetch(sign.data.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!put.ok) {
+        toast.error("Upload naar opslag mislukt");
+        return;
+      }
+      await fetch(`/api/admin/crm/organizations/${org.id}/attachments`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          r2Key: sign.data.key,
+          fileName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        }),
+      });
+      await loadAttachments();
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeAttachment(attId: string) {
+    await fetch(
+      `/api/admin/crm/organizations/${org.id}/attachments/${attId}`,
+      { method: "DELETE" },
+    );
+    await loadAttachments();
+  }
+
+  async function promote() {
+    setPromoting(true);
+    setPromoteMsg(null);
+    try {
+      const res = await fetch(
+        `/api/admin/crm/organizations/${org.id}/promote-affiliate`,
+        { method: "POST" },
+      );
+      const data = await res.json().catch(() => null);
+      if (!data?.success) {
+        setPromoteMsg(data?.error ?? "Promoveren mislukt");
+        return;
+      }
+      setPromoteMsg(`Affiliate aangemaakt met code ${data.data.code}.`);
+      onChanged();
+    } finally {
+      setPromoting(false);
+      setConfirmPromote(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -644,6 +848,228 @@ function ResellerTab({
 
   return (
     <div className="space-y-3">
+      {/* 1. Traject-status */}
+      {!isReseller ? (
+        <div
+          className="space-y-2 rounded-lg border bg-teal-50 p-3"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <h4 className="text-xs font-bold uppercase text-teal-800">
+            Reseller-traject
+          </h4>
+          <p className="text-xs text-[color:var(--text-muted)]">
+            Start het traject om de onboarding-checklist te krijgen
+            (partnerdeck, kennismaking, samenwerking, commissie). Zet de stage
+            op Reseller.
+          </p>
+          <button
+            type="button"
+            onClick={() => void onSave({ status: "reseller" })}
+            className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white"
+          >
+            Start reseller-traject
+          </button>
+        </div>
+      ) : (
+        <Section title={`Onboarding · ${doneCount}/${steps.length} stappen`}>
+          {/* Voortgang */}
+          <div className="h-1.5 overflow-hidden rounded-full bg-[color:var(--bg)]">
+            <div
+              className="h-full rounded-full bg-teal-500 transition-all"
+              style={{
+                width: steps.length
+                  ? `${Math.round((doneCount / steps.length) * 100)}%`
+                  : "0%",
+              }}
+            />
+          </div>
+          <ul className="space-y-1">
+            {steps.map((s, idx) => (
+              <li key={s.id} className="group flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void stepPatch(s.id, { done: !s.doneAt })}
+                  className={
+                    "grid size-4 shrink-0 place-items-center rounded border " +
+                    (s.doneAt
+                      ? "border-teal-600 bg-teal-600 text-white"
+                      : "border-[color:var(--border)] bg-white hover:border-teal-600")
+                  }
+                  title={s.doneAt ? "Heropen stap" : "Vink af"}
+                >
+                  {s.doneAt && <Check className="size-3" strokeWidth={3} />}
+                </button>
+                <InlineStepTitle
+                  title={s.title}
+                  done={Boolean(s.doneAt)}
+                  onSave={(v) => void stepPatch(s.id, { title: v })}
+                />
+                <span className="ml-auto flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => void moveStep(idx, -1)}
+                    disabled={idx === 0}
+                    className="rounded p-0.5 text-[color:var(--text-soft)] hover:text-[color:var(--navy)] disabled:opacity-30"
+                    title="Omhoog"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void moveStep(idx, 1)}
+                    disabled={idx === steps.length - 1}
+                    className="rounded p-0.5 text-[color:var(--text-soft)] hover:text-[color:var(--navy)] disabled:opacity-30"
+                    title="Omlaag"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeStep(s.id)}
+                    className="rounded p-0.5 text-[color:var(--text-soft)] hover:text-red-600"
+                    title="Verwijder stap"
+                  >
+                    <Trash2 className="size-3" strokeWidth={2.2} />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              value={newStep}
+              onChange={(e) => setNewStep(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && void addStep()}
+              placeholder="Nieuwe stap…"
+              className="min-w-0 flex-1 rounded-lg border bg-white px-2.5 py-1.5 text-xs"
+              style={{ borderColor: "var(--border)" }}
+            />
+            <button
+              type="button"
+              onClick={() => void addStep()}
+              disabled={!newStep.trim()}
+              className="rounded-lg bg-[color:var(--navy)] px-2.5 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+            >
+              <Plus className="size-3.5" strokeWidth={2.4} />
+            </button>
+          </div>
+        </Section>
+      )}
+
+      {/* 2. Samenwerking-afspraken */}
+      {isReseller && (
+        <Section title="Samenwerking">
+          <div className="grid grid-cols-3 gap-2">
+            <label className="block">
+              <span className="text-xs font-semibold">Commissie %</span>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                step="0.5"
+                value={pct}
+                onChange={(e) => setPct(e.target.value)}
+                placeholder="bv. 25"
+                className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
+                style={{ borderColor: "var(--border)" }}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold">Recurring</span>
+              <select
+                value={recurring}
+                onChange={(e) => setRecurring(e.target.value)}
+                className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <option value="">—</option>
+                <option value="ja">Ja</option>
+                <option value="nee">Nee</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold">Verw. klanten</span>
+              <input
+                type="number"
+                min={0}
+                value={expected}
+                onChange={(e) => setExpected(e.target.value)}
+                placeholder="bv. 12"
+                className="mt-0.5 w-full rounded-lg border bg-white px-2.5 py-1.5 text-sm"
+                style={{ borderColor: "var(--border)" }}
+              />
+            </label>
+          </div>
+          <p className="text-[10px] text-[color:var(--text-muted)]">
+            Commissie komt uit de 50%-pool (zie Prijzen &amp; marge). Deze
+            afspraken gaan mee bij de promotie naar affiliate.
+          </p>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => void saveDeal()}
+              disabled={savingDeal}
+              className="rounded-lg px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+              style={{ background: "#FF8441" }}
+            >
+              {savingDeal ? "Opslaan…" : "Afspraken opslaan"}
+            </button>
+          </div>
+        </Section>
+      )}
+
+      {/* 3. Documenten */}
+      <Section title="Documenten">
+        <p className="text-[10px] text-[color:var(--text-muted)]">
+          Samenwerkings-documenten bij deze organisatie (max 25MB per bestand).
+        </p>
+        {attachments.length > 0 && (
+          <ul className="space-y-1">
+            {attachments.map((a) => (
+              <li key={a.id} className="group flex items-center gap-2 text-xs">
+                <a
+                  href={a.downloadUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="min-w-0 flex-1 truncate text-blue-600 hover:underline"
+                  title={a.fileName}
+                >
+                  {a.fileName}
+                </a>
+                <span className="shrink-0 text-[color:var(--text-soft)]">
+                  {Math.max(1, Math.round(a.sizeBytes / 1024))} kB
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void removeAttachment(a.id)}
+                  className="shrink-0 text-[color:var(--text-soft)] opacity-0 hover:text-red-600 group-hover:opacity-100"
+                  title="Verwijder document"
+                >
+                  <Trash2 className="size-3" strokeWidth={2.2} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed px-3 py-1.5 text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <Plus className="size-3.5" strokeWidth={2.2} />
+          {uploading ? "Uploaden…" : "Document uploaden"}
+          <input
+            type="file"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void uploadFile(f);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </Section>
+
+      {/* 4. Brand-identity (bestaand) */}
       <div
         className="space-y-2 rounded-lg border bg-[color:var(--bg)] p-3"
         style={{ borderColor: "var(--border)" }}
@@ -698,6 +1124,78 @@ function ResellerTab({
         )}
       </div>
 
+      {/* 5. Promotie naar affiliate */}
+      {isReseller && (
+        <Section title="Promoveren naar affiliate">
+          {org.promotedAffiliateId ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-bold text-teal-800">
+                ✓ Gepromoveerd
+              </span>
+              <a
+                href={`/admin/affiliates/${org.promotedAffiliateId}`}
+                className="text-xs font-semibold text-blue-600 underline"
+              >
+                Open affiliate-account
+              </a>
+            </div>
+          ) : (
+            <>
+              <p className="text-[10px] text-[color:var(--text-muted)]">
+                Maakt een affiliate-account aan in /admin/affiliates met de
+                commissie-afspraken hierboven en het primaire contact als
+                e-mailadres. Kan pas als alle onboarding-stappen zijn afgevinkt.
+              </p>
+              {confirmPromote ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-teal-800">
+                    Affiliate-account aanmaken voor {org.name}?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void promote()}
+                    disabled={promoting}
+                    className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {promoting ? "Bezig…" : "Ja, promoveer"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmPromote(false)}
+                    className="rounded-lg border bg-white px-3 py-1.5 text-xs font-semibold"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    Annuleer
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmPromote(true)}
+                  disabled={!allDone || promoting}
+                  title={
+                    allDone
+                      ? "Promoveer naar affiliate"
+                      : `Nog ${steps.length - doneCount} stap(pen) open`
+                  }
+                  className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                >
+                  Promoveer naar affiliate
+                  {!allDone && steps.length > 0
+                    ? ` (${doneCount}/${steps.length})`
+                    : ""}
+                </button>
+              )}
+            </>
+          )}
+          {promoteMsg && (
+            <p className="text-xs font-medium text-[color:var(--navy)]">
+              {promoteMsg}
+            </p>
+          )}
+        </Section>
+      )}
+
       <h3 className="text-sm font-bold text-[color:var(--navy)]">
         Reseller-notities
       </h3>
@@ -723,6 +1221,58 @@ function ResellerTab({
         {saving ? "Opslaan..." : "Notities opslaan"}
       </button>
     </div>
+  );
+}
+
+// Inline-editbare staptitel: klik om te hernoemen, Enter/blur slaat op.
+function InlineStepTitle({
+  title,
+  done,
+  onSave,
+}: {
+  title: string;
+  done: boolean;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  useEffect(() => setDraft(title), [title]);
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className={
+          "min-w-0 flex-1 truncate text-left text-sm " +
+          (done ? "text-[color:var(--text-muted)] line-through" : "")
+        }
+        title="Klik om te hernoemen"
+      >
+        {title}
+      </button>
+    );
+  }
+  return (
+    <input
+      value={draft}
+      autoFocus
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        setEditing(false);
+        const v = draft.trim();
+        if (v && v !== title) onSave(v);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") {
+          setDraft(title);
+          setEditing(false);
+        }
+      }}
+      className="min-w-0 flex-1 rounded border bg-white px-1.5 py-0.5 text-sm"
+      style={{ borderColor: "var(--border)" }}
+    />
   );
 }
 
@@ -1870,6 +2420,7 @@ function labelForKind(kind: string): string {
     note_added: "Notitie toegevoegd",
     task_added: "Taak toegevoegd",
     task_completed: "Taak afgerond",
+    reseller_promoted: "Gepromoveerd naar affiliate",
   };
   return map[kind] ?? kind;
 }

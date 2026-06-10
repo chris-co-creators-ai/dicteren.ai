@@ -96,6 +96,7 @@ const PEOPLE_CTE = sql`
         WHEN 'negotiating' THEN 'sql'
         WHEN 'won' THEN 'customer'
         WHEN 'lost' THEN 'lost'
+        WHEN 'reseller' THEN 'reseller'
         ELSE 'lead'
       END                                AS crm_stage,
       o.temperature::text                AS temperature,

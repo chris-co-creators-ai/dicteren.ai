@@ -83,7 +83,8 @@ type CrmStage =
   | "sql"
   | "customer"
   | "lost"
-  | "churned";
+  | "churned"
+  | "reseller";
 
 type Temperature = "cold" | "lukewarm" | "warm" | "hot";
 
@@ -192,6 +193,7 @@ const STAGE_TO_ORG_STATUS: Record<CrmStage, string> = {
   customer: "won",
   lost: "lost",
   churned: "lost",
+  reseller: "reseller",
 };
 
 type AffiliateOption = {
@@ -248,6 +250,11 @@ const STAGE_OPTIONS: { key: CrmStage; label: string; chip: string }[] = [
     key: "lost",
     label: "Verloren",
     chip: "bg-red-100 text-red-800",
+  },
+  {
+    key: "reseller",
+    label: "Reseller",
+    chip: "bg-teal-100 text-teal-800",
   },
   {
     key: "churned",

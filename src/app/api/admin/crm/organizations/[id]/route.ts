@@ -106,6 +106,11 @@ export async function PATCH(
     "hoofdkantoor",
     "callScript",
     "resellerNotes",
+    // Reseller-onboarding-afspraken (migratie 0037). promotedAffiliateId
+    // bewust NIET: die zet alleen de promote-affiliate-route.
+    "resellerCommissionPct",
+    "resellerRecurring",
+    "resellerExpectedClients",
   ];
   // Iedereen mag de eigenaar (account_owner_id) hertoewijzen — gedeelde pijplijn.
   allowed.push("accountOwnerId");

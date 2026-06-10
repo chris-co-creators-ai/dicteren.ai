@@ -69,7 +69,8 @@ export type CrmPersonRow = {
     | "sql"
     | "customer"
     | "lost"
-    | "churned";
+    | "churned"
+    | "reseller";
   crmTemperature: "cold" | "lukewarm" | "warm" | "hot";
   assignedToUserId: string | null;
   notes: string | null;

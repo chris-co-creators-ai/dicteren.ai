@@ -26,12 +26,15 @@ const TEMPS = [
   { key: "hot", label: "Heet" },
 ] as const;
 
+// NB: "reseller" is het parallelle partner-spoor (onboarding-flow in het
+// side-panel, PRD crm-reseller-flow).
 const STATUSES = [
   { key: "lead", label: "Nieuw", color: "#94a3b8" },
   { key: "contacted", label: "Benaderd", color: "#64748b" },
   { key: "qualified", label: "Gekwalificeerd", color: "#3b82f6" },
   { key: "proposal_sent", label: "Betaal-link verzonden", color: "#f59e0b" },
   { key: "negotiating", label: "In gesprek", color: "#8b5cf6" },
+  { key: "reseller", label: "Reseller", color: "#14b8a6" },
   { key: "won", label: "Klant", color: "#22c55e" },
   { key: "lost", label: "Verloren", color: "#ef4444" },
 ] as const;
