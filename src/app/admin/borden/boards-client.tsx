@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Lock, Users, LayoutGrid } from "lucide-react";
+import { Plus, Lock, Users, LayoutGrid, ArrowUpDown } from "lucide-react";
 
 type Board = {
   id: string;
@@ -17,6 +17,39 @@ type Board = {
   createdAt: string;
 };
 
+// Sorteerkeuze voor de borden-lijst. Per gebruiker onthouden in localStorage;
+// default alfabetisch (vraag van de AM's: voorspelbare volgorde).
+type SortKey = "name" | "tasks" | "newest";
+
+const SORT_STORAGE_KEY = "borden:sort";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "name", label: "Naam A→Z" },
+  { key: "tasks", label: "Meeste open taken" },
+  { key: "newest", label: "Nieuwste eerst" },
+];
+
+function sortBoards(list: Board[], sort: SortKey): Board[] {
+  const arr = [...list];
+  const byName = (a: Board, b: Board) =>
+    a.name.localeCompare(b.name, "nl", { sensitivity: "base" });
+  switch (sort) {
+    case "name":
+      arr.sort(byName);
+      break;
+    case "tasks":
+      arr.sort((a, b) => b.openTaskCount - a.openTaskCount || byName(a, b));
+      break;
+    case "newest":
+      arr.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+      break;
+  }
+  return arr;
+}
+
 export function BoardsClient({
   boards,
   currentUserId,
@@ -29,6 +62,20 @@ export function BoardsClient({
   const [name, setName] = useState("");
   const [visibility, setVisibility] = useState<"shared" | "private">("shared");
   const [busy, setBusy] = useState(false);
+  const [sort, setSort] = useState<SortKey>("name");
+
+  // Opgeslagen voorkeur pas ná mount lezen (localStorage bestaat niet op de server).
+  useEffect(() => {
+    const saved = window.localStorage.getItem(SORT_STORAGE_KEY);
+    if (saved === "name" || saved === "tasks" || saved === "newest") {
+      setSort(saved);
+    }
+  }, []);
+
+  function changeSort(next: SortKey) {
+    setSort(next);
+    window.localStorage.setItem(SORT_STORAGE_KEY, next);
+  }
 
   async function create() {
     if (!name.trim()) return;
@@ -50,14 +97,20 @@ export function BoardsClient({
     }
   }
 
-  const shared = boards.filter((b) => b.visibility === "shared");
-  const mine = boards.filter(
-    (b) => b.visibility === "private" && b.ownerUserId === currentUserId,
+  const shared = sortBoards(
+    boards.filter((b) => b.visibility === "shared"),
+    sort,
+  );
+  const mine = sortBoards(
+    boards.filter(
+      (b) => b.visibility === "private" && b.ownerUserId === currentUserId,
+    ),
+    sort,
   );
 
   return (
     <>
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => setCreating(true)}
@@ -65,6 +118,25 @@ export function BoardsClient({
         >
           <Plus className="size-4" /> Nieuw bord
         </button>
+        <div className="flex items-center gap-1.5">
+          <ArrowUpDown className="size-3.5 text-[color:var(--text-muted)]" />
+          {SORT_OPTIONS.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => changeSort(o.key)}
+              className="rounded-lg border px-2.5 py-1.5 text-xs font-semibold"
+              style={{
+                borderColor:
+                  sort === o.key ? "var(--navy)" : "var(--border-soft)",
+                background: sort === o.key ? "var(--bg)" : "transparent",
+                color: "var(--navy)",
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Section title="Gedeelde borden" icon={Users} boards={shared} />
