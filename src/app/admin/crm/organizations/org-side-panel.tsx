@@ -1613,6 +1613,22 @@ function DetailsTab({
 
 // ───── Contacts tab ─────
 
+// Dedup-match uit de 409-response van de contacts-route (zie contactDedup.ts).
+type DedupMatch = {
+  entityId: string;
+  source: "user" | "crm_contact" | "crm_org" | "partner" | "affiliate";
+  emailNorm: string | null;
+  displayName: string | null;
+};
+
+const DEDUP_SOURCE_LABEL: Record<DedupMatch["source"], string> = {
+  user: "Klantaccount",
+  crm_contact: "CRM-contact",
+  crm_org: "Organisatie",
+  partner: "Partner",
+  affiliate: "Affiliate",
+};
+
 function ContactsTab({
   orgId,
   contacts,
@@ -1631,33 +1647,88 @@ function ContactsTab({
     isPrimary: false,
   });
   const [saving, setSaving] = useState(false);
+  const [dupMatches, setDupMatches] = useState<DedupMatch[] | null>(null);
+
+  function resetForm() {
+    setForm({ name: "", email: "", phone: "", roleAtCompany: "", isPrimary: false });
+    setDupMatches(null);
+    setAddOpen(false);
+  }
 
   async function handleAdd() {
     if (!form.name || !form.email) return;
     setSaving(true);
-    await fetch(`/api/admin/crm/organizations/${orgId}/contacts`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setForm({ name: "", email: "", phone: "", roleAtCompany: "", isPrimary: false });
-    setAddOpen(false);
-    setSaving(false);
-    onChanged();
+    setDupMatches(null);
+    try {
+      const res = await fetch(`/api/admin/crm/organizations/${orgId}/contacts`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        if (res.status === 409 && data?.code === "DUPLICATE") {
+          // Formulier open laten: AM ziet wáár het adres al bestaat en kiest zelf.
+          setDupMatches((data.matches as DedupMatch[] | undefined) ?? []);
+        } else {
+          toast.error(data?.error ?? "Contact niet toegevoegd");
+        }
+        return;
+      }
+      resetForm();
+      onChanged();
+    } catch {
+      toast.error("Contact niet toegevoegd (netwerkfout)");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Bestaand CRM-contact (bv. prospect zonder org) aan deze org hangen ipv
+  // een duplicaat aanmaken. Respecteert de primair-keuze uit het formulier.
+  async function handleLinkExisting(contactId: string) {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/crm/contacts/${contactId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          crmOrganizationId: orgId,
+          ...(form.isPrimary ? { isPrimary: true } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Koppelen mislukt");
+        return;
+      }
+      toast.success("Bestaand contact aan deze organisatie gekoppeld");
+      resetForm();
+      onChanged();
+    } catch {
+      toast.error("Koppelen mislukt (netwerkfout)");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete(id: string) {
     if (!window.confirm("Contact verwijderen?")) return;
-    await fetch(`/api/admin/crm/contacts/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/crm/contacts/${id}`, { method: "DELETE" });
+    if (!res.ok) toast.error("Verwijderen mislukt");
     onChanged();
   }
 
   async function handleSetPrimary(id: string) {
-    await fetch(`/api/admin/crm/contacts/${id}`, {
+    const res = await fetch(`/api/admin/crm/contacts/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ isPrimary: true }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error ?? "Primair zetten mislukt");
+    }
     onChanged();
   }
 
@@ -1735,7 +1806,14 @@ function ContactsTab({
           style={{ borderColor: "var(--aqua-200)" }}
         >
           <TextField label="Naam *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-          <TextField label="E-mail *" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+          <TextField
+            label="E-mail *"
+            value={form.email}
+            onChange={(v) => {
+              setForm({ ...form, email: v });
+              setDupMatches(null);
+            }}
+          />
           <div className="grid grid-cols-2 gap-2">
             <TextField label="Telefoon" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
             <TextField label="Functie" value={form.roleAtCompany} onChange={(v) => setForm({ ...form, roleAtCompany: v })} />
@@ -1748,10 +1826,46 @@ function ContactsTab({
             />
             Markeer als primair contact
           </label>
+          {dupMatches && (
+            <div
+              className="space-y-1.5 rounded-lg border bg-amber-50 p-2.5 text-xs"
+              style={{ borderColor: "#f59e0b" }}
+            >
+              <div className="font-bold text-amber-800">
+                Dit e-mailadres bestaat al in het systeem
+              </div>
+              {dupMatches.map((m) => (
+                <div
+                  key={`${m.source}:${m.entityId}`}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span className="text-amber-900">
+                    {DEDUP_SOURCE_LABEL[m.source] ?? m.source}
+                    {m.displayName ? ` — ${m.displayName}` : ""}
+                    {m.emailNorm ? ` (${m.emailNorm})` : ""}
+                  </span>
+                  {m.source === "crm_contact" && (
+                    <button
+                      type="button"
+                      onClick={() => handleLinkExisting(m.entityId)}
+                      disabled={saving}
+                      className="shrink-0 rounded-md border border-amber-600 px-2 py-1 text-[10px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                    >
+                      Koppel aan deze organisatie
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="text-[10px] text-amber-700">
+                Gebruik een ander e-mailadres, of koppel het bestaande contact
+                hierboven aan deze organisatie.
+              </div>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
-              onClick={() => setAddOpen(false)}
+              onClick={resetForm}
               className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
               style={{ borderColor: "var(--border)" }}
             >

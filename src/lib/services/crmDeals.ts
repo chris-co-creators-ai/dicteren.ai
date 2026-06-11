@@ -269,18 +269,24 @@ export async function updateCrmContact(args: {
   patch: Partial<NewCrmContact>;
   actorUserId: string;
 }): Promise<CrmContact | null> {
-  // Primary-flip: andere contacten van zelfde org resetten
+  // Primary-flip: andere contacten van zelfde org resetten. Verhuist de patch
+  // het contact tegelijk naar een (andere) org, reset dan op de DOEL-org —
+  // anders houdt die org twee primaire contacten over.
   if (args.patch.isPrimary === true) {
-    const [existing] = await db
-      .select({ orgId: crmContacts.crmOrganizationId })
-      .from(crmContacts)
-      .where(eq(crmContacts.id, args.id))
-      .limit(1);
-    if (existing?.orgId) {
+    let targetOrgId = args.patch.crmOrganizationId ?? null;
+    if (!targetOrgId) {
+      const [existing] = await db
+        .select({ orgId: crmContacts.crmOrganizationId })
+        .from(crmContacts)
+        .where(eq(crmContacts.id, args.id))
+        .limit(1);
+      targetOrgId = existing?.orgId ?? null;
+    }
+    if (targetOrgId) {
       await db
         .update(crmContacts)
         .set({ isPrimary: false, updatedAt: new Date() })
-        .where(eq(crmContacts.crmOrganizationId, existing.orgId));
+        .where(eq(crmContacts.crmOrganizationId, targetOrgId));
     }
   }
 

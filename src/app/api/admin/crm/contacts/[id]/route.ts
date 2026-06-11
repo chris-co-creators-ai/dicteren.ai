@@ -40,6 +40,9 @@ export async function PATCH(
     "roleAtCompany",
     "isPrimary",
     "notes",
+    // Koppel een bestaand contact (bv. prospect zonder org) aan een org —
+    // de dedup-flow in de Contacten-tab gebruikt dit ipv een duplicaat maken.
+    "crmOrganizationId",
   ];
   for (const key of allowed) {
     if (key in body) patch[key] = body[key];
