@@ -20,7 +20,7 @@
 
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, organization } from "better-auth/plugins";
+import { admin, organization, mcp } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { dbAuth } from "@/lib/db";
 import {
@@ -32,6 +32,9 @@ import {
   authMember,
   authInvitation,
   authJwks,
+  authOAuthApplication,
+  authOAuthAccessToken,
+  authOAuthConsent,
 } from "@/lib/db/auth-schema";
 import {
   sendPasswordResetEmail,
@@ -77,6 +80,9 @@ export const auth = betterAuth({
       member: authMember,
       invitation: authInvitation,
       jwks: authJwks,
+      oauthApplication: authOAuthApplication,
+      oauthAccessToken: authOAuthAccessToken,
+      oauthConsent: authOAuthConsent,
     },
   }),
   // KRITIEK: onze auth.user-schema heeft een NOT NULL-kolom `email_normalized`
@@ -174,6 +180,17 @@ export const auth = betterAuth({
   },
   plugins: [
     admin(),
+    // MCP / OAuth 2.1-provider: agents (Hermes "Pi", Claude-connector) loggen in
+    // met een bestaand Dicteren.ai-account en krijgen scoped access-tokens. DCR
+    // staat aan zodat Hermes' `auth: oauth` zichzelf kan registreren zonder
+    // handwerk. loginPage = onze bestaande Better Auth-sign-in.
+    mcp({
+      loginPage: "/auth/sign-in",
+      oidcConfig: {
+        loginPage: "/auth/sign-in",
+        allowDynamicClientRegistration: true,
+      },
+    }),
     organization({
       sendInvitationEmail: async (data) => {
         const acceptUrl = `${appBase()}/auth/accept-invitation/${data.id}`;

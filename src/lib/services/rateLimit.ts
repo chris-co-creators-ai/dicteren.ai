@@ -84,6 +84,11 @@ export const RATE_LIMITS = {
   // login + reset-spam afremmen, per IP.
   "auth:sign-in": { limit: 10, windowSeconds: 600 },
   "auth:reset": { limit: 5, windowSeconds: 600 },
+
+  // MCP-agent (Pi): per-token rate-limit op de tool-endpoint. Een agent doet
+  // bursts (belronde voorbereiden = veel reads), dus ruim, maar niet eindeloos
+  // zodat een loop niet de DB hamert. Key = het access-token-fingerprint.
+  mcp: { limit: 240, windowSeconds: 60 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

@@ -211,6 +211,100 @@ export const authJwks = authNs.table("jwks", {
     .defaultNow(),
 });
 
+// ───── mcp / oidc-provider plugin ───────────────────────────
+// Better Auth's mcp-plugin maakt onze instance een OAuth 2.1-provider voor
+// MCP-clients (Hermes Agent "Pi", de Claude MCP-connector, ...). Drie tabellen,
+// kolomnamen camelCase conform de drizzle-adapter (net als account/session).
+// clientId is de FK-target (geen id) voor token + consent. Dynamic client
+// registration vult oauth_application automatisch bij de eerste agent-koppeling.
+
+export const authOAuthApplication = authNs.table(
+  "oauth_application",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name"),
+    icon: text("icon"),
+    metadata: text("metadata"),
+    clientId: text("clientId").notNull(),
+    clientSecret: text("clientSecret"),
+    redirectUrls: text("redirectURLs"),
+    type: text("type"),
+    disabled: boolean("disabled").default(false),
+    userId: uuid("userId").references(() => authUser.id, {
+      onDelete: "cascade",
+    }),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("auth_oauth_application_client_id_unique").on(t.clientId),
+    index("auth_oauth_application_user_idx").on(t.userId),
+  ],
+);
+
+export const authOAuthAccessToken = authNs.table(
+  "oauth_access_token",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accessToken: text("accessToken"),
+    refreshToken: text("refreshToken"),
+    accessTokenExpiresAt: timestamp("accessTokenExpiresAt", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refreshTokenExpiresAt", {
+      withTimezone: true,
+    }),
+    clientId: text("clientId").references(() => authOAuthApplication.clientId, {
+      onDelete: "cascade",
+    }),
+    userId: uuid("userId").references(() => authUser.id, {
+      onDelete: "cascade",
+    }),
+    scopes: text("scopes"),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("auth_oauth_access_token_unique").on(t.accessToken),
+    uniqueIndex("auth_oauth_refresh_token_unique").on(t.refreshToken),
+    index("auth_oauth_access_token_client_idx").on(t.clientId),
+    index("auth_oauth_access_token_user_idx").on(t.userId),
+  ],
+);
+
+export const authOAuthConsent = authNs.table(
+  "oauth_consent",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: text("clientId").references(() => authOAuthApplication.clientId, {
+      onDelete: "cascade",
+    }),
+    userId: uuid("userId").references(() => authUser.id, {
+      onDelete: "cascade",
+    }),
+    scopes: text("scopes"),
+    consentGiven: boolean("consentGiven"),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("auth_oauth_consent_client_idx").on(t.clientId),
+    index("auth_oauth_consent_user_idx").on(t.userId),
+  ],
+);
+
 // ───── Inferred types ───────────────────────────────────────
 
 export type AuthUser = typeof authUser.$inferSelect;
@@ -220,3 +314,6 @@ export type AuthVerification = typeof authVerification.$inferSelect;
 export type AuthOrg = typeof authOrg.$inferSelect;
 export type AuthMember = typeof authMember.$inferSelect;
 export type AuthInvitation = typeof authInvitation.$inferSelect;
+export type AuthOAuthApplication = typeof authOAuthApplication.$inferSelect;
+export type AuthOAuthAccessToken = typeof authOAuthAccessToken.$inferSelect;
+export type AuthOAuthConsent = typeof authOAuthConsent.$inferSelect;
