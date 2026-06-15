@@ -8,9 +8,17 @@
 // of vallen terug op de catch-all.
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { authClient } from "@/lib/auth/client";
+
+// Publieke, domain-locked (dicteren.ai) Turnstile site-key. Hoort in de browser,
+// dus veilig hardcoded als fallback — zo is de widget altijd aanwezig en kan de
+// server-captcha nooit een token eisen dat de frontend niet levert. Env override
+// mag, maar is niet vereist. De SECRET-key staat alleen server-side in de env.
+const TURNSTILE_SITE_KEY =
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "0x4AAAAAADlMHHa28b43rRWo";
 
 type Path =
   | "sign-in"
@@ -97,8 +105,10 @@ function SignUpForm({ redirectTo }: { redirectTo: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,14 +117,23 @@ function SignUpForm({ redirectTo }: { redirectTo: string }) {
       setError("Wachtwoord moet minimaal 8 tekens zijn.");
       return;
     }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError("Bevestig even dat je geen robot bent.");
+      return;
+    }
     startTransition(async () => {
-      const { error } = await authClient.signUp.email({
-        name: name.trim(),
-        email,
-        password,
-      });
+      const { error } = await authClient.signUp.email(
+        { name: name.trim(), email, password },
+        // Turnstile-token meesturen; de captcha-plugin valideert server-side.
+        TURNSTILE_SITE_KEY
+          ? { headers: { "x-captcha-response": captchaToken } }
+          : undefined,
+      );
       if (error) {
         setError(translateError(error.code, error.message));
+        // Token is eenmalig; reset de widget zodat een nieuwe poging werkt.
+        turnstileRef.current?.reset();
+        setCaptchaToken("");
         return;
       }
       // autoSignIn=true in server-config zorgt voor directe sessie
@@ -153,6 +172,16 @@ function SignUpForm({ redirectTo }: { redirectTo: string }) {
         onChange={setPassword}
         hint="Minimaal 8 tekens."
       />
+      {TURNSTILE_SITE_KEY && (
+        <Turnstile
+          ref={turnstileRef}
+          siteKey={TURNSTILE_SITE_KEY}
+          options={{ theme: "light", language: "nl" }}
+          onSuccess={setCaptchaToken}
+          onExpire={() => setCaptchaToken("")}
+          onError={() => setCaptchaToken("")}
+        />
+      )}
       {error && <ErrorMessage>{error}</ErrorMessage>}
       <SubmitButton pending={isPending}>Account aanmaken</SubmitButton>
     </form>

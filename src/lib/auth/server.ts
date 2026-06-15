@@ -20,7 +20,7 @@
 
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, organization, mcp } from "better-auth/plugins";
+import { admin, organization, mcp, captcha } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { dbAuth } from "@/lib/db";
 import {
@@ -180,6 +180,24 @@ export const auth = betterAuth({
   },
   plugins: [
     admin(),
+    // Cloudflare Turnstile op ALLEEN de registratie. Bots hamerden /sign-up/email
+    // (gibberish-namen, Tor + wegwerp-VPS, gratis trials geoogst). Per-IP-limiet
+    // helpt niet tegen geroteerde IP's; een captcha-challenge breekt het script.
+    // Bewust NIET op /sign-in/email: dat zou de programmatische login van Pi
+    // (OAuth-flow + Hermes) breken. Sign-in is al rate-limited.
+    //
+    // Conditioneel: alleen actief als de secret-key gezet is. Zonder env breekt
+    // er niets (geen captcha-eis); mét env én site-key in de frontend wordt elke
+    // sign-up server-side tegen Turnstile's /siteverify gevalideerd.
+    ...(process.env.TURNSTILE_SECRET_KEY
+      ? [
+          captcha({
+            provider: "cloudflare-turnstile",
+            secretKey: process.env.TURNSTILE_SECRET_KEY,
+            endpoints: ["/sign-up/email"],
+          }),
+        ]
+      : []),
     // MCP / OAuth 2.1-provider: agents (Hermes "Pi", Claude-connector) loggen in
     // met een bestaand Dicteren.ai-account en krijgen scoped access-tokens. DCR
     // staat aan zodat Hermes' `auth: oauth` zichzelf kan registreren zonder
