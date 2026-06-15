@@ -6,7 +6,7 @@
 // routeren.
 
 import "server-only";
-import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   crmContacts,
@@ -296,6 +296,65 @@ export async function updateCrmContact(args: {
     .where(eq(crmContacts.id, args.id))
     .returning();
   return row ?? null;
+}
+
+/** Bulk-verwijderen van leads uit de Personen-tab. Twee soorten rijen:
+ *  - prospects (crm_contacts) → hard delete via deleteCrmContact.
+ *  - klanten (auth.user, bv. bot-signups) → alleen als ze NOOIT betaald hebben
+ *    (geen licentie met een status anders dan 'trial'). Een (ex-)betalende klant
+ *    wordt overgeslagen en geteld, zodat deze knop nooit per ongeluk een echte
+ *    klant + zijn historie nukt. Bij verwijderen: eerst app-side opruimen
+ *    (trial-licenties weg, owner-refs loskoppelen) om wezen te voorkomen; daarna
+ *    de auth.user-rij (de auth.*-tabellen cascaden zelf). Admin-only aan de route. */
+export async function bulkDeleteCrmPeople(args: {
+  crmContactIds: string[];
+  userIds: string[];
+  actorUserId: string;
+}): Promise<{ deletedContacts: number; deletedUsers: number; skippedPaid: number }> {
+  let deletedContacts = 0;
+  for (const id of args.crmContactIds) {
+    if (await deleteCrmContact(id, args.actorUserId)) deletedContacts++;
+  }
+
+  let deletedUsers = 0;
+  let skippedPaid = 0;
+  for (const userId of args.userIds) {
+    // Guard: heeft deze user ooit een niet-trial-licentie gehad? Dan is het een
+    // (ex-)betalende klant — niet verwijderen via deze knop.
+    const paid = await db
+      .select({ id: licenses.id })
+      .from(licenses)
+      .where(and(eq(licenses.userId, userId), ne(licenses.status, "trial")))
+      .limit(1);
+    if (paid.length > 0) {
+      skippedPaid++;
+      continue;
+    }
+
+    // App-side opruimen (geen FK-cascade vanuit public naar auth.user).
+    await db.delete(licenses).where(eq(licenses.userId, userId));
+    await db
+      .update(crmContacts)
+      .set({ assignedToUserId: null })
+      .where(eq(crmContacts.assignedToUserId, userId));
+    await db
+      .update(crmOrganizations)
+      .set({ accountOwnerId: null })
+      .where(eq(crmOrganizations.accountOwnerId, userId));
+
+    await logEvent({
+      action: "admin.action",
+      entityType: "user",
+      entityId: userId,
+      actorId: args.actorUserId,
+      metadata: { kind: "crm_lead_deleted" },
+    });
+    // auth.user weg → sessions/accounts/oauth-tokens cascaden automatisch.
+    await db.delete(authUsers).where(eq(authUsers.id, userId));
+    deletedUsers++;
+  }
+
+  return { deletedContacts, deletedUsers, skippedPaid };
 }
 
 export async function deleteCrmContact(

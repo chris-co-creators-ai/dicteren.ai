@@ -994,6 +994,35 @@ export function CrmView({
     refresh();
   }
 
+  async function bulkDeletePeople() {
+    if (selectedArray.length === 0) return;
+    const { userIds, crmContactIds } = splitSelection();
+    const msg =
+      `Verwijder ${selectedArray.length} geselecteerde lead${selectedArray.length === 1 ? "" : "s"} definitief?\n\n` +
+      "Prospects worden verwijderd. Klant-accounts worden verwijderd, behalve " +
+      "(ex-)betalende klanten — die worden overgeslagen. Dit kan niet ongedaan worden.";
+    if (!confirm(msg)) return;
+    const res = await fetch("/api/admin/crm/people/bulk-delete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ crmContactIds, userIds }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      alert(json?.error ?? "Verwijderen mislukt.");
+      return;
+    }
+    const { deletedContacts, deletedUsers, skippedPaid } = json.data;
+    if (skippedPaid > 0) {
+      alert(
+        `${deletedContacts + deletedUsers} verwijderd. ${skippedPaid} overgeslagen ` +
+          "omdat het (ex-)betalende klanten zijn.",
+      );
+    }
+    clearSelection();
+    refresh();
+  }
+
   // Visible kolommen in juiste volgorde. Combineer built-in + custom keys.
   // Filter ook op bestaande keys: een verwijderde custom kolom die nog in
   // iemands opgeslagen prefs zit mag geen spookkolom renderen.
@@ -1402,6 +1431,14 @@ export function CrmView({
                   className="text-xs font-semibold text-red-700 hover:underline"
                 >
                   Verwijder uit deze lijst
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={bulkDeletePeople}
+                  className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700"
+                >
+                  Verwijder lead{selectedCount === 1 ? "" : "s"}
                 </button>
               )}
               <button
