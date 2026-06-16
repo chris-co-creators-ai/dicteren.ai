@@ -22,6 +22,7 @@ import {
   jsonb,
   pgEnum,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { authUsers, authOrganizations } from "./auth-bridge";
 import { customerTemperature } from "./crm-enums";
@@ -68,6 +69,9 @@ export const crmEventKind = pgEnum("crm_event_kind", [
   "task_completed",
   "interaction_logged",
   "reseller_promoted",
+  "deck_sent",
+  "deck_visited",
+  "application_received",
 ]);
 
 export const crmOrganizations = pgTable(
@@ -245,6 +249,21 @@ export const crmContacts = pgTable(
     lastChannel: text("last_channel"), // email / linkedin / phone / other
     touchCount: integer("touch_count").notNull().default(0),
 
+    // ── Reseller-funnel (migratie 0042) ──
+    // Unieke deck-link per persoon + state-markeringen die de funnel-kolom
+    // bepalen (Deck verstuurd / Warm via bezoek / Aangemeld). De aanmeld-data
+    // is de door de prospect aangeleverde marketing-input; de AM reviewt vóór
+    // promote. promotedAffiliateId is de brug naar /affiliates (FK in migratie,
+    // geen .references om circulaire schema-import te vermijden).
+    deckToken: text("deck_token"),
+    deckSentAt: timestamp("deck_sent_at", { withTimezone: true }),
+    deckVisitedAt: timestamp("deck_visited_at", { withTimezone: true }),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    appliedLogoR2Key: text("applied_logo_r2_key"),
+    appliedQuote: text("applied_quote"),
+    appliedQuoteAuthor: text("applied_quote_author"),
+    promotedAffiliateId: uuid("promoted_affiliate_id"),
+
     // ── Provenance + catch-all voor extra Clay-velden (geen data-verlies) ──
     enrichmentSource: text("enrichment_source"), // bv. "clay"
     enrichedAt: timestamp("enriched_at", { withTimezone: true }),
@@ -264,6 +283,8 @@ export const crmContacts = pgTable(
     index("crm_contacts_assigned_idx").on(t.assignedToUserId),
     index("crm_contacts_industry_idx").on(t.industry),
     index("crm_contacts_score_idx").on(t.leadScore),
+    uniqueIndex("crm_contacts_deck_token_idx").on(t.deckToken),
+    index("crm_contacts_promoted_affiliate_idx").on(t.promotedAffiliateId),
   ],
 );
 
