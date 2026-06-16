@@ -10,13 +10,11 @@ import { createOfferte, listOffertesForOrg } from "@/lib/services/offerte";
 import type {
   OfferteLineItem,
   OffertePeriod,
-  OfferteTemplateKey,
 } from "@/lib/services/offerteShared";
 
 type Params = Promise<{ id: string }>;
 
 const PERIODS: OffertePeriod[] = ["monthly", "quarterly", "yearly"];
-const TEMPLATES: OfferteTemplateKey[] = ["minimalist", "klassiek", "merk"];
 
 export async function GET(_request: Request, { params }: { params: Params }) {
   const guard = await requireScopedAm();
@@ -44,9 +42,6 @@ export async function POST(request: Request, { params }: { params: Params }) {
   const period = (PERIODS as string[]).includes(String(body.period))
     ? (body.period as OffertePeriod)
     : "yearly";
-  const templateKey = (TEMPLATES as string[]).includes(String(body.templateKey))
-    ? (body.templateKey as OfferteTemplateKey)
-    : "merk";
   const lineItems = Array.isArray(body.lineItems)
     ? (body.lineItems as OfferteLineItem[])
     : [];
@@ -55,7 +50,7 @@ export async function POST(request: Request, { params }: { params: Params }) {
     orgId: id,
     seats: Number(body.seats) || 1,
     period,
-    templateKey,
+    templateKey: "merk",
     lineItems,
     validUntil: (body.validUntil as string | null) ?? null,
     introText: (body.introText as string | null) ?? null,

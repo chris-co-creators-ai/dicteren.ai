@@ -22,7 +22,6 @@ function dataUri(p: string): string {
 }
 
 const root = process.cwd();
-const logo = dataUri(path.join(root, "public/branding/logo-horizontal.png"));
 const icon = dataUri(path.join(root, "public/branding/logo-icon-sm.png"));
 
 registerOfferteFonts(
@@ -73,28 +72,14 @@ const base: OfferteDocData = {
 };
 
 const out = path.join(os.homedir(), "Downloads");
-const variants = [
-  ["merk", "Merk"],
-  ["minimalist", "Strak"],
-  ["klassiek", "Klassiek"],
-] as const;
-
 console.log(
   `Totalen: net ${totals.netCents}  btw ${totals.vatCents}  bruto ${totals.grossCents}`,
 );
 
-for (const [key, label] of variants) {
-  const file = path.join(out, `offerte-voorbeeld-${label}.pdf`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await renderToFile(
-    createElement(OfferteDocument, {
-      data: base,
-      templateKey: key,
-      logoSrc: logo,
-      iconSrc: icon,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }) as any,
-    file,
-  );
-  console.log("wrote", file);
-}
+const file = path.join(out, "offerte-voorbeeld-Merk.pdf");
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+await renderToFile(
+  createElement(OfferteDocument, { data: base, iconSrc: icon }) as any,
+  file,
+);
+console.log("wrote", file);

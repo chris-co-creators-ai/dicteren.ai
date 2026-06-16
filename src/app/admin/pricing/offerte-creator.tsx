@@ -16,10 +16,8 @@ import {
   euroCents,
   DEFAULT_OFFERTE_INTRO,
   DEFAULT_OFFERTE_CLOSING,
-  OFFERTE_TEMPLATES,
   type OfferteLineItem,
   type OffertePeriod,
-  type OfferteTemplateKey,
 } from "@/lib/services/offerteShared";
 
 // Offerte-creator voor zakelijke eindklanten. Kiest een CRM-organisatie, rekent
@@ -75,9 +73,8 @@ export function OfferteCreator({ initialOrgId }: { initialOrgId?: string | null 
   const [stdDescription, setStdDescription] = useState("");
   const [extraLines, setExtraLines] = useState<ExtraLine[]>([]);
 
-  // Offerte-tekst + sjabloon
+  // Offerte-tekst
   const [validUntil, setValidUntil] = useState(defaultValidUntil());
-  const [templateKey, setTemplateKey] = useState<OfferteTemplateKey>("merk");
   const [introText, setIntroText] = useState(DEFAULT_OFFERTE_INTRO);
   const [closingText, setClosingText] = useState(DEFAULT_OFFERTE_CLOSING);
   const [notes, setNotes] = useState("");
@@ -187,7 +184,6 @@ export function OfferteCreator({ initialOrgId }: { initialOrgId?: string | null 
         body: JSON.stringify({
           seats,
           period,
-          templateKey,
           lineItems,
           validUntil,
           introText,
@@ -395,25 +391,8 @@ export function OfferteCreator({ initialOrgId }: { initialOrgId?: string | null 
         </div>
       </div>
 
-      {/* ───── Rechter kolom: sjabloon + totaal + actie ───── */}
+      {/* ───── Rechter kolom: totaal + actie ───── */}
       <aside className="space-y-4">
-        <div className="brand-card p-4">
-          <h3 className="mb-2 text-sm font-bold text-[color:var(--navy)]">Sjabloon</h3>
-          <div className="space-y-1.5">
-            {OFFERTE_TEMPLATES.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTemplateKey(t.key)}
-                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${templateKey === t.key ? "border-[color:var(--navy)] bg-[color:var(--navy)] text-white" : "border-[color:var(--border-soft)] hover:border-[color:var(--navy)]"}`}
-              >
-                <span className="font-semibold">{t.label}</span>
-                {templateKey === t.key ? <span className="text-xs text-white/80">gekozen</span> : null}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="brand-card p-4">
           <h3 className="mb-2 text-sm font-bold text-[color:var(--navy)]">Totaal</h3>
           <div className="space-y-1 text-sm">
@@ -448,15 +427,8 @@ export function OfferteCreator({ initialOrgId }: { initialOrgId?: string | null 
               <Download className="size-4" strokeWidth={2.2} /> Download PDF
             </a>
             <p className="text-[10px] text-[color:var(--text-muted)]">
-              Ook zichtbaar in de CRM-sidepanel van {org?.name}. Bekijk in een ander sjabloon:
+              Ook zichtbaar in de CRM-sidepanel van {org?.name}.
             </p>
-            <div className="flex flex-wrap gap-1">
-              {OFFERTE_TEMPLATES.map((t) => (
-                <a key={t.key} href={`/api/admin/offertes/${created.id}/pdf?template=${t.key}`} target="_blank" rel="noreferrer" className="rounded-md border px-2 py-1 text-[11px] font-semibold text-[color:var(--text-muted)]" style={{ borderColor: "var(--border)" }}>
-                  {t.label}
-                </a>
-              ))}
-            </div>
           </div>
         ) : null}
       </aside>

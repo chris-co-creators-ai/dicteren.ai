@@ -2,8 +2,7 @@
 //
 // Genereert de PDF on-demand uit de DB-snapshot (line_items + totalen staan vast
 // bij aanmaken), zodat een download altijd exact gelijk is. Geen R2-opslag nodig:
-// de snapshot is al immutable. ?template= overschrijft het sjabloon (voor de
-// preview/vergelijking); ?download=1 forceert een download i.p.v. inline.
+// de snapshot is al immutable. ?download=1 forceert een download i.p.v. inline.
 
 import { createElement } from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
@@ -12,7 +11,6 @@ import { assembleOfferteForPdf } from "@/lib/services/offerte";
 import {
   OfferteDocument,
   registerOfferteFonts,
-  type OfferteDocProps,
 } from "@/components/offerte/OfferteDocument";
 import type { OfferteDocData } from "@/lib/services/offerteShared";
 
@@ -47,15 +45,6 @@ export async function GET(request: Request, { params }: { params: Params }) {
   const { offerte, seller, buyer, lineItems } = assembled;
   const url = new URL(request.url);
 
-  const templateOverride = url.searchParams.get("template");
-  const templateKey = (
-    templateOverride === "minimalist" ||
-    templateOverride === "klassiek" ||
-    templateOverride === "merk"
-      ? templateOverride
-      : offerte.templateKey
-  ) as OfferteDocProps["templateKey"];
-
   const data: OfferteDocData = {
     quoteNumber: offerte.quoteNumber,
     status: offerte.status,
@@ -83,8 +72,6 @@ export async function GET(request: Request, { params }: { params: Params }) {
   );
   const element = createElement(OfferteDocument, {
     data,
-    templateKey,
-    logoSrc: `${origin}/branding/logo-horizontal.png`,
     iconSrc: `${origin}/branding/logo-icon-sm.png`,
   }) as Parameters<typeof renderToBuffer>[0];
   const buffer = await renderToBuffer(element);

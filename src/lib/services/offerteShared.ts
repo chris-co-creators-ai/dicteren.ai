@@ -20,7 +20,8 @@ export type OfferteStatus =
   | "geaccepteerd"
   | "afgewezen"
   | "verlopen";
-export type OfferteTemplateKey = "minimalist" | "klassiek" | "merk";
+// Eén sjabloon: Merk. Strak/Klassiek zijn verwijderd (besluit Christian 2026-06-16).
+export type OfferteTemplateKey = "merk";
 
 /** Eén netto regel op de offerte (excl. btw). netCents = qty × unitNetCents. */
 export type OfferteLineItem = {
@@ -45,12 +46,6 @@ export const OFFERTE_STATUS_LABEL: Record<OfferteStatus, string> = {
   afgewezen: "Afgewezen",
   verlopen: "Verlopen",
 };
-
-export const OFFERTE_TEMPLATES: { key: OfferteTemplateKey; label: string }[] = [
-  { key: "merk", label: "Merk" },
-  { key: "minimalist", label: "Strak" },
-  { key: "klassiek", label: "Klassiek" },
-];
 
 export const OFFERTE_VALIDITY_DAYS = 30;
 
