@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  Download,
+  FileText,
   Mail,
   Phone,
   Plus,
@@ -28,6 +30,11 @@ import {
   DISPOSITION_BY_KEY,
 } from "@/lib/services/crmCallDisposition";
 import { NL_PROVINCES } from "@/lib/services/nlProvinces";
+import {
+  OFFERTE_STATUSES,
+  OFFERTE_STATUS_LABEL,
+  type OfferteStatus,
+} from "@/lib/services/offerteShared";
 import { toast } from "sonner";
 
 type Admin = { id: string; name: string; email: string };
@@ -137,6 +144,7 @@ const TABS = [
   { key: "faq", label: "FAQ" },
   { key: "contacts", label: "Contacten" },
   { key: "payment", label: "Betaling" },
+  { key: "offerte", label: "Offerte" },
   { key: "reseller", label: "Reseller" },
   { key: "timeline", label: "Timeline" },
   { key: "tasks", label: "Taken" },
@@ -348,6 +356,8 @@ export function OrgSidePanel({
               />
             ) : tab === "payment" ? (
               <PaymentTab org={org} onChanged={loadAll} />
+            ) : tab === "offerte" ? (
+              <OffertesTab orgId={orgId} orgName={org.name} />
             ) : tab === "timeline" ? (
               <TimelineTab
                 events={events}
@@ -1387,6 +1397,127 @@ function PrimaryContactSection({
         </button>
       </div>
     </Section>
+  );
+}
+
+// ───── Offerte tab ─────
+
+type OfferteRow = {
+  id: string;
+  quoteNumber: string;
+  status: string;
+  grossCents: number;
+  createdAt: string;
+  templateKey: string;
+};
+
+// Offertes van deze organisatie. De PDF genereert on-demand uit de opgeslagen
+// snapshot (/api/admin/offertes/[id]/pdf). De knop "Maak offerte op maat" springt
+// naar de offerte-creator op /admin/pricing met deze klant voorgevuld.
+function OffertesTab({ orgId, orgName }: { orgId: string; orgName: string }) {
+  const [items, setItems] = useState<OfferteRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/crm/organizations/${orgId}/offertes`);
+      const d = await res.json().catch(() => null);
+      if (d?.success) setItems(d.data as OfferteRow[]);
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function setStatus(id: string, status: OfferteStatus) {
+    const res = await fetch(`/api/admin/offertes/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) await load();
+    else toast.error("Status niet opgeslagen");
+  }
+
+  return (
+    <div className="space-y-3">
+      <a
+        href={`/admin/pricing?tab=offerte&org=${orgId}`}
+        className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-white"
+        style={{ background: "#FF8441" }}
+      >
+        <Plus className="size-4" strokeWidth={2.4} /> Maak offerte op maat
+      </a>
+      <p className="text-xs text-[color:var(--text-muted)]">
+        Offertes voor {orgName}. De PDF genereert uit de opgeslagen offerte.
+      </p>
+
+      {loading ? (
+        <p className="text-sm text-[color:var(--text-muted)]">Laden…</p>
+      ) : items.length === 0 ? (
+        <p
+          className="rounded-lg border border-dashed p-4 text-center text-sm text-[color:var(--text-muted)]"
+          style={{ borderColor: "var(--border)" }}
+        >
+          Nog geen offertes.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((o) => (
+            <li
+              key={o.id}
+              className="rounded-lg border bg-white p-3"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-sm font-bold text-[color:var(--navy)]">
+                    <FileText className="size-3.5 shrink-0" strokeWidth={2.2} />
+                    {o.quoteNumber}
+                  </div>
+                  <div className="text-xs text-[color:var(--text-muted)]">
+                    {fmtDate(o.createdAt)} · {fmtCents(o.grossCents)} incl. btw
+                  </div>
+                </div>
+                <select
+                  value={o.status}
+                  onChange={(e) => void setStatus(o.id, e.target.value as OfferteStatus)}
+                  className="shrink-0 rounded-md border bg-white px-2 py-1 text-xs font-semibold"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  {OFFERTE_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {OFFERTE_STATUS_LABEL[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <a
+                  href={`/api/admin/offertes/${o.id}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-md border px-2.5 py-1 text-xs font-semibold text-[color:var(--navy)]"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  Bekijk PDF
+                </a>
+                <a
+                  href={`/api/admin/offertes/${o.id}/pdf?download=1`}
+                  className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold text-white"
+                  style={{ background: "var(--navy)" }}
+                >
+                  <Download className="size-3" strokeWidth={2.4} /> Download
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

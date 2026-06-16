@@ -223,14 +223,16 @@ export async function listInvoices(limit = 100): Promise<InvoiceRow[]> {
 
 // ─────────────────────── Klant-facing factuur ───────────────────────
 
-/** Verkoper-gegevens voor op de factuur. KvK + btw-nummer komen uit env zodat
- *  we geen placeholder-cijfers op een echte factuur zetten. */
+/** Verkoper-gegevens voor op de factuur én de offerte. KvK, btw-nummer en adres
+ *  komen uit env zodat we nooit placeholder-cijfers op een echt document zetten.
+ *  Niet gezet → het document laat het veld weg (geen verzonnen waarde). */
 export const INVOICE_SELLER = {
   name: "Dicteren.ai",
   email: "info@dicteren.ai",
   website: "dicteren.ai",
   kvk: process.env.DICTEREN_KVK ?? null,
   vat: process.env.DICTEREN_VAT ?? null,
+  address: process.env.DICTEREN_ADDRESS ?? null,
 };
 
 export type CustomerInvoiceListItem = {

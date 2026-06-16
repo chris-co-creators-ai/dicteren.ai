@@ -75,7 +75,9 @@ export type AuditAction =
   | "crm_org.marked_paid_offline"
   | "crm_org.converted_to_auth_org"
   | "crm_org.task_added"
-  | "crm_org.task_completed";
+  | "crm_org.task_completed"
+  | "crm_org.offerte_created"
+  | "crm_org.offerte_status_changed";
 
 type AuditParams = {
   action: AuditAction;

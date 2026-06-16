@@ -22,6 +22,7 @@ export * from "./pricing";
 export * from "./identity-extensions";
 export * from "./crm";
 export * from "./crmDeals";
+export * from "./crmOffertes";
 export * from "./crmCampaignSteps";
 export * from "./partner";
 export * from "./affiliate";
