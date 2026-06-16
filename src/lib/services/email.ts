@@ -17,6 +17,7 @@ const MAX_RETRY_ATTEMPTS = 4;
 export type EmailCategory =
   | "license_issued"
   | "welcome"
+  | "partner_deck"
   | "subscription_past_due"
   | "subscription_canceled"
   | "subscription_renewed"
@@ -1293,4 +1294,65 @@ function organizationInviteText(params: {
   lines.push("");
   lines.push("Dicteren.ai");
   return lines.join("\n");
+}
+
+// ── Reseller-funnel: partnerdeck-mail (vanuit het AM-adres) ──
+// CONCEPT-copy. B1, TOV-conform, geen cijfer-claims, geen founder-stem. Cold-
+// context (geen account-footer). De finale wervingstekst staat op de deck-pagina
+// en gaat via de copy-gate + Christians expliciete akkoord vóór de eerste echte
+// verzending. From = AM-adres (vereist geverifieerd @dicteren.ai-domein in Resend).
+function partnerDeckHtml(params: {
+  contactName?: string | null;
+  amName: string;
+  deckUrl: string;
+}): string {
+  const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
+  const body = `
+    <p style="margin:0 0 16px 0;">${hi}</p>
+    <p style="margin:0 0 16px 0;">Ik denk dat Dicteren.ai interessant is om aan je klanten aan te bieden. Nederlandse spraak naar tekst, lokaal op het apparaat.</p>
+    <p style="margin:0 0 8px 0;">Ik zette een korte pagina voor je klaar met het hele verhaal en het partnerprogramma.</p>
+    ${cta(params.deckUrl, "Bekijk het partnerdeck")}
+    <p style="margin:16px 0 0 0;">Vragen? Antwoord gewoon op deze mail.</p>
+    <p style="margin:16px 0 0 0;">${params.amName}<br><span style="color:${BRAND.textMuted};">Dicteren.ai</span></p>`;
+  return `<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>Dicteren.ai partnerprogramma</title></head>
+<body style="margin:0;padding:0;background:${BRAND.bg};font-family:${EMAIL_FONT};color:${BRAND.text};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.bg};">
+    <tr><td align="center" style="padding:40px 16px 24px 16px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:${BRAND.white};border-radius:20px;overflow:hidden;box-shadow:0 6px 24px rgba(4,38,96,0.07);">
+        <tr><td style="background:${BRAND.aquaWash};padding:32px 40px 24px 40px;text-align:center;">
+          <img src="${logoUrl()}" alt="Dicteren.ai" width="170" style="display:block;height:auto;margin:0 auto;border:0;">
+        </td></tr>
+        <tr><td style="padding:32px 40px;font-size:16px;line-height:1.65;color:${BRAND.text};">${body}</td></tr>
+        <tr><td style="padding:20px 40px 28px 40px;border-top:1px solid ${BRAND.borderSoft};">
+          <p style="margin:0;font-size:12px;color:${BRAND.textSoft};">Geen interesse? Eén antwoord en je hoort niks meer van ons. Dicteren.ai, Nijmegen.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+export async function sendPartnerDeckEmail(params: {
+  to: string;
+  contactName?: string | null;
+  amName: string;
+  amEmail: string;
+  deckUrl: string;
+  contactId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
+  const text = `${hi}\n\nIk denk dat Dicteren.ai interessant is om aan je klanten aan te bieden. Nederlandse spraak naar tekst, lokaal op het apparaat.\n\nBekijk het partnerdeck:\n${params.deckUrl}\n\nVragen? Antwoord op deze mail.\n\n${params.amName}\nDicteren.ai`;
+  return sendEmail({
+    to: params.to,
+    subject: "Word reseller van Dicteren.ai",
+    html: partnerDeckHtml(params),
+    text,
+    from: `${params.amName} (Dicteren.ai) <${params.amEmail}>`,
+    replyTo: params.amEmail,
+    tags: [{ name: "category", value: "partner_deck" }],
+    idempotencyKey: params.contactId
+      ? `partner-deck/${params.contactId}`
+      : undefined,
+    log: { category: "partner_deck" },
+  });
 }

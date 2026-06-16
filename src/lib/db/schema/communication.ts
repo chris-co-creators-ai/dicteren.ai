@@ -26,6 +26,7 @@ export const emailStatus = pgEnum("email_status", [
 export const emailCategory = pgEnum("email_category", [
   "license_issued",
   "welcome",
+  "partner_deck",
   "subscription_past_due",
   "subscription_canceled",
   "subscription_renewed",
