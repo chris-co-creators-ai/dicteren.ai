@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { emailLogs } from "@/lib/db/schema";
 import type { ServiceResult } from "@/lib/types";
 import { emailBase } from "@/lib/url";
+import { amPhone } from "@/lib/config/amSignature";
 
 const DEFAULT_FROM = "Dicteren.ai <licenties@dicteren.ai>";
 const DEFAULT_REPLY_TO = "info@dicteren.ai";
@@ -1296,25 +1297,22 @@ function organizationInviteText(params: {
   return lines.join("\n");
 }
 
-// ── Reseller-funnel: partnerdeck-mail (vanuit het AM-adres) ──
-// CONCEPT-copy. B1, TOV-conform, geen cijfer-claims, geen founder-stem. Cold-
-// context (geen account-footer). De finale wervingstekst staat op de deck-pagina
-// en gaat via de copy-gate + Christians expliciete akkoord vóór de eerste echte
-// verzending. From = AM-adres (vereist geverifieerd @dicteren.ai-domein in Resend).
-function partnerDeckHtml(params: {
-  contactName?: string | null;
-  amName: string;
-  deckUrl: string;
-}): string {
-  const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
-  const body = `
-    <p style="margin:0 0 16px 0;">${hi}</p>
-    <p style="margin:0 0 16px 0;">Ik denk dat Dicteren.ai interessant is om aan je klanten aan te bieden. Nederlandse spraak naar tekst, lokaal op het apparaat.</p>
-    <p style="margin:0 0 8px 0;">Ik zette een korte pagina voor je klaar met het hele verhaal en het partnerprogramma.</p>
-    ${cta(params.deckUrl, "Bekijk het partnerdeck")}
-    <p style="margin:16px 0 0 0;">Vragen? Antwoord gewoon op deze mail.</p>
-    <p style="margin:16px 0 0 0;">${params.amName}<br><span style="color:${BRAND.textMuted};">Dicteren.ai</span></p>`;
-  return `<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>Dicteren.ai partnerprogramma</title></head>
+// ── Reseller-funnel: AM-signature voor de funnel-mails ──
+// De Gmail-signature komt niet mee via Resend, dus we bouwen 'm in de template na
+// (naam + functie + telefoon-indien-bekend + logo). Telefoon uit amSignature.ts.
+function amSignatureHtml(name: string, phone?: string | null): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+    <tr><td style="font-size:14px;line-height:1.5;color:${BRAND.text};">
+      <strong style="color:${BRAND.navy};">${name}</strong><br>Accountmanager${phone ? `<br>${phone}` : ""}
+    </td></tr>
+    <tr><td style="padding-top:12px;">
+      <img src="${logoUrl()}" alt="Dicteren.ai" width="150" style="display:block;height:auto;border:0;">
+    </td></tr>
+  </table>`;
+}
+
+function funnelMailShell(title: string, body: string, footer: string): string {
+  return `<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${title}</title></head>
 <body style="margin:0;padding:0;background:${BRAND.bg};font-family:${EMAIL_FONT};color:${BRAND.text};">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.bg};">
     <tr><td align="center" style="padding:40px 16px 24px 16px;">
@@ -1324,12 +1322,37 @@ function partnerDeckHtml(params: {
         </td></tr>
         <tr><td style="padding:32px 40px;font-size:16px;line-height:1.65;color:${BRAND.text};">${body}</td></tr>
         <tr><td style="padding:20px 40px 28px 40px;border-top:1px solid ${BRAND.borderSoft};">
-          <p style="margin:0;font-size:12px;color:${BRAND.textSoft};">Geen interesse? Eén antwoord en je hoort niks meer van ons. Dicteren.ai, Nijmegen.</p>
+          <p style="margin:0;font-size:12px;color:${BRAND.textSoft};">${footer}</p>
         </td></tr>
       </table>
     </td></tr>
   </table>
 </body></html>`;
+}
+
+// ── Reseller-funnel: partnerdeck-mail (vanuit het AM-adres) ──
+// CONCEPT-copy, akkoord Christian 2026-06-17. B1, TOV-conform, geen cijfer-claims,
+// geen founder-stem. Cold-context (geen account-footer). De finale wervingstekst
+// staat op de deck-pagina en gaat via de copy-gate. From = AM-adres.
+function partnerDeckHtml(params: {
+  contactName?: string | null;
+  amName: string;
+  amPhone?: string | null;
+  deckUrl: string;
+}): string {
+  const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
+  const body = `
+    <p style="margin:0 0 16px 0;">${hi}</p>
+    <p style="margin:0 0 16px 0;">Ik denk dat Dicteren.ai interessant is om aan je klanten aan te bieden. Nederlandse spraak naar tekst, lokaal op het apparaat.</p>
+    <p style="margin:0 0 8px 0;">Ik zette een korte pagina voor je klaar met het hele verhaal en het partnerprogramma.</p>
+    ${cta(params.deckUrl, "Bekijk het partnerdeck")}
+    <p style="margin:16px 0 0 0;">Vragen? Antwoord gewoon op deze mail.</p>
+    ${amSignatureHtml(params.amName, params.amPhone)}`;
+  return funnelMailShell(
+    "Dicteren.ai partnerprogramma",
+    body,
+    "Geen interesse? Eén antwoord en je hoort niks meer van ons. Dicteren.ai, Nijmegen.",
+  );
 }
 
 export async function sendPartnerDeckEmail(params: {
@@ -1340,12 +1363,14 @@ export async function sendPartnerDeckEmail(params: {
   deckUrl: string;
   contactId?: string;
 }): Promise<ServiceResult<SendResult>> {
+  const phone = amPhone(params.amEmail);
   const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
-  const text = `${hi}\n\nIk denk dat Dicteren.ai interessant is om aan je klanten aan te bieden. Nederlandse spraak naar tekst, lokaal op het apparaat.\n\nBekijk het partnerdeck:\n${params.deckUrl}\n\nVragen? Antwoord op deze mail.\n\n${params.amName}\nDicteren.ai`;
+  const sig = `${params.amName}\nAccountmanager${phone ? `\n${phone}` : ""}\nDicteren.ai`;
+  const text = `${hi}\n\nIk denk dat Dicteren.ai interessant is om aan je klanten aan te bieden. Nederlandse spraak naar tekst, lokaal op het apparaat.\n\nBekijk het partnerdeck:\n${params.deckUrl}\n\nVragen? Antwoord op deze mail.\n\n${sig}`;
   return sendEmail({
     to: params.to,
     subject: "Word reseller van Dicteren.ai",
-    html: partnerDeckHtml(params),
+    html: partnerDeckHtml({ ...params, amPhone: phone }),
     text,
     from: `${params.amName} (Dicteren.ai) <${params.amEmail}>`,
     replyTo: params.amEmail,
@@ -1354,5 +1379,51 @@ export async function sendPartnerDeckEmail(params: {
       ? `partner-deck/${params.contactId}`
       : undefined,
     log: { category: "partner_deck" },
+  });
+}
+
+// ── Reseller-funnel: welkomstmail naar de nieuwe reseller (bij promote) ──
+// CONCEPT-copy, akkoord Christian 2026-06-17. Vanuit het AM-adres.
+function partnerWelcomeHtml(params: {
+  contactName?: string | null;
+  amName: string;
+  amPhone?: string | null;
+}): string {
+  const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
+  const body = `
+    <p style="margin:0 0 16px 0;">${hi}</p>
+    <p style="margin:0 0 16px 0;">Top dat je meedoet. Je bent nu partner van Dicteren.ai.</p>
+    <p style="margin:0 0 16px 0;">Ik bel je deze week om je commissie en je eigen pagina af te ronden. Heb je voor die tijd een vraag? Antwoord gewoon op deze mail.</p>
+    ${amSignatureHtml(params.amName, params.amPhone)}`;
+  return funnelMailShell(
+    "Welkom als partner van Dicteren.ai",
+    body,
+    "Dicteren.ai, Nijmegen.",
+  );
+}
+
+export async function sendPartnerWelcomeEmail(params: {
+  to: string;
+  contactName?: string | null;
+  amName: string;
+  amEmail: string;
+  contactId?: string;
+}): Promise<ServiceResult<SendResult>> {
+  const phone = amPhone(params.amEmail);
+  const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
+  const sig = `${params.amName}\nAccountmanager${phone ? `\n${phone}` : ""}\nDicteren.ai`;
+  const text = `${hi}\n\nTop dat je meedoet. Je bent nu partner van Dicteren.ai.\n\nIk bel je deze week om je commissie en je eigen pagina af te ronden. Heb je voor die tijd een vraag? Antwoord gewoon op deze mail.\n\n${sig}`;
+  return sendEmail({
+    to: params.to,
+    subject: "Welkom als partner van Dicteren.ai",
+    html: partnerWelcomeHtml({ ...params, amPhone: phone }),
+    text,
+    from: `${params.amName} (Dicteren.ai) <${params.amEmail}>`,
+    replyTo: params.amEmail,
+    tags: [{ name: "category", value: "other" }],
+    idempotencyKey: params.contactId
+      ? `partner-welcome/${params.contactId}`
+      : undefined,
+    log: { category: "other" },
   });
 }
