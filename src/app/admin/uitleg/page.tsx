@@ -77,6 +77,66 @@ function H2({ children }: { children: React.ReactNode }) {
   );
 }
 
+type MailBlock = string | { button: string };
+
+// Exacte copy van de funnel-mails (zie services/email.ts: partnerDeckHtml +
+// partnerWelcomeHtml). Statische kopie ter info voor AM's; bij copy-wijziging
+// beide bijwerken.
+const MAILS: { label: string; subject: string; blocks: MailBlock[] }[] = [
+  {
+    label: 'De partnerdeck-mail — bij "Partnerdeck sturen"',
+    subject: "Word reseller van Dicteren.ai",
+    blocks: [
+      "Hoi [voornaam],",
+      "Ik denk dat Dicteren.ai interessant is om aan je klanten aan te bieden. Nederlandse spraak naar tekst, lokaal op het apparaat.",
+      "Ik zette een korte pagina voor je klaar met het hele verhaal en het partnerprogramma.",
+      { button: "Bekijk het partnerdeck" },
+      "Vragen? Antwoord gewoon op deze mail.",
+    ],
+  },
+  {
+    label: 'De welkomstmail — bij "Maak reseller"',
+    subject: "Welkom als partner van Dicteren.ai",
+    blocks: [
+      "Hoi [voornaam],",
+      "Top dat je meedoet. Je bent nu partner van Dicteren.ai.",
+      "Ik bel je deze week om je commissie en je eigen pagina af te ronden. Heb je voor die tijd een vraag? Antwoord gewoon op deze mail.",
+    ],
+  },
+];
+
+function MailPreview({
+  subject,
+  blocks,
+}: {
+  subject: string;
+  blocks: MailBlock[];
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-[color:var(--border-soft)] bg-white">
+      <div className="border-b border-[color:var(--border-soft)] px-5 py-3 text-sm">
+        <span className="text-[color:var(--text-muted)]">Onderwerp: </span>
+        <span className="font-semibold text-[color:var(--navy)]">{subject}</span>
+      </div>
+      <div className="space-y-3 px-5 py-4 text-sm text-[color:var(--text-muted)]">
+        {blocks.map((b, i) =>
+          typeof b === "string" ? (
+            <p key={i}>{b}</p>
+          ) : (
+            <span
+              key={i}
+              className="inline-block rounded-lg px-4 py-2 text-sm font-semibold text-white"
+              style={{ background: "var(--orange, #FF8441)" }}
+            >
+              {b.button}
+            </span>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default async function AdminUitlegPage() {
   await assertStaffPageAccess("/admin/uitleg");
 
@@ -170,6 +230,26 @@ export default async function AdminUitlegPage() {
             is, wanneer iemand zich aanmeldde. Hier kopieer je ook de deck-link.
           </li>
         </ul>
+
+        <H2>De mails die namens jou uitgaan</H2>
+        <p className="mt-2 text-[color:var(--text-muted)]">
+          Deze twee mails gaan vanuit jouw eigen adres naar de prospect. Dit staat
+          erin:
+        </p>
+        <div className="mt-4 space-y-6">
+          {MAILS.map((m) => (
+            <div key={m.subject}>
+              <p className="mb-2 text-sm font-semibold text-[color:var(--navy)]">
+                {m.label}
+              </p>
+              <MailPreview subject={m.subject} blocks={m.blocks} />
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-sm text-[color:var(--text-soft,#5b6b86)]">
+          [voornaam] wordt automatisch ingevuld. Je naam, functie, telefoon en het
+          logo komen er als signature onder.
+        </p>
 
         <H2>Van prospect naar partner</H2>
         <p className="mt-2 text-[color:var(--text-muted)]">
