@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Bell,
+  BookOpen,
   Building2,
   Calculator,
   CalendarRange,
@@ -47,6 +48,7 @@ const ADMIN_ONLY: Role[] = ["admin"];
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "Overzicht", icon: Home, roles: BOTH },
+  { href: "/admin/uitleg", label: "Uitleg", icon: BookOpen, roles: BOTH },
   { href: "/admin/taken", label: "Taken", icon: ListChecks, roles: BOTH },
   { href: "/admin/borden", label: "Borden", icon: LayoutGrid, roles: BOTH },
   { href: "/admin/pi", label: "Pi", icon: Sparkles, roles: BOTH },
