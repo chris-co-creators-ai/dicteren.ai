@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { LogInteractionSheet } from "../log-activity-sheet";
+import { FunnelCockpit } from "./funnel-cockpit";
 import {
   activityTypeLabel,
   outcomeLabel,
@@ -146,6 +147,7 @@ const TABS = [
   { key: "payment", label: "Betaling" },
   { key: "offerte", label: "Offerte" },
   { key: "reseller", label: "Reseller" },
+  { key: "partner", label: "Partner" },
   { key: "timeline", label: "Timeline" },
   { key: "tasks", label: "Taken" },
 ] as const;
@@ -358,6 +360,8 @@ export function OrgSidePanel({
               <PaymentTab org={org} onChanged={loadAll} />
             ) : tab === "offerte" ? (
               <OffertesTab orgId={orgId} orgName={org.name} />
+            ) : tab === "partner" ? (
+              <FunnelCockpit orgId={orgId} />
             ) : tab === "timeline" ? (
               <TimelineTab
                 events={events}

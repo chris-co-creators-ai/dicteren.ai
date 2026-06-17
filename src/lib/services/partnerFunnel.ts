@@ -21,6 +21,7 @@ import {
   type Affiliate,
 } from "@/lib/db/schema";
 import { createAffiliate } from "./affiliate";
+import { deriveFunnelColumn, type FunnelColumn } from "./partnerFunnelShared";
 
 type FunnelEventKind =
   | "deck_sent"
@@ -254,4 +255,78 @@ export async function promoteContactToReseller(
   );
 
   return { ok: true, affiliate };
+}
+
+export type OrgFunnelState = {
+  contactId: string;
+  column: FunnelColumn;
+  deckToken: string | null;
+  deckSentAt: string | null;
+  deckVisitedAt: string | null;
+  appliedAt: string | null;
+  companyName: string | null;
+  appliedQuote: string | null;
+  promotedAffiliateId: string | null;
+  temperature: "cold" | "lukewarm" | "warm" | "hot" | null;
+};
+
+/** Funnel-state voor het CRM-org-side-panel. De prospect opent het org-panel;
+ *  de funnel-velden leven op de primary contact van die org. */
+export async function getOrgFunnelState(
+  orgId: string,
+): Promise<OrgFunnelState | null> {
+  const [org] = await db
+    .select({
+      status: crmOrganizations.status,
+      doNotCall: crmOrganizations.doNotCall,
+    })
+    .from(crmOrganizations)
+    .where(eq(crmOrganizations.id, orgId))
+    .limit(1);
+  if (!org) return null;
+
+  const contacts = await db
+    .select({
+      id: crmContacts.id,
+      isPrimary: crmContacts.isPrimary,
+      deckToken: crmContacts.deckToken,
+      deckSentAt: crmContacts.deckSentAt,
+      deckVisitedAt: crmContacts.deckVisitedAt,
+      appliedAt: crmContacts.appliedAt,
+      companyName: crmContacts.companyName,
+      appliedQuote: crmContacts.appliedQuote,
+      promotedAffiliateId: crmContacts.promotedAffiliateId,
+      temperature: crmContacts.temperature,
+    })
+    .from(crmContacts)
+    .where(eq(crmContacts.crmOrganizationId, orgId));
+  if (!contacts.length) return null;
+  const c = contacts.find((x) => x.isPrimary) ?? contacts[0];
+
+  const deckSentAt = c.deckSentAt ? c.deckSentAt.toISOString() : null;
+  const deckVisitedAt = c.deckVisitedAt ? c.deckVisitedAt.toISOString() : null;
+  const appliedAt = c.appliedAt ? c.appliedAt.toISOString() : null;
+
+  const column = deriveFunnelColumn({
+    deckSentAt,
+    deckVisitedAt,
+    appliedAt,
+    promotedAffiliateId: c.promotedAffiliateId,
+    temperature: c.temperature,
+    orgStatus: org.status,
+    doNotCall: org.doNotCall ?? false,
+  });
+
+  return {
+    contactId: c.id,
+    column,
+    deckToken: c.deckToken,
+    deckSentAt,
+    deckVisitedAt,
+    appliedAt,
+    companyName: c.companyName,
+    appliedQuote: c.appliedQuote,
+    promotedAffiliateId: c.promotedAffiliateId,
+    temperature: c.temperature,
+  };
 }
