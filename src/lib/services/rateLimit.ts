@@ -29,6 +29,12 @@ export const RATE_LIMITS = {
   "contact:quote_request": { limit: 5, windowSeconds: 600 },
   partnership: { limit: 3, windowSeconds: 600 },
 
+  // Reseller-funnel publieke deck-pagina. Bezoek-log is laag-risico (alleen het
+  // eerste bezoek doet iets), dus ruim. Aanmelding + logo-presign zijn anti-bot.
+  "partner:visit": { limit: 20, windowSeconds: 600 },
+  "partner:apply": { limit: 3, windowSeconds: 600 },
+  "partner:logo-sign": { limit: 5, windowSeconds: 600 },
+
   // Brute-force op licentiecode. 28^N is groot maar niet astronomisch,
   // dus strikt: 10 pogingen / 10 minuten / IP. Een legitiem retry-scenario
   // van een gebruiker die zijn code verkeerd typt past hier ruim binnen.

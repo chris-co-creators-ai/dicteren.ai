@@ -172,11 +172,23 @@ export async function markApplied(
   contactId: string,
   input: ApplicationInput,
 ): Promise<void> {
+  const [contact] = await db
+    .select({
+      id: crmContacts.id,
+      crmOrganizationId: crmContacts.crmOrganizationId,
+      name: crmContacts.name,
+      appliedAt: crmContacts.appliedAt,
+    })
+    .from(crmContacts)
+    .where(eq(crmContacts.id, contactId))
+    .limit(1);
+  if (!contact) return;
+  const firstApply = !contact.appliedAt;
   const now = new Date();
   await db
     .update(crmContacts)
     .set({
-      appliedAt: now,
+      appliedAt: contact.appliedAt ?? now,
       appliedLogoR2Key: input.logoR2Key ?? null,
       appliedQuote: input.quote ?? null,
       appliedQuoteAuthor: input.quoteAuthor ?? null,
@@ -185,16 +197,8 @@ export async function markApplied(
       updatedAt: now,
     })
     .where(eq(crmContacts.id, contactId));
-  const [contact] = await db
-    .select({
-      id: crmContacts.id,
-      crmOrganizationId: crmContacts.crmOrganizationId,
-      name: crmContacts.name,
-    })
-    .from(crmContacts)
-    .where(eq(crmContacts.id, contactId))
-    .limit(1);
-  if (contact) {
+  // Alleen de eerste aanmelding logt + maakt de AM-taak (dedup bij dubbel).
+  if (firstApply) {
     await logContactEvent(contact, "application_received", { ...input }, null);
     await createContactAmTask(
       contact,
