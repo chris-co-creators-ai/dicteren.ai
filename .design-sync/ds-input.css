@@ -1,0 +1,12 @@
+/* Tailwind-compile-input voor /design-sync.
+   Output → .design-sync/.cache/dicteren-ds.css (= cfg.cssEntry).
+   Brand-fonts via Google Fonts (Nunito Sans + JetBrains Mono, beide OFL) zodat
+   previews EN designs de echte fonts laden — er is geen @font-face om te shippen
+   (de app laadt ze via next/font). Levert [FONT_REMOTE] (informatief). */
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..900;1,6..12,200..900&family=JetBrains+Mono:wght@400..700&display=swap');
+@import "../src/app/globals.css";
+
+/* Content-sources expliciet zodat utility-detectie deterministisch is,
+   los van de cwd waar de CLI draait. */
+@source "../src/**/*.{ts,tsx}";
+@source "./previews/**/*.tsx";
