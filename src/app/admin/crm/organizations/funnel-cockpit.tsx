@@ -30,22 +30,38 @@ function fmt(s: string | null): string {
   });
 }
 
-/** Reseller-funnel-cockpit: progressie-tracker A-Z + de NU-zone. Leest de
- *  funnel-state van de primary contact van de org en bedient de routes. */
-export function FunnelCockpit({ orgId }: { orgId: string }) {
+/** Reseller-funnel-cockpit: progressie-tracker A-Z + de NU-zone. Werkt op een
+ *  persoon (contactId, persoon-side-panel) of op de primary contact van een org
+ *  (orgId, org-side-panel) en bedient de routes. Geef er precies één mee. */
+export function FunnelCockpit({
+  orgId,
+  contactId,
+}: {
+  orgId?: string;
+  contactId?: string;
+}) {
   const [state, setState] = useState<FunnelState | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    if (!orgId && !contactId) {
+      setLoaded(true);
+      return;
+    }
     try {
-      const res = await fetch(`/api/admin/crm/organizations/${orgId}/funnel`);
+      const url = contactId
+        ? `/api/admin/crm/people/${contactId}/funnel`
+        : `/api/admin/crm/organizations/${orgId}/funnel`;
+      const res = await fetch(url);
       const d = (await res.json()) as { data?: FunnelState | null };
       setState(d.data ?? null);
+    } catch {
+      setState(null);
     } finally {
       setLoaded(true);
     }
-  }, [orgId]);
+  }, [orgId, contactId]);
 
   useEffect(() => {
     void load();

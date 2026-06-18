@@ -14,10 +14,10 @@ import {
   Send,
   Trash2,
   User,
-  X,
 } from "lucide-react";
 import { LogInteractionSheet } from "../log-activity-sheet";
 import { FunnelCockpit } from "./funnel-cockpit";
+import { EntitySidePanel } from "../entity-side-panel";
 import {
   activityTypeLabel,
   outcomeLabel,
@@ -244,144 +244,93 @@ export function OrgSidePanel({
     await loadAll();
   }
 
-  const panel = (
-      <div
-        onClick={docked ? undefined : (e) => e.stopPropagation()}
-        className={
-          docked
-            ? "flex h-full w-full flex-col bg-white"
-            : "ml-auto flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl"
-        }
-      >
-        {/* Header — vast bovenin */}
-        <div
-          className="shrink-0 border-b bg-white px-4 py-2.5"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-lg font-bold text-[color:var(--navy)]">
-                {org?.name ?? "Laden..."}
-              </h2>
-              {org && (
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                  <select
-                    value={org.status}
-                    onChange={(e) => patchOrg({ status: e.target.value })}
-                    className="rounded-md border bg-white px-2 py-1 font-semibold"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s.key} value={s.key}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-[color:var(--text-muted)]">
-                    {org.source}
-                  </span>
-                  {org.kvk && (
-                    <span className="text-[color:var(--text-muted)]">
-                      KvK {org.kvk}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg p-1.5 hover:bg-[color:var(--bg)]"
-            >
-              <X className="size-5" strokeWidth={2} />
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="mt-2.5 flex gap-1 overflow-x-auto">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={`whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
-                  tab === t.key
-                    ? "bg-[color:var(--navy)] text-white"
-                    : "text-[color:var(--text-muted)] hover:bg-[color:var(--bg)]"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Body — Details regelt z'n eigen scroll + vaste Opslaan-voet;
-            de overige tabs scrollen in dit middenvlak. De gate hangt op !org
-            (niet op loading): een refetch na een save mag de actieve tab niet
-            unmounten, anders verliest een AM z'n half getypte notitie. */}
-        {!org ? (
-          <div className="flex-1 px-4 py-12 text-center text-sm text-[color:var(--text-muted)]">
-            Laden...
-          </div>
-        ) : tab === "details" ? (
-          <DetailsTab
-            org={org}
-            admins={admins}
-            onSave={patchOrg}
-            contacts={contacts}
-            onContactsChanged={loadAll}
-          />
-        ) : (
-          <div className="scroll-visible min-h-0 flex-1 overflow-y-auto px-4 py-3">
-            {tab === "gesprek" ? (
-              <GesprekTab
-                orgId={orgId}
-                org={org}
-                contacts={contacts}
-                events={events}
-                onChanged={loadAll}
-                onParentChanged={onChanged}
-                onOpenTab={setTab}
-              />
-            ) : tab === "belscript" ? (
-              <BelscriptTab org={org} onSave={patchOrg} />
-            ) : tab === "faq" ? (
-              <FaqTab />
-            ) : tab === "reseller" ? (
-              <ResellerTab org={org} onSave={patchOrg} onChanged={loadAll} />
-            ) : tab === "contacts" ? (
-              <ContactsTab
-                orgId={orgId}
-                contacts={contacts}
-                onChanged={loadAll}
-              />
-            ) : tab === "payment" ? (
-              <PaymentTab org={org} onChanged={loadAll} />
-            ) : tab === "offerte" ? (
-              <OffertesTab orgId={orgId} orgName={org.name} />
-            ) : tab === "partner" ? (
-              <FunnelCockpit orgId={orgId} />
-            ) : tab === "timeline" ? (
-              <TimelineTab
-                events={events}
-                orgId={orgId}
-                orgName={org.name}
-                onLogged={loadAll}
-              />
-            ) : (
-              <TasksTab orgId={orgId} tasks={tasks} onChanged={loadAll} />
-            )}
-          </div>
-        )}
-      </div>
+  // Body per tab. Gate op !org (niet op loading): een refetch na een save mag
+  // de actieve tab niet unmounten, anders verliest een AM z'n half getypte
+  // notitie. Details regelt z'n eigen scroll + vaste Opslaan-voet (scrollBody
+  // false); de overige tabs scrollen in het middenvlak van de shell.
+  const body = !org ? null : tab === "details" ? (
+    <DetailsTab
+      org={org}
+      admins={admins}
+      onSave={patchOrg}
+      contacts={contacts}
+      onContactsChanged={loadAll}
+    />
+  ) : tab === "gesprek" ? (
+    <GesprekTab
+      orgId={orgId}
+      org={org}
+      contacts={contacts}
+      events={events}
+      onChanged={loadAll}
+      onParentChanged={onChanged}
+      onOpenTab={setTab}
+    />
+  ) : tab === "belscript" ? (
+    <BelscriptTab org={org} onSave={patchOrg} />
+  ) : tab === "faq" ? (
+    <FaqTab />
+  ) : tab === "reseller" ? (
+    <ResellerTab org={org} onSave={patchOrg} onChanged={loadAll} />
+  ) : tab === "contacts" ? (
+    <ContactsTab orgId={orgId} contacts={contacts} onChanged={loadAll} />
+  ) : tab === "payment" ? (
+    <PaymentTab org={org} onChanged={loadAll} />
+  ) : tab === "offerte" ? (
+    <OffertesTab orgId={orgId} orgName={org.name} />
+  ) : tab === "partner" ? (
+    <FunnelCockpit orgId={orgId} />
+  ) : tab === "timeline" ? (
+    <TimelineTab
+      events={events}
+      orgId={orgId}
+      orgName={org.name}
+      onLogged={loadAll}
+    />
+  ) : (
+    <TasksTab orgId={orgId} tasks={tasks} onChanged={loadAll} />
   );
 
-  if (docked) return panel;
   return (
-    <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose}>
-      {panel}
-    </div>
+    <EntitySidePanel
+      mode="org"
+      docked={docked}
+      maxWidthClass="max-w-2xl"
+      title={org?.name ?? "Laden..."}
+      titleMeta={
+        org ? (
+          <>
+            <select
+              value={org.status}
+              onChange={(e) => patchOrg({ status: e.target.value })}
+              className="rounded-md border bg-white px-2 py-1 font-semibold"
+              style={{ borderColor: "var(--border)" }}
+            >
+              {STATUSES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-[color:var(--text-muted)]">{org.source}</span>
+            {org.kvk && (
+              <span className="text-[color:var(--text-muted)]">
+                KvK {org.kvk}
+              </span>
+            )}
+          </>
+        ) : null
+      }
+      tabs={TABS.map((t) => ({ key: t.key, label: t.label }))}
+      activeTab={tab}
+      onTabChange={(k) => setTab(k as TabKey)}
+      loading={!org}
+      loadingLabel="Laden..."
+      scrollBody={tab !== "details"}
+      onClose={onClose}
+    >
+      {body}
+    </EntitySidePanel>
   );
 }
 

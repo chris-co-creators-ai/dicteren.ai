@@ -257,7 +257,7 @@ export async function promoteContactToReseller(
   return { ok: true, affiliate };
 }
 
-export type OrgFunnelState = {
+export type FunnelState = {
   contactId: string;
   column: FunnelColumn;
   deckToken: string | null;
@@ -269,6 +269,53 @@ export type OrgFunnelState = {
   promotedAffiliateId: string | null;
   temperature: "cold" | "lukewarm" | "warm" | "hot" | null;
 };
+
+/** @deprecated gebruik FunnelState. Alias voor bestaande imports. */
+export type OrgFunnelState = FunnelState;
+
+/** Bouw de funnel-state uit een contact-rij + de org-status. Gedeeld door de
+ *  org-getter (primary contact) en de persoon-getter (de contact zelf). De
+ *  kolom is afgeleid uit de contact-velden plus de org-stage. */
+function buildFunnelState(
+  c: {
+    id: string;
+    deckToken: string | null;
+    deckSentAt: Date | null;
+    deckVisitedAt: Date | null;
+    appliedAt: Date | null;
+    companyName: string | null;
+    appliedQuote: string | null;
+    promotedAffiliateId: string | null;
+    temperature: "cold" | "lukewarm" | "warm" | "hot" | null;
+  },
+  orgStatus: string | null,
+  doNotCall: boolean,
+): FunnelState {
+  const deckSentAt = c.deckSentAt ? c.deckSentAt.toISOString() : null;
+  const deckVisitedAt = c.deckVisitedAt ? c.deckVisitedAt.toISOString() : null;
+  const appliedAt = c.appliedAt ? c.appliedAt.toISOString() : null;
+  const column = deriveFunnelColumn({
+    deckSentAt,
+    deckVisitedAt,
+    appliedAt,
+    promotedAffiliateId: c.promotedAffiliateId,
+    temperature: c.temperature,
+    orgStatus,
+    doNotCall,
+  });
+  return {
+    contactId: c.id,
+    column,
+    deckToken: c.deckToken,
+    deckSentAt,
+    deckVisitedAt,
+    appliedAt,
+    companyName: c.companyName,
+    appliedQuote: c.appliedQuote,
+    promotedAffiliateId: c.promotedAffiliateId,
+    temperature: c.temperature,
+  };
+}
 
 /** Funnel-state voor het CRM-org-side-panel. De prospect opent het org-panel;
  *  de funnel-velden leven op de primary contact van die org. */
@@ -302,31 +349,46 @@ export async function getOrgFunnelState(
     .where(eq(crmContacts.crmOrganizationId, orgId));
   if (!contacts.length) return null;
   const c = contacts.find((x) => x.isPrimary) ?? contacts[0];
+  return buildFunnelState(c, org.status, org.doNotCall ?? false);
+}
 
-  const deckSentAt = c.deckSentAt ? c.deckSentAt.toISOString() : null;
-  const deckVisitedAt = c.deckVisitedAt ? c.deckVisitedAt.toISOString() : null;
-  const appliedAt = c.appliedAt ? c.appliedAt.toISOString() : null;
+/** Funnel-state voor het persoon-side-panel. De funnel-velden leven op de
+ *  contact zelf; de org-stage komt erbij voor de kolom-afleiding. */
+export async function getContactFunnelState(
+  contactId: string,
+): Promise<FunnelState | null> {
+  const [c] = await db
+    .select({
+      id: crmContacts.id,
+      crmOrganizationId: crmContacts.crmOrganizationId,
+      deckToken: crmContacts.deckToken,
+      deckSentAt: crmContacts.deckSentAt,
+      deckVisitedAt: crmContacts.deckVisitedAt,
+      appliedAt: crmContacts.appliedAt,
+      companyName: crmContacts.companyName,
+      appliedQuote: crmContacts.appliedQuote,
+      promotedAffiliateId: crmContacts.promotedAffiliateId,
+      temperature: crmContacts.temperature,
+    })
+    .from(crmContacts)
+    .where(eq(crmContacts.id, contactId))
+    .limit(1);
+  if (!c) return null;
 
-  const column = deriveFunnelColumn({
-    deckSentAt,
-    deckVisitedAt,
-    appliedAt,
-    promotedAffiliateId: c.promotedAffiliateId,
-    temperature: c.temperature,
-    orgStatus: org.status,
-    doNotCall: org.doNotCall ?? false,
-  });
+  let orgStatus: string | null = null;
+  let doNotCall = false;
+  if (c.crmOrganizationId) {
+    const [org] = await db
+      .select({
+        status: crmOrganizations.status,
+        doNotCall: crmOrganizations.doNotCall,
+      })
+      .from(crmOrganizations)
+      .where(eq(crmOrganizations.id, c.crmOrganizationId))
+      .limit(1);
+    orgStatus = org?.status ?? null;
+    doNotCall = org?.doNotCall ?? false;
+  }
 
-  return {
-    contactId: c.id,
-    column,
-    deckToken: c.deckToken,
-    deckSentAt,
-    deckVisitedAt,
-    appliedAt,
-    companyName: c.companyName,
-    appliedQuote: c.appliedQuote,
-    promotedAffiliateId: c.promotedAffiliateId,
-    temperature: c.temperature,
-  };
+  return buildFunnelState(c, orgStatus, doNotCall);
 }

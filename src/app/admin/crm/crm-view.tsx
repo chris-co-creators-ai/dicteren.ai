@@ -33,6 +33,8 @@ import {
   type SupportSnapshot,
 } from "./[userId]/support-actions";
 import { OrgSidePanel } from "./organizations/org-side-panel";
+import { FunnelCockpit } from "./organizations/funnel-cockpit";
+import { EntitySidePanel } from "./entity-side-panel";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -794,22 +796,15 @@ export function CrmView({
     setSelected(new Set());
   }
 
-  // Clay-stijl "expand record": opent het detail-side-panel voor déze rij.
-  // Klant (auth.user) → PersonSidePanel; prospect (crm_contact) → het docked
-  // bedrijf-panel rechts. Wordt aangeroepen door het Expand-icoon links in de
-  // checkbox-kolom (op hover) én de pijl-knop in de actie-kolom.
+  // Clay-stijl "expand record": opent het persoon-side-panel voor déze rij.
+  // Zowel klant (auth.user) als prospect (crm_contact) openen hetzelfde panel;
+  // de reseller-funnel zit erin als Partner-tab. De gekoppelde organisatie
+  // bereik je via de spring-link in de kop. Wordt aangeroepen door het
+  // Expand-icoon links in de checkbox-kolom (op hover) én de pijl-knop in de
+  // actie-kolom.
   function openRecord(r: Customer) {
-    if (r.kind === "prospect") {
-      const orgId = r.organizationId;
-      if (!orgId) {
-        toast.error("Geen organisatie gekoppeld aan deze prospect");
-        return;
-      }
-      // Toggle: zelfde rij nog eens = panel dicht.
-      setDockedOrgId((cur) => (cur === orgId ? null : orgId));
-    } else {
-      setPersonFor((cur) => (cur?.id === r.id ? null : r));
-    }
+    // Toggle: zelfde rij nog eens = panel dicht.
+    setPersonFor((cur) => (cur?.id === r.id ? null : r));
   }
 
   async function bulkUpdate(patch: {
@@ -1703,9 +1698,8 @@ export function CrmView({
                           <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => openRecord(r)}
-                              disabled={!r.organizationId}
-                              className="text-[color:var(--text-soft)] hover:text-[color:var(--navy)] disabled:opacity-20"
-                              title="Open bedrijf-panel (notuleren, belscript, FAQ)"
+                              className="text-[color:var(--text-soft)] hover:text-[color:var(--navy)]"
+                              title="Open persoon-paneel (incl. funnel)"
                             >
                               <ArrowRight className="size-3.5" strokeWidth={2} />
                             </button>
@@ -1854,6 +1848,10 @@ export function CrmView({
           adminUsers={adminUsers}
           lists={lists}
           onClose={() => setPersonFor(null)}
+          onOpenOrg={(orgId) => {
+            setPersonFor(null);
+            setDockedOrgId(orgId);
+          }}
         />
       )}
     </>
@@ -1868,14 +1866,22 @@ function PersonSidePanel({
   adminUsers,
   lists,
   onClose,
+  onOpenOrg,
 }: {
   person: Customer;
   adminUsers: AdminUser[];
   lists: LeadListOption[];
   onClose: () => void;
+  onOpenOrg?: (orgId: string) => void;
 }) {
   const [tab, setTab] = useState<
-    "overzicht" | "activiteit" | "taken" | "commercie" | "apparaten" | "email"
+    | "overzicht"
+    | "activiteit"
+    | "taken"
+    | "commercie"
+    | "apparaten"
+    | "email"
+    | "partner"
   >("overzicht");
   const [timeline, setTimeline] = useState<
     { id: string; at: string; kind: string; title: string; detail: string | null }[]
@@ -2002,65 +2008,63 @@ function PersonSidePanel({
     .map((id) => lists.find((l) => l.id === id)?.name)
     .filter(Boolean) as string[];
 
+  // Klant-tabs (Activiteit/Taken/Commercie/Apparaten/E-mail) draaien op
+  // auth.user-endpoints; een prospect (crm_contact) heeft die data niet en de
+  // Taken-POST zou een FK-violation geven. Een prospect ziet Overzicht + de
+  // funnel; z'n activiteit/taken leven op de org (bereikbaar via de spring-link).
+  const isProspect = person.kind === "prospect";
   const TABS: { key: typeof tab; label: string }[] = [
     { key: "overzicht", label: "Overzicht" },
-    { key: "activiteit", label: "Activiteit" },
-    { key: "taken", label: "Taken" },
-    { key: "commercie", label: "Commercie" },
-    { key: "apparaten", label: "Apparaten" },
-    { key: "email", label: "E-mail" },
+    ...(isProspect
+      ? [{ key: "partner" as const, label: "Partner" }]
+      : [
+          { key: "activiteit" as const, label: "Activiteit" },
+          { key: "taken" as const, label: "Taken" },
+          { key: "commercie" as const, label: "Commercie" },
+          { key: "apparaten" as const, label: "Apparaten" },
+          { key: "email" as const, label: "E-mail" },
+        ]),
   ];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/30"
-      onClick={onClose}
+    <EntitySidePanel
+      mode="person"
+      maxWidthClass="max-w-md"
+      eyebrow={
+        <span
+          className="mb-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold"
+          style={{ background: seg.chipBg, color: seg.chipFg }}
+        >
+          {seg.label}
+        </span>
+      }
+      title={person.name}
+      titleMeta={
+        <span className="truncate text-[color:var(--text-soft)]">
+          {person.email}
+        </span>
+      }
+      link={
+        person.organizationId && onOpenOrg
+          ? {
+              label: "Bekijk organisatie",
+              onJump: () => onOpenOrg(person.organizationId as string),
+            }
+          : null
+      }
+      tabs={TABS}
+      activeTab={tab}
+      onTabChange={(k) => setTab(k as typeof tab)}
+      override={
+        <Link
+          href={`/admin/crm/${person.id}`}
+          className="flex w-full items-center justify-center rounded-lg bg-[color:var(--orange)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--orange-600)]"
+        >
+          Account profiel openen →
+        </Link>
+      }
+      onClose={onClose}
     >
-      <div
-        className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between border-b border-[color:var(--border-soft)] p-4">
-          <div className="min-w-0">
-            <span
-              className="mb-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold"
-              style={{ background: seg.chipBg, color: seg.chipFg }}
-            >
-              {seg.label}
-            </span>
-            <h2 className="truncate text-base font-bold text-[color:var(--navy)]">
-              {person.name}
-            </h2>
-            <p className="truncate text-xs text-[color:var(--text-soft)]">
-              {person.email}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-[color:var(--text-muted)] hover:bg-[color:var(--bg-deep)]"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex gap-1 border-b border-[color:var(--border-soft)] px-3 pt-2">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "rounded-t-lg px-3 py-1.5 text-xs font-semibold",
-                tab === t.key
-                  ? "bg-[color:var(--bg-deep)] text-[color:var(--navy)]"
-                  : "text-[color:var(--text-muted)] hover:text-[color:var(--navy)]",
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="scroll-visible min-h-0 flex-1 overflow-y-auto p-4">
           {tab === "overzicht" && (
             <div className="space-y-1">
               <InfoRow label="Stage" value={stageLabel} />
@@ -2394,18 +2398,9 @@ function PersonSidePanel({
               )}
             </div>
           )}
-        </div>
 
-        <div className="border-t border-[color:var(--border-soft)] p-4">
-          <Link
-            href={`/admin/crm/${person.id}`}
-            className="flex w-full items-center justify-center rounded-lg bg-[color:var(--orange)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--orange-600)]"
-          >
-            Account profiel openen →
-          </Link>
-        </div>
-      </div>
-    </div>
+      {tab === "partner" && <FunnelCockpit contactId={person.id} />}
+    </EntitySidePanel>
   );
 }
 
