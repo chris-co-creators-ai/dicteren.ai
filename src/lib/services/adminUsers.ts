@@ -28,6 +28,8 @@ export type AdminUserRow = {
   banExpires: Date | null;
   createdAt: Date;
   lastSessionAt: Date | null;
+  /** Signup-segment (migratie 0044): 'personal' = voor zichzelf, 'business' = voor een team. */
+  accountType: "personal" | "business" | null;
   paidLicenseCount: number;
   organizations: Array<{ id: string; name: string; role: string }>;
   /** Raw context for client-side deriveCustomerSource() — keeps SSOT in lib/services/customerSource. */
@@ -56,6 +58,7 @@ export async function listAdminUsers(
       banReason: authUser.banReason,
       banExpires: authUser.banExpires,
       createdAt: authUser.createdAt,
+      accountType: authUser.accountType,
     })
     .from(authUser)
     .where(
@@ -210,6 +213,7 @@ export async function listAdminUsers(
       banExpires: u.banExpires,
       createdAt: u.createdAt,
       lastSessionAt: lastSessionMap.get(u.id) ?? null,
+      accountType: (u.accountType as "personal" | "business" | null) ?? null,
       paidLicenseCount: licCountMap.get(u.id) ?? 0,
       organizations: orgsByUser.get(u.id) ?? [],
       latestLicenseSource: lic?.source ?? null,

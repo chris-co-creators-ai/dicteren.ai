@@ -40,6 +40,7 @@ type User = {
   banExpires: string | null;
   createdAt: string;
   lastSessionAt: string | null;
+  accountType: "personal" | "business" | null;
   paidLicenseCount: number;
   organizations: Array<{ id: string; name: string; role: string }>;
   latestLicenseSource: string | null;
@@ -77,6 +78,7 @@ export function UsersClient({ users }: Props) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [segmentFilter, setSegmentFilter] = useState("all");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -110,6 +112,11 @@ export function UsersClient({ users }: Props) {
         if (statusFilter === "in-org" && u.organizations.length === 0)
           return false;
       }
+      if (
+        segmentFilter !== "all" &&
+        (u.accountType ?? "personal") !== segmentFilter
+      )
+        return false;
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -120,7 +127,7 @@ export function UsersClient({ users }: Props) {
       }
       return true;
     });
-  }, [users, search, roleFilter, statusFilter]);
+  }, [users, search, roleFilter, statusFilter, segmentFilter]);
 
   async function executeAction(
     userId: string,
@@ -230,6 +237,15 @@ export function UsersClient({ users }: Props) {
           <option value="paying">Betalend (paid license)</option>
           <option value="in-org">Lid van organisatie</option>
         </select>
+        <select
+          value={segmentFilter}
+          onChange={(e) => setSegmentFilter(e.target.value)}
+          className="rounded-lg border bg-card py-2 px-3 text-sm"
+        >
+          <option value="all">Alle segmenten</option>
+          <option value="personal">Persoonlijk</option>
+          <option value="business">Zakelijk</option>
+        </select>
         <span className="ml-auto text-xs text-muted-foreground">
           {filtered.length} van {users.length} users
         </span>
@@ -305,6 +321,12 @@ export function UsersClient({ users }: Props) {
                       <Badge color="orange" icon={UserCog}>
                         Account Manager
                       </Badge>
+                    )}
+                    {u.accountType === "business" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-blue-800">
+                        <Building2 className="size-3" strokeWidth={2.2} />
+                        Zakelijk
+                      </span>
                     )}
                     {u.banned && (
                       <Badge color="red" icon={Ban}>

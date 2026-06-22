@@ -28,8 +28,9 @@ export default async function AdminUsersPage({
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Klanten</h1>
           <p className="text-sm text-muted-foreground">
-            Consumer-klanten, trial-users, B2B-members en prospects. Staff staat
-            standaard verborgen en leeft in{" "}
+            Alle accounts: consumer-klanten, trial-users en B2B-members.
+            Prospects zonder account leven in de sales-pijplijn op /admin/crm.
+            Staff staat standaard verborgen en leeft in{" "}
             <a href="/admin/settings/staff" className="underline">
               /admin/settings/staff
             </a>
@@ -81,6 +82,7 @@ export default async function AdminUsersPage({
             banExpires: u.banExpires?.toISOString() ?? null,
             createdAt: u.createdAt.toISOString(),
             lastSessionAt: u.lastSessionAt?.toISOString() ?? null,
+            accountType: u.accountType,
             paidLicenseCount: u.paidLicenseCount,
             organizations: u.organizations,
             latestLicenseSource: u.latestLicenseSource,

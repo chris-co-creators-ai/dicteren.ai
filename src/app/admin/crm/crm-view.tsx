@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   AtSign,
+  BadgeCheck,
   Building2,
   Columns3,
   Expand,
@@ -145,6 +146,9 @@ type Customer = {
   // geen login). organizationId is gevuld voor prospects (stage/temp leven
   // op de organisatie). Default "customer" als niet meegegeven.
   kind?: "customer" | "prospect";
+  // True zodra er een account (auth.user) achter dit contact zit: een prospect
+  // die zelf een trial/login aanmaakte. Beheer van het account zit in /admin/users.
+  hasAccount?: boolean;
   company?: string | null;
   organizationId?: string | null;
   enrichment?: ProspectEnrichmentClient | null;
@@ -431,9 +435,6 @@ export function CrmView({
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [tempFilter, setTempFilter] = useState<string>("all");
-  const [kindFilter, setKindFilter] = useState<"all" | "customer" | "prospect">(
-    "all",
-  );
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [discountFilter, setDiscountFilter] = useState<string>("all");
@@ -483,7 +484,6 @@ export function CrmView({
   async function fetchPeople(reset: boolean) {
     setLoadingPage(true);
     const p = new URLSearchParams();
-    if (kindFilter !== "all") p.set("kind", kindFilter);
     if (stageFilter !== "all") p.set("stage", stageFilter);
     if (tempFilter !== "all") p.set("temperature", tempFilter);
     if (assigneeFilter !== "all") p.set("assignee", assigneeFilter);
@@ -523,7 +523,6 @@ export function CrmView({
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    kindFilter,
     stageFilter,
     tempFilter,
     assigneeFilter,
@@ -715,8 +714,6 @@ export function CrmView({
           );
     return rows.filter((r) => {
       if (inList && !inList.has(r.id)) return false;
-      if (kindFilter !== "all" && (r.kind ?? "customer") !== kindFilter)
-        return false;
       if (stageFilter !== "all" && r.crmStage !== stageFilter) return false;
       if (
         effectiveHideLost &&
@@ -761,7 +758,6 @@ export function CrmView({
   }, [
     rows,
     activeListId,
-    kindFilter,
     stageFilter,
     tempFilter,
     assigneeFilter,
@@ -1166,17 +1162,6 @@ export function CrmView({
                 style={{ background: "var(--bg)" }}
               />
             </div>
-            <FilterSelect
-              value={kindFilter}
-              onChange={(v) =>
-                setKindFilter(v as "all" | "customer" | "prospect")
-              }
-              label="Klanten + prospects"
-              options={[
-                { value: "customer", label: "Alleen klanten" },
-                { value: "prospect", label: "Alleen prospects" },
-              ]}
-            />
             <FilterSelect
               value={stageFilter}
               onChange={setStageFilter}
@@ -3135,6 +3120,15 @@ function CellRenderer({
                 onSave={(v) => onFieldSave?.("name", v)}
               />
             </span>
+            {row.hasAccount && (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[0.625rem] font-semibold text-green-800"
+                title="Heeft een account — beheer in /admin/users"
+              >
+                <BadgeCheck className="size-3" strokeWidth={2.2} />
+                account
+              </span>
+            )}
           </div>
         );
       }

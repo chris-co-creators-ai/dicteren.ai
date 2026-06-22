@@ -1,11 +1,12 @@
 // Dicteren.ai — Server-side gepagineerde CRM-personenlijst.
 //
-// Vervangt het "laad alles → filter in JS"-patroon. Klanten (auth.user) en
-// prospects (crm_contacts zonder login) komen via één UNION in één
-// keyset-gepagineerde query, met de filters als SQL-WHERE. Schaalt naar
+// /crm is de sales-motie: deze lijst toont prospects (crm_contacts). Accounts
+// (auth.user) leven in /admin/users. Een prospect die intussen een account
+// aanmaakte blijft hier staan als sales-record; has_account markeert dat.
+// Eén keyset-gepagineerde query met de filters als SQL-WHERE, schaalt naar
 // duizenden rijen omdat alleen de zichtbare pagina (≤ limit) over de lijn gaat.
 //
-// Raw SQL is hier nodig: drizzle kan deze UNION-met-CASE + tuple-keyset niet
+// Raw SQL is hier nodig: drizzle kan deze CASE-mapping + tuple-keyset niet
 // typed uitdrukken. Alle user-input gaat via sql-parameters (geparametriseerd,
 // niet geïnterpoleerd) zodat er geen injectie mogelijk is.
 
@@ -52,6 +53,8 @@ export type CrmPeopleListRow = {
   notes: string | null;
   organizationId: string | null;
   createdAt: string;
+  /** True zodra er een auth.user achter dit contact zit (inbound-signup gematcht). */
+  hasAccount: boolean;
   /** Contactpersoon-velden (alleen prospects; klanten NULL). Migratie 0038. */
   firstName: string | null;
   lastName: string | null;
@@ -66,44 +69,13 @@ export type CrmPeopleListRow = {
   orgSpecialisatie: string | null;
 };
 
-/** De gedeelde UNION-bron. Identiek voor de page-query en de count-query. */
+/** De prospect-bron. Identiek voor de page-query en de count-query. Toont alle
+ *  crm_contacts (gekoppeld aan een account of niet); has_account = true zodra er
+ *  een auth.user achter zit. De 'prospect'-literal blijft staan zodat de
+ *  downstream-keten (loadCrmPeoplePage, crm-view) op kind kan blijven leunen. */
 const PEOPLE_CTE = sql`
   WITH people AS (
     SELECT
-      u.id::text                       AS id,
-      'customer'::text                 AS kind,
-      u.name                           AS name,
-      u.email                          AS email,
-      NULL::text                       AS phone,
-      NULL::text                       AS company,
-      ca.stage::text                   AS crm_stage,
-      ca.temperature::text             AS temperature,
-      ca.assigned_to_user_id::text     AS assignee_id,
-      ca.notes                         AS notes,
-      NULL::text                       AS organization_id,
-      NULL::text                       AS industry,
-      NULL::text                       AS company_size_range,
-      NULL::int                        AS lead_score,
-      NULL::text                       AS last_disposition,
-      NULL::text                       AS first_name,
-      NULL::text                       AS last_name,
-      NULL::text                       AS mobile_phone,
-      NULL::text                       AS role_at_company,
-      NULL::text                       AS org_kvk,
-      NULL::text                       AS org_vat_number,
-      NULL::text                       AS org_branche_vereniging,
-      NULL::int                        AS org_aantal_vestigingen,
-      NULL::text                       AS org_hoofdkantoor,
-      NULL::text                       AS org_specialisatie,
-      u."createdAt"                    AS created_at
-    FROM auth."user" u
-    LEFT JOIN public.customer_attributes ca ON ca.user_id = u.id
-    WHERE (u.role IS NULL OR u.role NOT IN ('admin','account_manager'))
-    UNION ALL
-    SELECT
-      -- Aliassen zijn functioneel overbodig (Postgres pakt de namen van de
-      -- eerste branch, puur positioneel) maar maken misalignment bij een
-      -- toekomstige kolom-wijziging direct zichtbaar in de diff.
       c.id::text                         AS id,
       'prospect'::text                   AS kind,
       c.name                             AS name,
@@ -125,6 +97,7 @@ const PEOPLE_CTE = sql`
       COALESCE(c.assigned_to_user_id, o.account_owner_id)::text AS assignee_id,
       c.notes                            AS notes,
       c.crm_organization_id::text        AS organization_id,
+      (c.auth_user_id IS NOT NULL)       AS has_account,
       c.industry                         AS industry,
       c.company_size_range               AS company_size_range,
       c.lead_score                       AS lead_score,
@@ -142,7 +115,6 @@ const PEOPLE_CTE = sql`
       c.created_at                       AS created_at
     FROM public.crm_contacts c
     LEFT JOIN public.crm_organizations o ON o.id = c.crm_organization_id
-    WHERE c.auth_user_id IS NULL
   )
 `;
 
@@ -231,6 +203,7 @@ export async function listCrmPeoplePage(args: {
     assignee_id: string | null;
     notes: string | null;
     organization_id: string | null;
+    has_account: boolean;
     created_at: string | Date;
     first_name: string | null;
     last_name: string | null;
@@ -244,7 +217,7 @@ export async function listCrmPeoplePage(args: {
     org_specialisatie: string | null;
   }>(
     sql`${PEOPLE_CTE}
-        SELECT id, kind, name, email, phone, company, crm_stage, temperature, assignee_id, notes, organization_id, created_at,
+        SELECT id, kind, name, email, phone, company, crm_stage, temperature, assignee_id, notes, organization_id, has_account, created_at,
                first_name, last_name, mobile_phone, role_at_company,
                org_kvk, org_vat_number, org_branche_vereniging, org_aantal_vestigingen, org_hoofdkantoor, org_specialisatie
         FROM people${whereClause(conds)}
@@ -266,6 +239,7 @@ export async function listCrmPeoplePage(args: {
     assigneeId: r.assignee_id,
     notes: r.notes,
     organizationId: r.organization_id,
+    hasAccount: r.has_account,
     firstName: r.first_name,
     lastName: r.last_name,
     mobilePhone: r.mobile_phone,

@@ -89,6 +89,8 @@ export type CrmPersonRow = {
   customFields: Record<string, string | number | null> | null;
   listIds: string[];
   kind: "customer" | "prospect";
+  /** True zodra er een auth.user achter dit contact zit (inbound-signup gematcht). */
+  hasAccount: boolean;
   company: string | null;
   organizationId: string | null;
   /** Clay-aligned GTM-verrijking; alleen gevuld voor prospects. */
@@ -209,6 +211,7 @@ export async function loadCrmPeoplePage(args: {
           null,
         listIds: memberships.get(r.id) ?? [],
         kind: "customer",
+        hasAccount: true,
         company: null,
         organizationId: null,
         enrichment: null,
@@ -266,6 +269,7 @@ export async function loadCrmPeoplePage(args: {
         customFields: null,
         listIds: contactMemberships.get(p.id) ?? [],
         kind: "prospect",
+        hasAccount: p.hasAccount,
         company: p.company,
         organizationId: p.organizationId,
         enrichment: enrichments.get(p.id) ?? null,
