@@ -51,6 +51,10 @@ export const authUser = authNs.table(
     banExpires: timestamp("banExpires", { withTimezone: true }),
     // AM-team plan: koppel AI-naam aan human (Kai/Vegeta/Goku/Popo)
     assistantName: text("assistant_name"),
+    // Inbound/outbound-split (PRD crm-inbound-outbound-split): segment + consent
+    // bij self-signup. Nullable + default; gevuld door de Persoonlijk/Zakelijk-toggle.
+    accountType: text("account_type").default("personal"),
+    marketingConsent: boolean("marketing_consent").default(false),
   },
   (t) => [
     uniqueIndex("auth_user_email_unique").on(t.email),

@@ -95,6 +95,10 @@ export const auth = betterAuth({
     additionalFields: {
       emailNormalized: { type: "string", required: false, input: false },
       assistantName: { type: "string", required: false, input: false },
+      // Inbound/outbound-split: segment + consent uit de Persoonlijk/Zakelijk-toggle.
+      // input:true want ze komen uit de signup-payload (client). DB-default vangt omissie.
+      accountType: { type: "string", required: false, input: true },
+      marketingConsent: { type: "boolean", required: false, input: true },
     },
   },
   databaseHooks: {
