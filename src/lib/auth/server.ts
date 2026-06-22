@@ -23,6 +23,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, organization, mcp, captcha } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { dbAuth } from "@/lib/db";
+import { resolveSignupToCrm } from "@/lib/services/crmIdentityResolution";
 import {
   authUser,
   authAccount,
@@ -146,6 +147,19 @@ export const auth = betterAuth({
             });
           } catch (e) {
             console.error("affiliate auto-link failed", e);
+          }
+          // Inbound/outbound-split: koppel de signup aan een bestaande CRM-prospect
+          // (e-mail/domein) + sein de AM. Niet-blokkerend — een match-fout mag de
+          // signup nooit breken.
+          try {
+            await resolveSignupToCrm({
+              userId: user.id,
+              email: user.email as string,
+              accountType:
+                (user as { accountType?: string | null }).accountType ?? null,
+            });
+          } catch (e) {
+            console.error("crm signup-resolution failed", e);
           }
         },
       },
