@@ -100,30 +100,67 @@ function SignInForm({ redirectTo }: { redirectTo: string }) {
 
 // ───── Sign up ───────────────────────────────────────────────
 
+type AccountType = "personal" | "business";
+const TEAM_SIZES = ["1", "2-5", "6-20", "20+"] as const;
+
 function SignUpForm({ redirectTo }: { redirectTo: string }) {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [accountType, setAccountType] = useState<AccountType>("personal");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [teamSize, setTeamSize] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const turnstileRef = useRef<TurnstileInstance>(null);
 
+  const isBusiness = accountType === "business";
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Vul je voor- en achternaam in.");
+      return;
+    }
     if (password.length < 8) {
       setError("Wachtwoord moet minimaal 8 tekens zijn.");
+      return;
+    }
+    if (isBusiness && !companyName.trim()) {
+      setError("Vul je bedrijfsnaam in.");
       return;
     }
     if (TURNSTILE_SITE_KEY && !captchaToken) {
       setError("Bevestig even dat je geen robot bent.");
       return;
     }
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
     startTransition(async () => {
       const { error } = await authClient.signUp.email(
-        { name: name.trim(), email, password },
+        {
+          // `name` blijft de composed display-waarde die alle mails/identity lezen.
+          name: fullName,
+          email,
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          accountType,
+          marketingConsent,
+          // Business-velden alleen bij zakelijk; leeg → niet meesturen (blijft null).
+          ...(isBusiness
+            ? {
+                companyName: companyName.trim() || undefined,
+                jobTitle: jobTitle.trim() || undefined,
+                teamSize: teamSize || undefined,
+              }
+            : {}),
+        },
         // Turnstile-token meesturen; de captcha-plugin valideert server-side.
         TURNSTILE_SITE_KEY
           ? { headers: { "x-captcha-response": captchaToken } }
@@ -144,18 +181,114 @@ function SignUpForm({ redirectTo }: { redirectTo: string }) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <Field
-        id="name"
-        label="Naam"
-        type="text"
-        autoComplete="name"
-        required
-        value={name}
-        onChange={setName}
-      />
+      {/* Persoonlijk / Zakelijk-toggle */}
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-semibold text-[color:var(--text)]">
+          Waarvoor gebruik je Dicteren.ai?
+        </span>
+        <div
+          className="grid grid-cols-2 gap-1 rounded-lg border border-[color:var(--border-soft)] bg-[color:var(--bg)] p-1"
+          role="tablist"
+        >
+          {(
+            [
+              { key: "personal", label: "Voor jezelf" },
+              { key: "business", label: "Voor je team" },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              role="tab"
+              aria-selected={accountType === opt.key}
+              onClick={() => setAccountType(opt.key)}
+              className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+                accountType === opt.key
+                  ? "bg-white text-[color:var(--navy)] shadow-sm"
+                  : "text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {isBusiness && (
+          <p className="text-[0.6875rem] text-[color:var(--text-soft)]">
+            Eén factuur voor je hele team. Korting vanaf 5 gebruikers.
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field
+          id="firstName"
+          label="Voornaam"
+          type="text"
+          autoComplete="given-name"
+          required
+          value={firstName}
+          onChange={setFirstName}
+        />
+        <Field
+          id="lastName"
+          label="Achternaam"
+          type="text"
+          autoComplete="family-name"
+          required
+          value={lastName}
+          onChange={setLastName}
+        />
+      </div>
+
+      {isBusiness && (
+        <>
+          <Field
+            id="companyName"
+            label="Bedrijfsnaam"
+            type="text"
+            autoComplete="organization"
+            required
+            value={companyName}
+            onChange={setCompanyName}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              id="jobTitle"
+              label="Functie"
+              type="text"
+              autoComplete="organization-title"
+              value={jobTitle}
+              onChange={setJobTitle}
+            />
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="teamSize"
+                className="text-xs font-semibold text-[color:var(--text)]"
+              >
+                Teamgrootte
+              </label>
+              <select
+                id="teamSize"
+                name="teamSize"
+                value={teamSize}
+                onChange={(e) => setTeamSize(e.target.value)}
+                className="rounded-lg border border-[color:var(--border-soft)] bg-white px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-[color:var(--orange)] focus:ring-2 focus:ring-[color:var(--orange-50)]"
+              >
+                <option value="">Kies…</option>
+                {TEAM_SIZES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      )}
+
       <Field
         id="email"
-        label="E-mailadres"
+        label={isBusiness ? "Werk-e-mailadres" : "E-mailadres"}
         type="email"
         autoComplete="email"
         required
@@ -172,6 +305,17 @@ function SignUpForm({ redirectTo }: { redirectTo: string }) {
         onChange={setPassword}
         hint="Minimaal 8 tekens."
       />
+
+      <label className="flex items-start gap-2 text-xs text-[color:var(--text-muted)]">
+        <input
+          type="checkbox"
+          checked={marketingConsent}
+          onChange={(e) => setMarketingConsent(e.target.checked)}
+          className="mt-0.5 size-4 rounded border-[color:var(--border-soft)]"
+        />
+        <span>Hou me op de hoogte van updates en tips.</span>
+      </label>
+
       {TURNSTILE_SITE_KEY && (
         <Turnstile
           ref={turnstileRef}
