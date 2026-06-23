@@ -26,6 +26,7 @@ export * from "./crmOffertes";
 export * from "./crmCampaignSteps";
 export * from "./partner";
 export * from "./affiliate";
+export * from "./referral";
 export * from "./communication";
 export * from "./audit";
 export * from "./orgSeats";

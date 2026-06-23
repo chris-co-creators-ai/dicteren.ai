@@ -107,6 +107,8 @@ export const auth = betterAuth({
       companyName: { type: "string", required: false, input: true },
       jobTitle: { type: "string", required: false, input: true },
       teamSize: { type: "string", required: false, input: true },
+      // Vrienden uitnodigen: invite-code, server-set (lazy-gen), client mag 'm niet zetten.
+      referralCode: { type: "string", required: false, input: false },
     },
   },
   databaseHooks: {

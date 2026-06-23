@@ -64,10 +64,13 @@ export const authUser = authNs.table(
     companyName: text("company_name"),
     jobTitle: text("job_title"),
     teamSize: text("team_size"),
+    // Vrienden uitnodigen: persoonlijke invite-code (lazy-gegenereerd). Server-set.
+    referralCode: text("referral_code"),
   },
   (t) => [
     uniqueIndex("auth_user_email_unique").on(t.email),
     uniqueIndex("auth_user_email_normalized_unique").on(t.emailNormalized),
+    uniqueIndex("auth_user_referral_code_unique").on(t.referralCode),
   ],
 );
 
