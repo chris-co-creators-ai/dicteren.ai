@@ -100,6 +100,13 @@ export const auth = betterAuth({
       // input:true want ze komen uit de signup-payload (client). DB-default vangt omissie.
       accountType: { type: "string", required: false, input: true },
       marketingConsent: { type: "boolean", required: false, input: true },
+      // Naam-split + business-capture uit de signup-form. `name` blijft de composed
+      // display-waarde (apart meegestuurd); deze velden zijn de schone losse data.
+      firstName: { type: "string", required: false, input: true },
+      lastName: { type: "string", required: false, input: true },
+      companyName: { type: "string", required: false, input: true },
+      jobTitle: { type: "string", required: false, input: true },
+      teamSize: { type: "string", required: false, input: true },
     },
   },
   databaseHooks: {

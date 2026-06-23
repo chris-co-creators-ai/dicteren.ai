@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { crmContacts, crmOrganizations, crmOrgTasks } from "@/lib/db/schema";
+import { authUsers, crmContacts, crmOrganizations, crmOrgTasks } from "@/lib/db/schema";
 import { normalizeEmail } from "./emailNormalize";
 
 // Inbound/outbound-split (PRD crm-inbound-outbound-split), Fase 2.
@@ -130,4 +130,105 @@ export async function resolveSignupToCrm(args: {
     taskCreated = true;
   }
   return { ...match, taskCreated };
+}
+
+// ───── Account-signalen (Fase 5) ─────────────────────────────
+// READ-ONLY. Welke login-accounts delen dit e-mailadres / e-maildomein, en onder
+// welk segment? Voedt het "Account-signalen"-blok in de /crm persoon- + org-panels:
+// een prospect die zelf een account/trial startte = heet; meerdere 'persoonlijke'
+// accounts op één zakelijk domein = team-/upsell-haak (Twenty's domein↔bedrijf-truc).
+
+export type AccountSignalItem = {
+  userId: string;
+  name: string;
+  email: string;
+  accountType: string | null;
+  createdAt: string;
+};
+
+export type AccountSignals = {
+  domain: string | null;
+  isFreeDomain: boolean;
+  self: AccountSignalItem | null;
+  domainAccounts: {
+    total: number;
+    personal: number;
+    business: number;
+    items: AccountSignalItem[];
+  };
+};
+
+function toItem(r: {
+  userId: string;
+  name: string;
+  email: string;
+  accountType: string | null;
+  createdAt: Date | string;
+}): AccountSignalItem {
+  return {
+    userId: r.userId,
+    name: r.name,
+    email: r.email,
+    accountType: r.accountType ?? null,
+    createdAt:
+      r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+  };
+}
+
+export async function getAccountSignals(args: {
+  email?: string | null;
+  domain?: string | null;
+}): Promise<AccountSignals> {
+  const email = (args.email ?? "").trim().toLowerCase();
+  const domainRaw = (args.domain ?? "").trim().toLowerCase();
+  const fromEmail = email.includes("@") ? email.split("@")[1] ?? "" : "";
+  // domain mag een bare host ("acme.nl") of een volledige website-URL
+  // ("https://www.acme.nl/contact") zijn — hostOf normaliseert beide.
+  const domain = (hostOf(domainRaw) || fromEmail).replace(/^www\./, "");
+  const isFreeDomain = domain ? FREE_EMAIL_DOMAINS.has(domain) : false;
+
+  const result: AccountSignals = {
+    domain: domain || null,
+    isFreeDomain,
+    self: null,
+    domainAccounts: { total: 0, personal: 0, business: 0, items: [] },
+  };
+
+  const cols = {
+    userId: authUsers.id,
+    name: authUsers.name,
+    email: authUsers.email,
+    accountType: authUsers.accountType,
+    createdAt: authUsers.createdAt,
+  };
+
+  // 1) Zelf-account: exact dezelfde mens (lower-e-mail).
+  if (email.includes("@")) {
+    const [u] = await db
+      .select(cols)
+      .from(authUsers)
+      .where(sql`lower(${authUsers.email}) = ${email}`)
+      .limit(1);
+    if (u) result.self = toItem(u);
+  }
+
+  // 2) Domein-accounts: alleen voor een zakelijk domein (gratis providers overslaan).
+  if (domain && !isFreeDomain) {
+    const rows = await db
+      .select(cols)
+      .from(authUsers)
+      .where(sql`lower(${authUsers.email}) LIKE ${"%@" + domain}`)
+      .orderBy(sql`${authUsers.createdAt} DESC`)
+      .limit(100);
+    const items = rows.map(toItem);
+    result.domainAccounts = {
+      total: items.length,
+      personal: items.filter((i) => (i.accountType ?? "personal") === "personal")
+        .length,
+      business: items.filter((i) => i.accountType === "business").length,
+      items,
+    };
+  }
+
+  return result;
 }

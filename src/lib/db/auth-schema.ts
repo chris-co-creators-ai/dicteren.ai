@@ -55,6 +55,15 @@ export const authUser = authNs.table(
     // bij self-signup. Nullable + default; gevuld door de Persoonlijk/Zakelijk-toggle.
     accountType: text("account_type").default("personal"),
     marketingConsent: boolean("marketing_consent").default(false),
+    // Naam-split + business-capture bij signup. `name` (boven) blijft de composed
+    // display-waarde die alle mails/identity lezen; deze velden zijn additieve,
+    // schone data. firstName/lastName voor iedereen, de rest alleen bij zakelijk.
+    // Spiegelt crm_contacts (first_name/last_name/job_title) voor consistente brug.
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    companyName: text("company_name"),
+    jobTitle: text("job_title"),
+    teamSize: text("team_size"),
   },
   (t) => [
     uniqueIndex("auth_user_email_unique").on(t.email),

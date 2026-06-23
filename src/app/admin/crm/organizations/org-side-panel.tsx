@@ -18,6 +18,7 @@ import {
 import { LogInteractionSheet } from "../log-activity-sheet";
 import { FunnelCockpit } from "./funnel-cockpit";
 import { EntitySidePanel } from "../entity-side-panel";
+import { AccountSignalsBlock } from "../account-signals-block";
 import {
   activityTypeLabel,
   outcomeLabel,
@@ -1558,6 +1559,8 @@ function DetailsTab({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="scroll-visible min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3 text-sm">
+      {/* Account-signalen: wie van dit domein heeft zelf een account/trial. */}
+      <AccountSignalsBlock domain={org.website} />
       {/* Contactpersoon eerst: in de Personen-tab is de rij een persoon — de
           AM vult hier wie hij belt, daaronder pas het bedrijf. */}
       <PrimaryContactSection

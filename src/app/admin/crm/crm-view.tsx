@@ -36,6 +36,7 @@ import {
 import { OrgSidePanel } from "./organizations/org-side-panel";
 import { FunnelCockpit } from "./organizations/funnel-cockpit";
 import { EntitySidePanel } from "./entity-side-panel";
+import { AccountSignalsBlock } from "./account-signals-block";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -2051,7 +2052,9 @@ function PersonSidePanel({
       onClose={onClose}
     >
           {tab === "overzicht" && (
-            <div className="space-y-1">
+            <div className="space-y-3">
+              <AccountSignalsBlock email={person.email} />
+              <div className="space-y-1">
               <InfoRow label="Stage" value={stageLabel} />
               <InfoRow label="Temperatuur" value={tempLabel} />
               <InfoRow label="Account manager" value={amName} />
@@ -2074,6 +2077,7 @@ function PersonSidePanel({
                   {person.notes}
                 </div>
               )}
+              </div>
             </div>
           )}
 
