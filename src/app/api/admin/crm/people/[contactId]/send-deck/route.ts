@@ -23,6 +23,7 @@ export async function POST(_request: Request, { params }: { params: Params }) {
     .select({
       email: crmContacts.email,
       firstName: crmContacts.firstName,
+      name: crmContacts.name,
     })
     .from(crmContacts)
     .where(eq(crmContacts.id, contactId))
@@ -52,9 +53,16 @@ export async function POST(_request: Request, { params }: { params: Params }) {
   const { token } = await markDeckSent(contactId, session.user.id);
   const deckUrl = `${emailBase()}/partner/${token}`;
 
+  // Voornaam voor de aanhef: first_name, anders het eerste woord van de volledige
+  // naam (veel contacten hebben wel `name` maar geen losse first_name).
+  const greetName =
+    contact.firstName?.trim() ||
+    contact.name?.trim().split(/\s+/)[0] ||
+    null;
+
   const sent = await sendPartnerDeckEmail({
     to: contact.email,
-    contactName: contact.firstName ?? null,
+    contactName: greetName,
     amName: session.user.name || "Dicteren.ai",
     amEmail,
     deckUrl,
