@@ -63,6 +63,9 @@ export const affiliates = pgTable(
     }),
     status: affiliateStatus("status").notNull().default("active"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
+    // Herkomst: self_serve (publieke voordeur), am (admin handmatig), reseller_funnel
+    // (gepromoveerd uit de CRM-funnel). Default 'am' → bestaande rijen + admin-create.
+    origin: text("origin").notNull().default("am"),
     // Legacy: blijft staan voor backward-compat met bestaande UI/types.
     commissionType: affiliateCommissionType("commission_type")
       .notNull()
@@ -233,6 +236,11 @@ export const affiliateCommissions = pgTable(
     isRenewal: boolean("is_renewal").notNull().default(false),
     sequenceNumber: integer("sequence_number").notNull().default(1),
     voidedReason: text("voided_reason"),
+    // Self-referral flag (PRD self-serve-referral, Fase 3.4): verdachte commissie
+    // (koper op hetzelfde bedrijfsdomein als de affiliate) → hold voor review i.p.v.
+    // auto-payable. AM keurt goed (needs_review=false) of void't. Geen harde blok.
+    needsReview: boolean("needs_review").notNull().default(false),
+    reviewReason: text("review_reason"),
     payoutId: uuid("payout_id").references(() => affiliatePayouts.id, {
       onDelete: "set null",
     }),

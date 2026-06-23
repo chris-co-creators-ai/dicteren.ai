@@ -28,9 +28,22 @@ import {
   type CustomerTypeKey,
 } from "./affiliateRules";
 import { normalizeEmail } from "./emailNormalize";
+import { SELF_SERVE_REFERRAL_PRESET } from "@/lib/config/referral";
 
 export type CommissionType = "percentage" | "fixed_per_seat";
 export type AffiliateStatusValue = "active" | "paused" | "disabled";
+export type AffiliateOrigin = "self_serve" | "am" | "reseller_funnel";
+
+// Gratis e-mailproviders: een domein-match hierop is geen bedrijf, dus geen
+// self-referral-signaal (anders flag je elke gmail-koper). Self-referral-flag only.
+const FREE_EMAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "hotmail.com", "hotmail.nl", "outlook.com",
+  "live.nl", "live.com", "yahoo.com", "icloud.com", "me.com", "ziggo.nl", "kpnmail.nl",
+]);
+function emailDomain(email: string | null | undefined): string | null {
+  const parts = (email ?? "").trim().toLowerCase().split("@");
+  return parts.length === 2 && parts[1] ? parts[1] : null;
+}
 
 /** Genereer een unieke affiliate-code in formaat AFF-XXXXXXXX. */
 export function generateAffiliateCode(): string {
@@ -365,6 +378,25 @@ export async function recordCommissionV2(args: {
     if (existing) return null;
   }
 
+  // Self-referral flag (Fase 3.4): koper op hetzelfde bedrijfsdomein als de
+  // affiliate → hold voor review (blijft pending, wordt niet auto-payable) tot een
+  // AM 'm goedkeurt of void't. Geen harde blok. De same-account-case is al upstream
+  // geblokkeerd (attributeUserToAffiliate); dit vangt de collega-op-zelfde-domein.
+  let needsReview = false;
+  let reviewReason: string | null = null;
+  const affDomain = emailDomain(args.affiliate.contactEmail);
+  if (affDomain && !FREE_EMAIL_DOMAINS.has(affDomain)) {
+    const [buyer] = await db
+      .select({ email: authUsers.email })
+      .from(authUsers)
+      .where(eq(authUsers.id, args.referral.userId))
+      .limit(1);
+    if (emailDomain(buyer?.email) === affDomain) {
+      needsReview = true;
+      reviewReason = `Koper op @${affDomain} = zelfde domein als de affiliate. Controleer self-referral.`;
+    }
+  }
+
   const [row] = await db
     .insert(affiliateCommissions)
     .values({
@@ -384,6 +416,8 @@ export async function recordCommissionV2(args: {
       unlocksAt,
       isRenewal: args.isRenewal,
       sequenceNumber,
+      needsReview,
+      reviewReason,
     })
     .onConflictDoNothing({
       target: [
@@ -557,6 +591,16 @@ export function customerTypeFromOrderPlan(
 }
 
 /** Affiliate aanmaken vanuit admin. */
+/** Genereer een code en garandeer uniciteit (collision-kans microscopisch). */
+async function uniqueAffiliateCode(): Promise<string> {
+  let code = generateAffiliateCode();
+  for (let i = 0; i < 5; i++) {
+    if (!(await getAffiliateByCode(code))) break;
+    code = generateAffiliateCode();
+  }
+  return code;
+}
+
 export async function createAffiliate(args: {
   name: string;
   contactEmail: string;
@@ -568,14 +612,9 @@ export async function createAffiliate(args: {
   payoutMethod?: string | null;
   payoutDetails?: Record<string, unknown> | null;
   internalNotes?: string | null;
+  origin?: AffiliateOrigin;
 }): Promise<Affiliate> {
-  let code = generateAffiliateCode();
-  // Defensive: ensure uniqueness on first try (collision-chance is microscopic).
-  for (let i = 0; i < 5; i++) {
-    const existing = await getAffiliateByCode(code);
-    if (!existing) break;
-    code = generateAffiliateCode();
-  }
+  const code = await uniqueAffiliateCode();
   const [row] = await db
     .insert(affiliates)
     .values({
@@ -585,6 +624,7 @@ export async function createAffiliate(args: {
       contactPhone: args.contactPhone ?? null,
       userId: args.userId ?? null,
       status: "active",
+      origin: args.origin ?? "am",
       commissionType: args.commissionType,
       commissionPct: args.commissionPct ?? 0,
       commissionFixedCents: args.commissionFixedCents ?? 0,
@@ -605,6 +645,64 @@ export async function createAffiliate(args: {
     if (refreshed) return refreshed;
   }
   return row;
+}
+
+/**
+ * Self-serve referral (PRD self-serve-referral, Fase 3). Iemand vraagt via de
+ * publieke voordeur een referral-link aan. Maakt een affiliate met de vaste
+ * preset (15% recurring/12mnd, consumer+business — `config/referral.ts`),
+ * `origin='self_serve'`, status `active`. Idempotent op (lowercase) contactEmail:
+ * een tweede aanvraag geeft het bestaande record terug, geen dubbele.
+ */
+export async function createSelfServeAffiliate(args: {
+  email: string;
+  name?: string | null;
+}): Promise<{ affiliate: Affiliate; created: boolean }> {
+  const email = args.email.trim().toLowerCase();
+
+  const [existing] = await db
+    .select()
+    .from(affiliates)
+    .where(eq(affiliates.contactEmail, email))
+    .limit(1);
+  if (existing) return { affiliate: existing, created: false };
+
+  const code = await uniqueAffiliateCode();
+  const c = SELF_SERVE_REFERRAL_PRESET.consumer;
+  const b = SELF_SERVE_REFERRAL_PRESET.business;
+  const [row] = await db
+    .insert(affiliates)
+    .values({
+      code,
+      name: args.name?.trim() || email.split("@")[0],
+      contactEmail: email,
+      status: "active",
+      origin: "self_serve",
+      // Legacy-velden (notNull) spiegelen de consumer-preset voor backward-compat.
+      commissionType: c.commissionType,
+      commissionPct: c.commissionPct,
+      // v2 consumer
+      consumerCommissionType: c.commissionType,
+      consumerCommissionPct: c.commissionPct,
+      consumerCommissionFixedCents: c.commissionFixedCents,
+      consumerCommissionDurationMonths: c.durationMonths,
+      consumerRecurringCommissionPct: c.recurringCommissionPct,
+      consumerRecurringCommissionFixedCents: c.recurringCommissionFixedCents,
+      // v2 business
+      businessCommissionType: b.commissionType,
+      businessCommissionPct: b.commissionPct,
+      businessCommissionFixedCents: b.commissionFixedCents,
+      businessCommissionDurationMonths: b.durationMonths,
+      businessRecurringCommissionPct: b.recurringCommissionPct,
+      businessRecurringCommissionFixedCents: b.recurringCommissionFixedCents,
+    })
+    .returning();
+
+  // Koppel aan een bestaand account als dit e-mailadres al een user is; anders
+  // koppelt de auth after-hook bij signup.
+  await linkAffiliateToExistingUser({ affiliateId: row.id, email });
+  const refreshed = await getAffiliateById(row.id);
+  return { affiliate: refreshed ?? row, created: true };
 }
 
 /** Affiliate-update vanuit admin. */

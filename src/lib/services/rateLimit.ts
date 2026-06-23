@@ -84,6 +84,12 @@ export const RATE_LIMITS = {
 
   // Affiliate first-touch cookie-set vanaf een slug-landing.
   "affiliate:ref": { limit: 30, windowSeconds: 60 },
+  // Self-serve referral-shortlink /r/{code} → cookie + redirect homepage. Ruim:
+  // een gedeelde link kan vanaf één IP (kantoor/nieuwsbrief-proxy) vaak geklikt worden.
+  "referral:click": { limit: 60, windowSeconds: 60 },
+  // Self-serve referral-aanmelding (voordeur: e-mail → link). Idempotent op e-mail,
+  // dus strak: voorkomt mass-creatie van affiliate-records met losse adressen.
+  "referral:join": { limit: 5, windowSeconds: 600 },
 
   // Auth: DB-based limiet voor /api/auth omdat Better Auth's eigen limiter
   // in-memory is en op Vercel multi-instance onbetrouwbaar. Brute-force op

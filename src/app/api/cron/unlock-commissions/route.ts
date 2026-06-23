@@ -36,6 +36,9 @@ export async function GET(request: Request) {
       and(
         eq(affiliateCommissions.status, "pending"),
         lte(affiliateCommissions.unlocksAt, now),
+        // Self-referral-flag (Fase 3.4): geflagde commissies blijven pending tot
+        // een AM ze in admin goedkeurt (needs_review → false) of void't.
+        eq(affiliateCommissions.needsReview, false),
       ),
     );
 
