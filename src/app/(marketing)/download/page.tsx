@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -8,7 +8,6 @@ import {
   ArrowRight,
   Download as DownloadIcon,
   Key,
-  Lock,
   Mic,
   Monitor,
   RefreshCw,
@@ -30,12 +29,6 @@ const MAC_DMG_URL =
 
 const WIN_SETUP_URL =
   "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_x64-setup.exe";
-
-// Soft password-gate (besluit Christian, 2026-06-10). De builds staan publiek
-// op R2; dit wachtwoord verbergt alleen de knoppen op de pagina, het is geen
-// harde beveiliging. Windows-build is nog ONGESIGNEERD (Azure Trusted Signing
-// volgt).
-const DOWNLOAD_PASSWORD = "Blablabla1!";
 
 const OS_INFO: Record<
   Os,
@@ -96,22 +89,9 @@ const TROUBLESHOOTING = [
 
 export default function DownloadPage() {
   const [os, setOs] = useState<Os>("mac");
-  const [unlocked, setUnlocked] = useState(false);
-  const [pw, setPw] = useState("");
-  const [pwError, setPwError] = useState(false);
 
   const downloadUrl = os === "mac" ? MAC_DMG_URL : WIN_SETUP_URL;
   const osLabel = os === "mac" ? "macOS" : "Windows";
-
-  function handleUnlock(e: FormEvent) {
-    e.preventDefault();
-    if (pw === DOWNLOAD_PASSWORD) {
-      setUnlocked(true);
-      setPwError(false);
-    } else {
-      setPwError(true);
-    }
-  }
 
   return (
     <>
@@ -159,39 +139,10 @@ export default function DownloadPage() {
         </div>
 
         <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:flex-wrap">
-          {unlocked ? (
-            <a href={downloadUrl} className="btn btn-primary btn-lg">
-              <DownloadIcon className="size-4" />
-              Download voor {osLabel}
-            </a>
-          ) : (
-            <form
-              onSubmit={handleUnlock}
-              className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center"
-            >
-              <input
-                type="password"
-                value={pw}
-                onChange={(e) => {
-                  setPw(e.target.value);
-                  setPwError(false);
-                }}
-                placeholder="Wachtwoord"
-                aria-label="Wachtwoord voor download"
-                aria-invalid={pwError}
-                className={cn(
-                  "h-12 rounded-full border bg-white px-5 text-sm outline-none transition-colors",
-                  pwError
-                    ? "border-red-400"
-                    : "border-[color:var(--border-soft)] focus:border-[color:var(--navy)]",
-                )}
-              />
-              <button type="submit" className="btn btn-primary btn-lg">
-                <Lock className="size-4" />
-                Ontgrendel download
-              </button>
-            </form>
-          )}
+          <a href={downloadUrl} className="btn btn-primary btn-lg">
+            <DownloadIcon className="size-4" />
+            Download voor {osLabel}
+          </a>
           <Link
             href="/auth/sign-up?next=/trial/start"
             className="btn btn-secondary btn-lg"
@@ -199,9 +150,6 @@ export default function DownloadPage() {
             Start trial-account
           </Link>
         </div>
-        {pwError && (
-          <p className="mt-3 text-sm text-red-500">Wachtwoord klopt niet.</p>
-        )}
       </section>
 
       {/* Windows SmartScreen-uitleg — alleen tonen bij Windows (Mac is
