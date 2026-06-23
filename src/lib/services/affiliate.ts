@@ -28,7 +28,6 @@ import {
   type CustomerTypeKey,
 } from "./affiliateRules";
 import { normalizeEmail } from "./emailNormalize";
-import { SELF_SERVE_REFERRAL_PRESET } from "@/lib/config/referral";
 
 export type CommissionType = "percentage" | "fixed_per_seat";
 export type AffiliateStatusValue = "active" | "paused" | "disabled";
@@ -645,64 +644,6 @@ export async function createAffiliate(args: {
     if (refreshed) return refreshed;
   }
   return row;
-}
-
-/**
- * Self-serve referral (PRD self-serve-referral, Fase 3). Iemand vraagt via de
- * publieke voordeur een referral-link aan. Maakt een affiliate met de vaste
- * preset (15% recurring/12mnd, consumer+business — `config/referral.ts`),
- * `origin='self_serve'`, status `active`. Idempotent op (lowercase) contactEmail:
- * een tweede aanvraag geeft het bestaande record terug, geen dubbele.
- */
-export async function createSelfServeAffiliate(args: {
-  email: string;
-  name?: string | null;
-}): Promise<{ affiliate: Affiliate; created: boolean }> {
-  const email = args.email.trim().toLowerCase();
-
-  const [existing] = await db
-    .select()
-    .from(affiliates)
-    .where(eq(affiliates.contactEmail, email))
-    .limit(1);
-  if (existing) return { affiliate: existing, created: false };
-
-  const code = await uniqueAffiliateCode();
-  const c = SELF_SERVE_REFERRAL_PRESET.consumer;
-  const b = SELF_SERVE_REFERRAL_PRESET.business;
-  const [row] = await db
-    .insert(affiliates)
-    .values({
-      code,
-      name: args.name?.trim() || email.split("@")[0],
-      contactEmail: email,
-      status: "active",
-      origin: "self_serve",
-      // Legacy-velden (notNull) spiegelen de consumer-preset voor backward-compat.
-      commissionType: c.commissionType,
-      commissionPct: c.commissionPct,
-      // v2 consumer
-      consumerCommissionType: c.commissionType,
-      consumerCommissionPct: c.commissionPct,
-      consumerCommissionFixedCents: c.commissionFixedCents,
-      consumerCommissionDurationMonths: c.durationMonths,
-      consumerRecurringCommissionPct: c.recurringCommissionPct,
-      consumerRecurringCommissionFixedCents: c.recurringCommissionFixedCents,
-      // v2 business
-      businessCommissionType: b.commissionType,
-      businessCommissionPct: b.commissionPct,
-      businessCommissionFixedCents: b.commissionFixedCents,
-      businessCommissionDurationMonths: b.durationMonths,
-      businessRecurringCommissionPct: b.recurringCommissionPct,
-      businessRecurringCommissionFixedCents: b.recurringCommissionFixedCents,
-    })
-    .returning();
-
-  // Koppel aan een bestaand account als dit e-mailadres al een user is; anders
-  // koppelt de auth after-hook bij signup.
-  await linkAffiliateToExistingUser({ affiliateId: row.id, email });
-  const refreshed = await getAffiliateById(row.id);
-  return { affiliate: refreshed ?? row, created: true };
 }
 
 /** Affiliate-update vanuit admin. */
