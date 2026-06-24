@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "windows": {
+      "signCommand": "signtool sign /sha1 11180EA9E42CD6F5242EE7DBD652EB39AF46F9B7 /tr http://time.certum.pl /td sha256 /fd sha256 /v %1"
+    }
+  }
+}
