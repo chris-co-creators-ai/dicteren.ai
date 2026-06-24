@@ -38,6 +38,12 @@ export default async function AccountLayout({
               Facturering
             </Link>
             <Link
+              href="/account/vrienden"
+              className="text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
+            >
+              Vrienden
+            </Link>
+            <Link
               href="/account/hulp"
               className="text-[color:var(--text-muted)] hover:text-[color:var(--navy)]"
             >

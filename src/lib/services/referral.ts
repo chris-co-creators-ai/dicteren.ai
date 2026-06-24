@@ -251,6 +251,58 @@ export async function applyReward(
   return { applied: true, method };
 }
 
+// ───── Overzicht voor /account "Vrienden uitnodigen" ─────
+export type ReferralOverview = {
+  code: string;
+  referrals: Array<{
+    id: string;
+    email: string | null;
+    status: "pending" | "qualified" | "void";
+    createdAt: string;
+    qualifiedAt: string | null;
+  }>;
+  appliedMonths: number;
+  pendingMonths: number;
+};
+
+export async function getReferralOverview(
+  userId: string,
+): Promise<ReferralOverview> {
+  const code = await getOrCreateReferralCode(userId);
+
+  const list = await db
+    .select({
+      id: referrals.id,
+      email: referrals.referredEmail,
+      status: referrals.status,
+      createdAt: referrals.createdAt,
+      qualifiedAt: referrals.qualifiedAt,
+    })
+    .from(referrals)
+    .where(eq(referrals.referrerUserId, userId))
+    .orderBy(desc(referrals.createdAt));
+
+  const myRewards = await db
+    .select({ status: referralRewards.status, months: referralRewards.months })
+    .from(referralRewards)
+    .where(eq(referralRewards.userId, userId));
+  const sum = (s: string) =>
+    myRewards.filter((r) => r.status === s).reduce((a, r) => a + r.months, 0);
+
+  return {
+    code,
+    referrals: list.map((r) => ({
+      id: r.id,
+      email: r.email,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+      qualifiedAt: r.qualifiedAt ? r.qualifiedAt.toISOString() : null,
+    })),
+    appliedMonths: sum("applied"),
+    pendingMonths: sum("pending"),
+  };
+}
+
 /** Batch voor de cron: pas alle pending rewards toe. Idempotent. */
 export async function applyPendingReferralRewards(): Promise<{
   applied: number;
