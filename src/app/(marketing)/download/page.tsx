@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Apple,
   ArrowRight,
@@ -25,10 +24,10 @@ type Os = "mac" | "win";
  * (of we naar ort-tract switchen).
  */
 const MAC_DMG_URL =
-  "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_aarch64.dmg";
+  "https://models.dicteren.ai/releases/Dicteren.ai_0.8.6_aarch64.dmg";
 
 const WIN_SETUP_URL =
-  "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_x64-setup.exe";
+  "https://models.dicteren.ai/releases/Dicteren.ai_0.8.6_x64-setup.exe";
 
 const OS_INFO: Record<
   Os,
@@ -151,44 +150,6 @@ export default function DownloadPage() {
           </Link>
         </div>
       </section>
-
-      {/* Windows SmartScreen-uitleg — alleen tonen bij Windows (Mac is
-          gesigneerd + genotariseerd, dus geen melding). De Windows-build is
-          nog ongesigneerd; dit helpt de gebruiker door de melding heen tot
-          het code-signing-cert er is. */}
-      {os === "win" && (
-        <section className="border-y border-[color:var(--border-soft)] px-4 py-14 sm:px-6 sm:py-16 lg:px-14">
-          <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 sm:flex-row sm:items-center">
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold tracking-tight text-[color:var(--navy)] sm:text-3xl">
-                Krijg je deze melding op Windows?
-              </h2>
-              <p className="mt-4 max-w-md text-sm leading-relaxed text-[color:var(--text-muted)] sm:text-base">
-                Windows kent Dicteren.ai nog niet. Daarom verschijnt deze
-                melding bij het openen.
-              </p>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-[color:var(--text-muted)] sm:text-base">
-                Klik op{" "}
-                <strong className="font-semibold text-[color:var(--navy)]">
-                  Meer informatie
-                </strong>
-                . Kies daarna om het bestand toch te openen.
-              </p>
-              <p className="mt-3 max-w-md text-sm leading-relaxed text-[color:var(--text-muted)] sm:text-base">
-                Bij Uitgever staat Onbekend. Dat klopt. We ondertekenen de
-                Windows-versie binnenkort. Dan is de melding weg.
-              </p>
-            </div>
-            <Image
-              src="/windows-smartscreen.png"
-              alt="Windows-melding met onderaan de link Meer informatie"
-              width={264}
-              height={377}
-              className="w-full max-w-[248px] rounded-xl border border-[color:var(--border-soft)] shadow-sm"
-            />
-          </div>
-        </section>
-      )}
 
       {/* After download */}
       <section className="border-y border-[color:var(--border-soft)] bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-14">

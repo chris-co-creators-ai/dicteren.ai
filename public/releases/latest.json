@@ -1,15 +1,15 @@
 {
-  "version": "0.8.5",
+  "version": "0.8.6",
   "notes": "Kleinere, snellere app. Volledig lokaal, Nederlands.",
-  "pub_date": "2026-06-06T18:40:00Z",
+  "pub_date": "2026-06-24T13:00:00Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWERXVnY3WElOYkZjL0F1VnFYN0ZrY0VBMmNhclQ5RUxqbUN5K3RiYjk3ejl0MDNOVS82aVVFT1J1VlhLMDcrb3h2RHBQYTlZOStIZnBkc1kzNEZSSlJxZEwzTXgwMFFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzExNzY1CWZpbGU6RGljdGVyZW4uYWkuYXBwLnRhci5negppL2NSNjZlWC9NNGd3NDF6anlhd2dxY3k1SDNKNGd3MUlKWUplc29uZHZSa1BNRXQrdzdPKzlmNU1MVitiQzc5LzBaaFIzbkNveWdlcWpRZXllYzhCZz09Cg==",
-      "url": "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_aarch64.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWERXVnY3WElOYkswb1FXWDBBUkR2bnM5cDFwZFp5eVRsOWgzdDd1MHNCUzhvdjhCQlNuVGowRlNVYzhFNTlpZDdsVy9Yb1RxYUdjSzloZVR1VlQ3VGhHWG5sSHQwK3djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgxMDgyNDQzCWZpbGU6RGljdGVyZW4uYWkuYXBwLnRhci5negpMSEtBMlc5UXVRV2laZk5DS2hiSDM0YUJsUHdHTHJlR09udnd3SEt6VThMV2REMUgwc0N3Z3B5QnhiUUFjZzlnbjBPTlVMdERsYkwrU0J5MWhDcE5DZz09Cg==",
+      "url": "https://models.dicteren.ai/releases/Dicteren.ai_0.8.6_aarch64.app.tar.gz"
     },
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWERXVnY3WElOYkZodjhMTzlTZmM0elJaTnhKNE5PNnB0RXcyVVJKaHpzQWt6bE1sdjVTK1hueGVwOEpWZzNjVjRtRFc2S3hCaHNjSjJNNTJvMm9leFJZNUpYZjdseGdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNzYyMDE4CWZpbGU6RGljdGVyZW4uYWlfMC44LjVfeDY0LXNldHVwLmV4ZQpETjZkSXFNTWNkdHlvSlBZeUtsandaUlRpVXVPbi92aXlKNTBhZ0ZOYnZWMlFIZ0Y1YVZZN3RKWmdFZk5uV3c3dG03bVZoaUhDR1d0OXhpemZQR2NCZz09Cg==",
-      "url": "https://models.dicteren.ai/releases/Dicteren.ai_0.8.5_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWERXVnY3WElOYk5hTVQ1VUZUak9CVlJLVkg5RnI4MS9YTEV6RjlONDFFc1dvUVIzalZNZmdPc2ttN1hRYStRZVlqVmRRVkRMVEt2Q3BVa2xwTEZpV2pmZUQyUEZuK3dzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgyMzAyMTcxCWZpbGU6RGljdGVyZW4uYWlfMC44LjZfeDY0LXNldHVwLmV4ZQprZFNSdDh0UG9HdmNQVGhNdklMQ0hkU0dLSmZ5UFBiNTkwenV0L09ZSTdSb1dKZytwMjVGZXNHeHRxSDBVNGF4cnhuVm85RUhibEpTOEtJNllpb1JEZz09Cg==",
+      "url": "https://models.dicteren.ai/releases/Dicteren.ai_0.8.6_x64-setup.exe"
     }
   }
 }
