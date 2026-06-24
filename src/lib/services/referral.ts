@@ -1,8 +1,13 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
-import { authUsers, referrals, referralRewards } from "@/lib/db/schema";
+import {
+  authUsers,
+  licenses,
+  referrals,
+  referralRewards,
+} from "@/lib/db/schema";
 
 // Vrienden uitnodigen (PRD vrienden-uitnodigen): refer-a-friend met gratis maanden.
 // Aanbrenger + aangebrachte krijgen elk 1 maand. Aangebrachte krijgt 'm bij signup;
@@ -135,7 +140,7 @@ export async function qualifyReferral(
       and(eq(referrals.id, referral.id), eq(referrals.status, "pending")),
     );
 
-  await db
+  const [rw] = await db
     .insert(referralRewards)
     .values({
       referralId: referral.id,
@@ -145,7 +150,120 @@ export async function qualifyReferral(
     })
     .onConflictDoNothing({
       target: [referralRewards.referralId, referralRewards.role],
-    });
+    })
+    .returning({ id: referralRewards.id });
+
+  // Aanbrenger is een bestaande klant → meestal meteen toepasbaar. Cron is backstop.
+  if (rw) {
+    try {
+      await applyReward(rw.id);
+    } catch (e) {
+      console.error("apply referrer reward failed", e);
+    }
+  }
 
   return { qualified: true, referralId: referral.id };
+}
+
+// ───── Reward-uitlevering (Fase 4, optie A: licentie verlengen) ─────
+// Een pending reward levert z'n gratis maand door de `expiresAt` van de huidige
+// licentie van de user te verlengen. Renewals verlengen vanaf de einddatum
+// (order.ts), dus de bonus overleeft een incasso. Géén Mollie-charge-manipulatie.
+// Claim-first (status pending → applied) zodat een reward nooit dubbel verlengt.
+
+export async function applyReward(
+  rewardId: string,
+): Promise<{ applied: boolean; method: string }> {
+  const [reward] = await db
+    .select()
+    .from(referralRewards)
+    .where(eq(referralRewards.id, rewardId))
+    .limit(1);
+  if (!reward || reward.status !== "pending") {
+    return { applied: false, method: "skip" };
+  }
+
+  // Huidige licentie met einddatum (actief of trial), nieuwste eerst.
+  const [lic] = await db
+    .select({ id: licenses.id, expiresAt: licenses.expiresAt })
+    .from(licenses)
+    .where(
+      and(
+        eq(licenses.userId, reward.userId),
+        inArray(licenses.status, ["active", "trial"]),
+        isNotNull(licenses.expiresAt),
+      ),
+    )
+    .orderBy(desc(licenses.expiresAt))
+    .limit(1);
+
+  // Geen einddatum-licentie? Check op lifetime (niks te verlengen) vs nog-geen-licentie.
+  let method: string;
+  if (lic) {
+    method = "license_extend";
+  } else {
+    const [lifetime] = await db
+      .select({ id: licenses.id })
+      .from(licenses)
+      .where(
+        and(
+          eq(licenses.userId, reward.userId),
+          inArray(licenses.status, ["active", "trial"]),
+          isNull(licenses.expiresAt),
+        ),
+      )
+      .limit(1);
+    if (lifetime) {
+      method = "lifetime_noop"; // al lifetime, niks te verlengen
+    } else {
+      // Nog geen licentie (bv. vriend heeft trial nog niet geclaimd). Blijft
+      // pending; de cron probeert het opnieuw zodra er een licentie is.
+      return { applied: false, method: "no_license_yet" };
+    }
+  }
+
+  // Claim de reward idempotent: alleen vanuit pending. Voorkomt dubbel verlengen.
+  const claimed = await db
+    .update(referralRewards)
+    .set({ status: "applied", applyMethod: method, appliedAt: new Date() })
+    .where(
+      and(
+        eq(referralRewards.id, rewardId),
+        eq(referralRewards.status, "pending"),
+      ),
+    )
+    .returning({ id: referralRewards.id });
+  if (!claimed.length) return { applied: false, method: "already" };
+
+  // Verleng pas ná de claim (alleen bij een einddatum-licentie).
+  if (lic) {
+    const base =
+      lic.expiresAt && lic.expiresAt.getTime() > Date.now()
+        ? new Date(lic.expiresAt)
+        : new Date();
+    base.setMonth(base.getMonth() + reward.months);
+    await db
+      .update(licenses)
+      .set({ expiresAt: base })
+      .where(eq(licenses.id, lic.id));
+  }
+
+  return { applied: true, method };
+}
+
+/** Batch voor de cron: pas alle pending rewards toe. Idempotent. */
+export async function applyPendingReferralRewards(): Promise<{
+  applied: number;
+  stillPending: number;
+}> {
+  const pending = await db
+    .select({ id: referralRewards.id })
+    .from(referralRewards)
+    .where(eq(referralRewards.status, "pending"));
+  let applied = 0;
+  for (const r of pending) {
+    const res = await applyReward(r.id);
+    if (res.applied) applied++;
+  }
+  return { applied, stillPending: pending.length - applied };
 }
