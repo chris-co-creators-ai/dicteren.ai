@@ -260,9 +260,23 @@ export const crmContacts = pgTable(
     deckVisitedAt: timestamp("deck_visited_at", { withTimezone: true }),
     appliedAt: timestamp("applied_at", { withTimezone: true }),
     appliedLogoR2Key: text("applied_logo_r2_key"),
+    appliedBrandColor: text("applied_brand_color"),
     appliedQuote: text("applied_quote"),
     appliedQuoteAuthor: text("applied_quote_author"),
     promotedAffiliateId: uuid("promoted_affiliate_id"),
+
+    // ── Partner-funnel A2 (migratie 0049): de twee handmatige AM-momenten +
+    //    brand-identity-goedkeuring. De afspraak-markers zijn timestamps die de
+    //    AM zet bij "Afspraak rond" (de waarden zelf leven op de org). De
+    //    brand-identity-goedkeuring is de gate vóór publiceren.
+    commissionDiscussedAt: timestamp("commission_discussed_at", { withTimezone: true }),
+    discountAgreedAt: timestamp("discount_agreed_at", { withTimezone: true }),
+    expectedClientsLoggedAt: timestamp("expected_clients_logged_at", { withTimezone: true }),
+    brandIdentityApprovedAt: timestamp("brand_identity_approved_at", { withTimezone: true }),
+    brandIdentityApprovedBy: uuid("brand_identity_approved_by").references(
+      () => authUsers.id,
+      { onDelete: "set null" },
+    ),
 
     // ── Provenance + catch-all voor extra Clay-velden (geen data-verlies) ──
     enrichmentSource: text("enrichment_source"), // bv. "clay"
