@@ -178,6 +178,8 @@ export type ApplicationInput = {
   quoteAuthor?: string | null;
   logoR2Key?: string | null;
   brandColor?: string | null;
+  portraitR2Key?: string | null;
+  introText?: string | null;
 };
 
 /** Aanmelding op de deck-pagina: applied_at + aanmeld-data + event + AM-taak. */
@@ -206,6 +208,8 @@ export async function markApplied(
       appliedBrandColor: input.brandColor ?? null,
       appliedQuote: input.quote ?? null,
       appliedQuoteAuthor: input.quoteAuthor ?? null,
+      appliedPortraitR2Key: input.portraitR2Key ?? null,
+      appliedIntroText: input.introText ?? null,
       companyName: input.companyName ?? undefined,
       temperature: "hot",
       updatedAt: now,

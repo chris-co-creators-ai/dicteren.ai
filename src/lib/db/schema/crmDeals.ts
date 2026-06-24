@@ -263,6 +263,10 @@ export const crmContacts = pgTable(
     appliedBrandColor: text("applied_brand_color"),
     appliedQuote: text("applied_quote"),
     appliedQuoteAuthor: text("applied_quote_author"),
+    // Migratie 0050: portretfoto + introtekst (sectie 07 van het deck vraagt
+    // portret + logo + introtekst van 60-100 woorden voor de eigen landingpagina).
+    appliedPortraitR2Key: text("applied_portrait_r2_key"),
+    appliedIntroText: text("applied_intro_text"),
     promotedAffiliateId: uuid("promoted_affiliate_id"),
 
     // ── Partner-funnel A2 (migratie 0049): de twee handmatige AM-momenten +

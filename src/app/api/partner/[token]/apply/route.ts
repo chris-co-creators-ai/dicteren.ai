@@ -54,11 +54,28 @@ export async function POST(request: Request, { params }: { params: Params }) {
     );
   }
 
+  // Upload-keys komen van ons eigen /upload-endpoint en zijn token-gebonden.
+  // Accepteer alleen keys onder de eigen contact-id (geen verwijzing naar
+  // andere objecten in de bucket).
+  const ownPrefix = `partner-intake/${contact.id}/`;
+  const ownKey = (v: unknown): string | null => {
+    const k = clean(v, 300);
+    return k && k.startsWith(ownPrefix) ? k : null;
+  };
+  // Merkkleur: alleen een geldige hex-waarde.
+  const hex = (v: unknown): string | null => {
+    const c = clean(v, 7);
+    return c && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null;
+  };
+
   await markApplied(contact.id, {
     companyName: clean(body.companyName, 200),
     quote: clean(body.quote, 600),
     quoteAuthor: clean(body.quoteAuthor, 120),
-    logoR2Key: null, // logo-upload volgt in een aparte stap
+    introText: clean(body.introText, 1200),
+    brandColor: hex(body.brandColor),
+    logoR2Key: ownKey(body.logoR2Key),
+    portraitR2Key: ownKey(body.portraitR2Key),
   });
 
   return NextResponse.json({ success: true });
