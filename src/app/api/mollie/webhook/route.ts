@@ -67,6 +67,7 @@ import {
   voidCommissionsForOrder,
   customerTypeFromOrderPlan,
 } from "@/lib/services/affiliate";
+import { qualifyReferral } from "@/lib/services/referral";
 import { incrementDiscountRedemption } from "@/lib/services/discount";
 import {
   getContactByLicenseId,
@@ -434,6 +435,16 @@ export async function POST(request: Request) {
       const crmOrgIdFromMeta = (metadata as { crmOrgId?: string } | null)
         ?.crmOrgId;
       const userIdFromMeta = (metadata as { userId?: string } | null)?.userId;
+
+      // Gate vrienden-uitnodigen: de aangebrachte is nu betalend → kwalificeer de
+      // referral + ken de aanbrenger z'n gratis maand toe. Idempotent, non-blocking.
+      if (userIdFromMeta) {
+        try {
+          await qualifyReferral(userIdFromMeta);
+        } catch (e) {
+          console.error("referral qualify failed", e);
+        }
+      }
 
       if (isTeam && fulfilled.organizationId && metadata?.email) {
         // Route 2: self-service B2B (organization is in checkout aangemaakt).

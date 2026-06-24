@@ -24,6 +24,8 @@ import { admin, organization, mcp, captcha } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 import { dbAuth } from "@/lib/db";
 import { resolveSignupToCrm } from "@/lib/services/crmIdentityResolution";
+import { attributeReferral } from "@/lib/services/referral";
+import { getReferralCookie } from "@/lib/referralCookie";
 import {
   authUser,
   authAccount,
@@ -169,6 +171,22 @@ export const auth = betterAuth({
             });
           } catch (e) {
             console.error("crm signup-resolution failed", e);
+          }
+          // Vrienden uitnodigen: koppel de signup aan een aanbrenger via de
+          // referral-cookie + ken de aangebrachte z'n gratis maand toe. Non-blocking.
+          try {
+            const refCookie = await getReferralCookie();
+            if (refCookie?.referrerUserId) {
+              await attributeReferral({
+                referrerUserId: refCookie.referrerUserId,
+                referredUserId: user.id,
+                referredEmail: user.email as string,
+                referrerCode: refCookie.code,
+                source: "link",
+              });
+            }
+          } catch (e) {
+            console.error("referral attribution failed", e);
           }
         },
       },
