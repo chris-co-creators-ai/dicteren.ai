@@ -42,7 +42,11 @@ export default async function PartnerDeckPage({
   return (
     <>
       <DeckVisitTracker token={token} />
-      <PartnerDeck firstName={firstName} audience={audience} />
+      <PartnerDeck
+        firstName={firstName}
+        companyName={contact.companyName}
+        audience={audience}
+      />
       <section
         id="aanmelden"
         className="mx-auto max-w-3xl px-4 pb-24 sm:px-6"
