@@ -1375,8 +1375,12 @@ export async function sendPartnerDeckEmail(params: {
     from: `${params.amName} (Dicteren.ai) <${params.amEmail}>`,
     replyTo: params.amEmail,
     tags: [{ name: "category", value: "partner_deck" }],
+    // Minuut-bucket: een dubbel-klik binnen dezelfde minuut wordt nog gededupeerd
+    // (geen dubbele mail), maar een bewuste her-verzending ("Opnieuw sturen", of een
+    // nieuwe poging later) gaat wél. Een stabiele per-contact-key zou het deck 24u
+    // lang blokkeren — dan werkt "Opnieuw sturen" niet.
     idempotencyKey: params.contactId
-      ? `partner-deck/${params.contactId}`
+      ? `partner-deck/${params.contactId}/${Math.floor(Date.now() / 60000)}`
       : undefined,
     log: { category: "partner_deck" },
   });
