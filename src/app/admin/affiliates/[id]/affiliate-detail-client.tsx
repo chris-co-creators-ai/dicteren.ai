@@ -3,7 +3,20 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, Download, Edit, Pause, Play, Plus } from "lucide-react";
+import {
+  Copy,
+  Download,
+  Pause,
+  Play,
+  Plus,
+  Users,
+  UserCheck,
+  Clock,
+  Coins,
+  BadgeCheck,
+  Link2,
+  ArrowUpRight,
+} from "lucide-react";
 import { affiliatePublicUrl } from "@/lib/url";
 import { AffiliateEditForm } from "./edit-affiliate-modal";
 import { CreateDiscountCodeModal } from "./create-discount-code-modal";
@@ -92,8 +105,6 @@ type Props = {
   discountCodes: DiscountCode[];
 };
 
-/** Lokale euro-formatter — kan NIET als prop van de server komen (functies zijn
- *  niet serialiseerbaar naar een client-component). */
 function formatEur(cents: number): string {
   return `€${(cents / 100).toLocaleString("nl-NL", {
     minimumFractionDigits: 2,
@@ -101,22 +112,32 @@ function formatEur(cents: number): string {
   })}`;
 }
 
-/** V2-commissie-samenvatting (zakelijk/consument), fallback naar legacy. */
-function commissionSummary(a: Affiliate): string {
+function commissionParts(a: Affiliate): string[] {
   const rule = (type: string | null, pct: number, fixed: number) => {
     if (type === "percentage" && pct > 0) return `${pct}%`;
-    if (type === "fixed_per_seat" && fixed > 0) return `€${(fixed / 100).toFixed(0)}/seat`;
+    if (type === "fixed_per_seat" && fixed > 0)
+      return `€${(fixed / 100).toFixed(0)}/seat`;
     return null;
   };
-  const biz = rule(a.businessCommissionType, a.businessCommissionPct, a.businessCommissionFixedCents);
-  const con = rule(a.consumerCommissionType, a.consumerCommissionPct, a.consumerCommissionFixedCents);
+  const biz = rule(
+    a.businessCommissionType,
+    a.businessCommissionPct,
+    a.businessCommissionFixedCents,
+  );
+  const con = rule(
+    a.consumerCommissionType,
+    a.consumerCommissionPct,
+    a.consumerCommissionFixedCents,
+  );
   const parts: string[] = [];
   if (biz) parts.push(`Zakelijk ${biz}`);
   if (con) parts.push(`Consument ${con}`);
-  if (parts.length) return parts.join(" · ");
-  return a.commissionType === "percentage"
-    ? `${a.commissionPct}% per order`
-    : `${formatEur(a.commissionFixedCents)} per seat`;
+  if (parts.length) return parts;
+  return [
+    a.commissionType === "percentage"
+      ? `${a.commissionPct}% per order`
+      : `${formatEur(a.commissionFixedCents)} per seat`,
+  ];
 }
 
 export function AffiliateDetailClient({
@@ -132,13 +153,15 @@ export function AffiliateDetailClient({
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
+  const accent = affiliate.brandColor ?? "var(--navy)";
   const baseUrl =
     typeof window !== "undefined"
       ? window.location.origin
       : "https://www.dicteren.ai";
-  // De bedrijfsnaam-slug is de partner-URL; alleen zonder slug de ?ref=-fallback.
   const affiliateLink = affiliatePublicUrl(affiliate, baseUrl);
+  const displayName = affiliate.displayName ?? affiliate.name;
 
   const visibleCommissions = useMemo(() => {
     if (statusFilter === "all") return commissions;
@@ -148,9 +171,7 @@ export function AffiliateDetailClient({
   const selectedCount = selected.size;
   const selectedSum = useMemo(() => {
     let sum = 0;
-    for (const c of commissions) {
-      if (selected.has(c.id)) sum += c.amountCents;
-    }
+    for (const c of commissions) if (selected.has(c.id)) sum += c.amountCents;
     return sum;
   }, [commissions, selected]);
 
@@ -162,14 +183,15 @@ export function AffiliateDetailClient({
       return next;
     });
   }
-
   function selectAllVisible() {
-    const ids = visibleCommissions
-      .filter((c) => c.status === "pending" || c.status === "payable")
-      .map((c) => c.id);
-    setSelected(new Set(ids));
+    setSelected(
+      new Set(
+        visibleCommissions
+          .filter((c) => c.status === "pending" || c.status === "payable")
+          .map((c) => c.id),
+      ),
+    );
   }
-
   function clearSelection() {
     setSelected(new Set());
   }
@@ -191,11 +213,11 @@ export function AffiliateDetailClient({
       ),
     );
     const failed = results.filter(
-      (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success),
+      (r) =>
+        r.status === "rejected" || (r.status === "fulfilled" && !r.value.success),
     );
-    if (failed.length > 0) {
+    if (failed.length > 0)
       setError(`${failed.length} van ${ids.length} updates mislukt.`);
-    }
     setSelected(new Set());
     startTransition(() => router.refresh());
   }
@@ -211,8 +233,10 @@ export function AffiliateDetailClient({
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(affiliateLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     } catch {
-      // negeer
+      /* negeer */
     }
   }
 
@@ -268,160 +292,165 @@ export function AffiliateDetailClient({
   }
 
   return (
-    <>
-      <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">{affiliate.name}</h1>
-          <p className="text-sm text-muted-foreground">
-            Code: <span className="font-mono">{affiliate.code}</span> ·{" "}
-            {affiliate.contactEmail}
-            {affiliate.contactPhone && ` · ${affiliate.contactPhone}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusBadge value={affiliate.status} />
-          <button
-            onClick={toggleStatus}
-            className="btn btn-secondary"
-            title={affiliate.status === "active" ? "Pauzeer" : "Activeer"}
-          >
-            {affiliate.status === "active" ? (
-              <>
-                <Pause className="size-3.5" strokeWidth={2.2} />
-                Pauzeer
-              </>
-            ) : (
-              <>
-                <Play className="size-3.5" strokeWidth={2.2} />
-                Activeer
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-5">
-        <KPI label="Referrals" value={String(stats.referralCount)} />
-        <KPI label="Geconverteerd" value={String(stats.convertedCount)} />
-        <KPI label="Pending" value={formatEur(stats.pendingCents)} />
-        <KPI label="Payable" value={formatEur(stats.payableCents)} />
-        <KPI label="Uitbetaald" value={formatEur(stats.paidCents)} />
-      </div>
-
-      <section className="mt-8 rounded-2xl border bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold">Affiliate-link</h2>
-            <p className="text-sm text-muted-foreground">
-              Deel deze link. Klanten worden lifetime aan deze affiliate
-              gekoppeld.
-            </p>
-          </div>
-          <button onClick={copyLink} className="btn btn-secondary">
-            <Copy className="size-3.5" strokeWidth={2.2} />
-            Kopieer
-          </button>
-        </div>
-        <div className="mt-3 break-all rounded-md bg-muted/40 p-3 font-mono text-xs">
-          {affiliateLink}
-        </div>
-        <div className="mt-2 text-xs text-muted-foreground">
-          Commissie: {commissionSummary(affiliate)}
-          {affiliate.payoutMethod && ` · payout via ${affiliate.payoutMethod}`}
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold">Discount-codes</h2>
-            <p className="text-xs text-muted-foreground">
-              Codes die deze affiliate aan klanten kan geven. Bij gebruik krijgt
-              de klant korting EN wordt de affiliate als account owner
-              geattribueerd.
-            </p>
-          </div>
-          <button
-            onClick={() => setDiscountModalOpen(true)}
-            className="btn btn-primary"
-          >
-            <Plus className="size-3.5" strokeWidth={2.2} />
-            Nieuwe code
-          </button>
-        </div>
-        <div className="overflow-x-auto rounded-2xl border bg-card">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/40 text-left text-xs uppercase">
-              <tr>
-                <th className="px-4 py-3">Code</th>
-                <th className="px-4 py-3">Korting</th>
-                <th className="px-4 py-3">Doelgroep</th>
-                <th className="px-4 py-3">Gebruik</th>
-                <th className="px-4 py-3">Geldig tot</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {discountCodes.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    Nog geen discount-codes. Klik op + Nieuwe code.
-                  </td>
-                </tr>
-              )}
-              {discountCodes.map((d) => (
-                <DiscountRow
-                  key={d.id}
-                  d={d}
-                  formatEur={formatEur}
-                  onChange={() => startTransition(() => router.refresh())}
+    <div className="space-y-6">
+      {/* ─── Hero-header met de merkkleur van de partner als accent ─── */}
+      <header
+        className="overflow-hidden rounded-2xl border bg-card"
+        style={{ borderTopColor: accent, borderTopWidth: 3 }}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
+          <div className="flex items-center gap-4">
+            <span
+              className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl text-lg font-bold text-white"
+              style={{ background: accent }}
+            >
+              {affiliate.brandLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={affiliate.brandLogoUrl}
+                  alt={displayName}
+                  className="size-full object-cover"
                 />
-              ))}
-            </tbody>
-          </table>
+              ) : (
+                displayName.charAt(0).toUpperCase()
+              )}
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold leading-tight tracking-tight">
+                {affiliate.name}
+              </h1>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
+                  {affiliate.code}
+                </span>
+                <span>{affiliate.contactEmail}</span>
+                {affiliate.contactPhone && <span>· {affiliate.contactPhone}</span>}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusBadge value={affiliate.status} />
+            <button
+              onClick={toggleStatus}
+              className="btn btn-secondary"
+              title={affiliate.status === "active" ? "Pauzeer" : "Activeer"}
+            >
+              {affiliate.status === "active" ? (
+                <>
+                  <Pause className="size-3.5" strokeWidth={2.2} />
+                  Pauzeer
+                </>
+              ) : (
+                <>
+                  <Play className="size-3.5" strokeWidth={2.2} />
+                  Activeer
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </section>
 
-      <section className="mt-8">
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-          <h2 className="text-lg font-bold">Commissies</h2>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border bg-card py-1.5 px-2 text-xs"
+        {/* Deelbare link + commissie-samenvatting */}
+        <div className="flex flex-wrap items-center gap-3 border-t bg-muted/30 px-5 py-3 sm:px-6">
+          <Link2 className="size-4 shrink-0 text-muted-foreground" />
+          <code className="min-w-0 flex-1 truncate text-xs text-foreground">
+            {affiliateLink}
+          </code>
+          <button
+            onClick={copyLink}
+            className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold hover:bg-background"
           >
-            <option value="all">Alle statussen</option>
-            <option value="pending">Pending</option>
-            <option value="payable">Payable</option>
-            <option value="paid">Paid</option>
-            <option value="voided">Voided</option>
-          </select>
-          <button onClick={exportCsv} className="btn btn-secondary ml-auto">
-            <Download className="size-3.5" strokeWidth={2.2} />
-            Export CSV
+            <Copy className="size-3.5" strokeWidth={2.2} />
+            {copied ? "Gekopieerd" : "Kopieer"}
           </button>
+          <span className="hidden h-4 w-px bg-border sm:block" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {commissionParts(affiliate).map((p) => (
+              <span
+                key={p}
+                className="rounded-full border px-2 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground"
+              >
+                {p}
+              </span>
+            ))}
+            {affiliate.payoutMethod && (
+              <span className="text-[0.6875rem] text-muted-foreground">
+                payout via {affiliate.payoutMethod}
+              </span>
+            )}
+          </div>
         </div>
+      </header>
 
+      {/* ─── KPI-strip ─── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <KPI icon={Users} label="Referrals" value={String(stats.referralCount)} />
+        <KPI
+          icon={UserCheck}
+          label="Geconverteerd"
+          value={String(stats.convertedCount)}
+        />
+        <KPI icon={Clock} label="Pending" value={formatEur(stats.pendingCents)} />
+        <KPI
+          icon={Coins}
+          label="Payable"
+          value={formatEur(stats.payableCents)}
+          accent="var(--orange)"
+        />
+        <KPI
+          icon={BadgeCheck}
+          label="Uitbetaald"
+          value={formatEur(stats.paidCents)}
+          accent="#1F8A4C"
+        />
+      </div>
+
+      {/* ─── Commissies ─── */}
+      <Section
+        title="Commissies"
+        actions={
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-lg border bg-card px-2 py-1.5 text-xs"
+            >
+              <option value="all">Alle statussen</option>
+              <option value="pending">Pending</option>
+              <option value="payable">Payable</option>
+              <option value="paid">Paid</option>
+              <option value="voided">Voided</option>
+            </select>
+            <button onClick={exportCsv} className="btn btn-secondary">
+              <Download className="size-3.5" strokeWidth={2.2} />
+              CSV
+            </button>
+          </div>
+        }
+      >
         {selectedCount > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm">
-            <span className="font-semibold">
-              {selectedCount} geselecteerd · totaal {formatEur(selectedSum)}
+          <div
+            className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border p-3 text-sm"
+            style={{
+              borderColor: "var(--orange)",
+              background: "var(--orange-50)",
+            }}
+          >
+            <span className="font-semibold text-[color:var(--navy)]">
+              {selectedCount} geselecteerd · {formatEur(selectedSum)}
             </span>
             <button
               onClick={() => bulkSetStatus("payable")}
-              className="text-xs font-semibold text-blue-700 hover:underline"
+              className="text-xs font-semibold text-[color:var(--navy)] hover:underline"
             >
               Markeer uitbetaalbaar
             </button>
             <button
               onClick={bulkPayPrompt}
-              className="text-xs font-semibold text-green-700 hover:underline"
+              className="text-xs font-semibold hover:underline"
+              style={{ color: "#1F8A4C" }}
             >
-              Markeer betaald (met referentie)
+              Markeer betaald
             </button>
             <button
               onClick={() => bulkSetStatus("voided")}
@@ -433,159 +462,174 @@ export function AffiliateDetailClient({
               onClick={clearSelection}
               className="ml-auto text-xs font-semibold text-muted-foreground hover:underline"
             >
-              Selectie wissen
+              Wissen
             </button>
           </div>
         )}
-
         {error && (
-          <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div
+            className="mb-3 rounded-md border p-3 text-sm"
+            style={{ borderColor: "var(--red)", background: "var(--red-50)", color: "var(--red)" }}
+          >
             {error}
           </div>
         )}
-
-        <div className="overflow-x-auto rounded-2xl border bg-card">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/40 text-left text-xs uppercase">
-              <tr>
-                <th className="w-10 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all visible"
-                    onChange={(e) =>
-                      e.target.checked ? selectAllVisible() : clearSelection()
-                    }
-                  />
-                </th>
-                <th className="px-4 py-3">Datum</th>
-                <th className="px-4 py-3">Order</th>
-                <th className="px-4 py-3">Basis</th>
-                <th className="px-4 py-3">Seats</th>
-                <th className="px-4 py-3">Commissie</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Referentie</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {visibleCommissions.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    Geen commissies in dit filter.
-                  </td>
-                </tr>
-              )}
-              {visibleCommissions.map((c) => {
-                const canSelect =
-                  c.status === "pending" || c.status === "payable";
-                return (
-                  <tr key={c.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3">
-                      {canSelect ? (
-                        <input
-                          type="checkbox"
-                          checked={selected.has(c.id)}
-                          onChange={() => toggle(c.id)}
-                          aria-label={`Select ${c.id}`}
-                        />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      {new Date(c.createdAt).toLocaleDateString("nl-NL")}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
-                      {c.orderId?.slice(0, 8) ?? "—"}
-                      {c.licenseCode && (
-                        <div className="text-[0.6875rem] text-muted-foreground">
-                          {c.licenseCode}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      {formatEur(c.basisAmountCents)}
-                    </td>
-                    <td className="px-4 py-3 text-xs">{c.seats}</td>
-                    <td className="px-4 py-3 text-xs font-semibold">
-                      {formatEur(c.amountCents)}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      <StatusBadge value={c.status} />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {c.paidReference ?? "—"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-lg font-bold">
-          Aangedragen klanten ({referrals.length})
-        </h2>
-        <div className="mt-3 overflow-x-auto rounded-2xl border bg-card">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/40 text-left text-xs uppercase">
-              <tr>
-                <th className="px-4 py-3">Klant</th>
-                <th className="px-4 py-3">Eerste klik</th>
-                <th className="px-4 py-3">Eerste order</th>
-                <th className="px-4 py-3">Org</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {referrals.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    Nog geen referrals.
-                  </td>
-                </tr>
-              )}
-              {referrals.map((r) => (
-                <tr key={r.referralId} className="hover:bg-muted/30">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{r.userName ?? "—"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {r.userEmail ?? r.userId.slice(0, 8)}
+        <Table
+          head={
+            <tr>
+              <th className="w-10 px-4 py-3">
+                <input
+                  type="checkbox"
+                  aria-label="Select all visible"
+                  onChange={(e) =>
+                    e.target.checked ? selectAllVisible() : clearSelection()
+                  }
+                />
+              </th>
+              <th className="px-4 py-3">Datum</th>
+              <th className="px-4 py-3">Order</th>
+              <th className="px-4 py-3">Basis</th>
+              <th className="px-4 py-3">Seats</th>
+              <th className="px-4 py-3">Commissie</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Referentie</th>
+            </tr>
+          }
+          empty={visibleCommissions.length === 0 ? "Geen commissies in dit filter." : null}
+          colSpan={8}
+        >
+          {visibleCommissions.map((c) => {
+            const canSelect = c.status === "pending" || c.status === "payable";
+            return (
+              <tr key={c.id} className="hover:bg-muted/40">
+                <td className="px-4 py-3">
+                  {canSelect ? (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(c.id)}
+                      onChange={() => toggle(c.id)}
+                      aria-label={`Select ${c.id}`}
+                    />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-xs">
+                  {new Date(c.createdAt).toLocaleDateString("nl-NL")}
+                </td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  {c.orderId?.slice(0, 8) ?? "—"}
+                  {c.licenseCode && (
+                    <div className="text-[0.6875rem] text-muted-foreground">
+                      {c.licenseCode}
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    {new Date(r.firstSeenAt).toLocaleDateString("nl-NL")}
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    {r.convertedAt
-                      ? new Date(r.convertedAt).toLocaleDateString("nl-NL")
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs">
-                    {r.organizationId?.slice(0, 8) ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/crm/${r.userId}`}
-                      className="text-xs font-semibold text-blue-600 hover:underline"
-                    >
-                      CRM →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-xs">{formatEur(c.basisAmountCents)}</td>
+                <td className="px-4 py-3 text-xs">{c.seats}</td>
+                <td className="px-4 py-3 text-xs font-semibold">
+                  {formatEur(c.amountCents)}
+                </td>
+                <td className="px-4 py-3 text-xs">
+                  <StatusBadge value={c.status} />
+                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {c.paidReference ?? "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </Table>
+      </Section>
 
+      {/* ─── Discount-codes ─── */}
+      <Section
+        title="Discount-codes"
+        subtitle="Bij gebruik krijgt de klant korting én wordt deze affiliate als owner geattribueerd."
+        actions={
+          <button
+            onClick={() => setDiscountModalOpen(true)}
+            className="btn btn-primary"
+          >
+            <Plus className="size-3.5" strokeWidth={2.2} />
+            Nieuwe code
+          </button>
+        }
+      >
+        <Table
+          head={
+            <tr>
+              <th className="px-4 py-3">Code</th>
+              <th className="px-4 py-3">Korting</th>
+              <th className="px-4 py-3">Doelgroep</th>
+              <th className="px-4 py-3">Gebruik</th>
+              <th className="px-4 py-3">Geldig tot</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3"></th>
+            </tr>
+          }
+          empty={discountCodes.length === 0 ? "Nog geen discount-codes." : null}
+          colSpan={7}
+        >
+          {discountCodes.map((d) => (
+            <DiscountRow
+              key={d.id}
+              d={d}
+              formatEur={formatEur}
+              onChange={() => startTransition(() => router.refresh())}
+            />
+          ))}
+        </Table>
+      </Section>
+
+      {/* ─── Aangedragen klanten ─── */}
+      <Section title={`Aangedragen klanten (${referrals.length})`}>
+        <Table
+          head={
+            <tr>
+              <th className="px-4 py-3">Klant</th>
+              <th className="px-4 py-3">Eerste klik</th>
+              <th className="px-4 py-3">Eerste order</th>
+              <th className="px-4 py-3">Org</th>
+              <th className="px-4 py-3"></th>
+            </tr>
+          }
+          empty={referrals.length === 0 ? "Nog geen referrals." : null}
+          colSpan={5}
+        >
+          {referrals.map((r) => (
+            <tr key={r.referralId} className="hover:bg-muted/40">
+              <td className="px-4 py-3">
+                <div className="font-medium">{r.userName ?? "—"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {r.userEmail ?? r.userId.slice(0, 8)}
+                </div>
+              </td>
+              <td className="px-4 py-3 text-xs">
+                {new Date(r.firstSeenAt).toLocaleDateString("nl-NL")}
+              </td>
+              <td className="px-4 py-3 text-xs">
+                {r.convertedAt
+                  ? new Date(r.convertedAt).toLocaleDateString("nl-NL")
+                  : "—"}
+              </td>
+              <td className="px-4 py-3 font-mono text-xs">
+                {r.organizationId?.slice(0, 8) ?? "—"}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <Link
+                  href={`/admin/crm/${r.userId}`}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[color:var(--navy)] hover:underline"
+                >
+                  CRM <ArrowUpRight className="size-3" strokeWidth={2.5} />
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </Table>
+      </Section>
+
+      {/* ─── Instellingen (inline) ─── */}
       <AffiliateEditForm
         affiliate={affiliate}
         onSaved={() => startTransition(() => router.refresh())}
@@ -602,7 +646,107 @@ export function AffiliateDetailClient({
           }}
         />
       )}
-    </>
+    </div>
+  );
+}
+
+// ─── Bouwstenen ───
+
+function Section({
+  title,
+  subtitle,
+  actions,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
+        <div>
+          <h2 className="text-base font-bold">{title}</h2>
+          {subtitle && (
+            <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {actions}
+      </div>
+      <div className="px-5 pb-5 sm:px-6">{children}</div>
+    </section>
+  );
+}
+
+function Table({
+  head,
+  children,
+  empty,
+  colSpan,
+}: {
+  head: React.ReactNode;
+  children: React.ReactNode;
+  empty: string | null;
+  colSpan: number;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border">
+      <table className="w-full text-sm">
+        <thead className="border-b bg-muted/40 text-left text-[0.625rem] uppercase tracking-wide text-muted-foreground">
+          {head}
+        </thead>
+        <tbody className="divide-y">
+          {empty ? (
+            <tr>
+              <td
+                colSpan={colSpan}
+                className="px-4 py-10 text-center text-sm text-muted-foreground"
+              >
+                {empty}
+              </td>
+            </tr>
+          ) : (
+            children
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function KPI({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: string;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[0.625rem] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          {label}
+        </span>
+        <Icon
+          className="size-3.5 text-muted-foreground"
+          strokeWidth={2}
+          style={accent ? { color: accent } : undefined}
+        />
+      </div>
+      <div
+        className="mt-2 text-xl font-bold"
+        style={accent ? { color: accent } : undefined}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -632,7 +776,7 @@ function DiscountRow({
     try {
       await navigator.clipboard.writeText(d.code);
     } catch {
-      // ignore
+      /* ignore */
     }
   }
 
@@ -644,7 +788,7 @@ function DiscountRow({
         : `${d.value} mnd gratis`;
 
   return (
-    <tr className="hover:bg-muted/30">
+    <tr className="hover:bg-muted/40">
       <td className="px-4 py-3">
         <button
           onClick={copyCode}
@@ -664,29 +808,19 @@ function DiscountRow({
       </td>
       <td className="px-4 py-3 text-xs">
         {d.redemptionCount}
-        {d.maxRedemptions ? ` / ${d.maxRedemptions}` : " ·∞"}
+        {d.maxRedemptions ? ` / ${d.maxRedemptions}` : " · ∞"}
       </td>
       <td className="px-4 py-3 text-xs">
-        {d.validUntil
-          ? new Date(d.validUntil).toLocaleDateString("nl-NL")
-          : "—"}
+        {d.validUntil ? new Date(d.validUntil).toLocaleDateString("nl-NL") : "—"}
       </td>
       <td className="px-4 py-3 text-xs">
-        <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${
-            d.isActive
-              ? "bg-green-100 text-green-800"
-              : "bg-gray-200 text-gray-700"
-          }`}
-        >
-          {d.isActive ? "Active" : "Inactief"}
-        </span>
+        <StatusBadge value={d.isActive ? "active" : "disabled"} />
       </td>
       <td className="px-4 py-3 text-right">
         <button
           onClick={toggleActive}
           disabled={pending}
-          className="text-xs font-semibold text-blue-600 hover:underline"
+          className="text-xs font-semibold text-[color:var(--navy)] hover:underline"
         >
           {d.isActive ? "Deactiveer" : "Activeer"}
         </button>
@@ -695,31 +829,22 @@ function DiscountRow({
   );
 }
 
-function KPI({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border bg-card p-4">
-      <div className="text-[0.6875rem] uppercase tracking-[0.05em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-1 text-xl font-bold">{value}</div>
-    </div>
-  );
-}
-
 function StatusBadge({ value }: { value: string }) {
-  const cls =
+  const color =
     value === "active" || value === "paid"
-      ? "bg-green-100 text-green-800"
-      : value === "paused" || value === "payable"
-        ? "bg-yellow-100 text-yellow-800"
+      ? "#1F8A4C"
+      : value === "paused" || value === "payable" || value === "pending"
+        ? "var(--orange)"
         : value === "voided" || value === "disabled"
-          ? "bg-gray-200 text-gray-700"
-          : "bg-blue-100 text-blue-800";
+          ? "var(--text-muted)"
+          : "var(--navy)";
   return (
-    <span
-      className={`inline-flex rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${cls}`}
-    >
-      {value}
+    <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2 py-0.5 text-[0.625rem] font-semibold capitalize">
+      <span
+        className="inline-block size-1.5 rounded-full"
+        style={{ background: color }}
+      />
+      <span style={{ color }}>{value}</span>
     </span>
   );
 }
