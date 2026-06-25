@@ -66,6 +66,8 @@ export function FunnelCockpit({
     action: FunnelAction;
     text: string;
   } | null>(null);
+  // Stap 6: "Publiceer" vraagt eerst "Heb je de pagina gecontroleerd?" (geen lock).
+  const [publishAsk, setPublishAsk] = useState(false);
 
   const load = useCallback(async () => {
     if (!orgId && !contactId) {
@@ -285,31 +287,60 @@ export function FunnelCockpit({
               </div>
             )}
 
-            {/* De actie van deze stage */}
-            {zone.action && (
-              <div className="mt-2 pl-7">
+            {/* De actie(s) van deze stage. Stap 6 (brand_check) krijgt twee knoppen:
+                eerst de landingspagina checken, dan publiceren via een ja/nee-modal. */}
+            {stage.key === "brand_check" && current ? (
+              <div className="mt-2 flex flex-wrap gap-2 pl-7">
                 <button
                   type="button"
-                  disabled={!current || busy}
+                  disabled={busy}
                   onClick={() =>
-                    triggerAction(zone.action, zone.confirm, zone.confirmText ?? "")
+                    window.open(
+                      `/admin/crm/people/${state.contactId}/landing-preview`,
+                      "_blank",
+                    )
                   }
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold",
-                    current
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground",
-                  )}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary px-3 py-1.5 text-xs font-semibold text-primary"
                 >
-                  {Icon &&
-                    (current ? (
-                      <Icon className="size-3.5" strokeWidth={2.2} />
-                    ) : (
-                      <Lock className="size-3" />
-                    ))}
-                  {busy && current ? "Bezig…" : zone.actionLabel}
+                  <Eye className="size-3.5" strokeWidth={2.2} />
+                  Controleer landingspagina
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setPublishAsk(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                >
+                  <Rocket className="size-3.5" strokeWidth={2.2} />
+                  {busy ? "Bezig…" : "Publiceer landingpagina"}
                 </button>
               </div>
+            ) : (
+              zone.action && (
+                <div className="mt-2 pl-7">
+                  <button
+                    type="button"
+                    disabled={!current || busy}
+                    onClick={() =>
+                      triggerAction(zone.action, zone.confirm, zone.confirmText ?? "")
+                    }
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold",
+                      current
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {Icon &&
+                      (current ? (
+                        <Icon className="size-3.5" strokeWidth={2.2} />
+                      ) : (
+                        <Lock className="size-3" />
+                      ))}
+                    {busy && current ? "Bezig…" : zone.actionLabel}
+                  </button>
+                </div>
+              )
             )}
 
             {/* Hint voor stages zonder knop (bel na / bel voor afspraak) */}
@@ -355,6 +386,39 @@ export function FunnelCockpit({
               }}
             >
               Doorgaan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Stap 6: publiceer-bevestiging (geen lock, wel een check). */}
+      <AlertDialog
+        open={publishAsk}
+        onOpenChange={(o) => !o && setPublishAsk(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Heb je de pagina gecontroleerd?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Daarna gaat de partner live. Z&apos;n 15%-kortingscode en de
+              welkomstmail volgen automatisch.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() =>
+                toast.message("Oké, check dan ff of alles er netjes uitziet!")
+              }
+            >
+              Nee
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setPublishAsk(false);
+                void runAction("publish");
+              }}
+            >
+              Ja, publiceer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
