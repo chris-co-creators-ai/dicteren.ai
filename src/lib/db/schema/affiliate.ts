@@ -55,7 +55,8 @@ export const affiliates = pgTable(
     // Brandkit voor de op-maat slug-landingpage (door AM ingevuld op afspraak
     // met de reseller).
     brandColor: text("brand_color"), // accent-hex, bv. #1F8A4C
-    brandLogoUrl: text("brand_logo_url"),
+    brandLogoUrl: text("brand_logo_url"), // handmatig gezette publieke URL
+    brandLogoR2Key: text("brand_logo_r2_key"), // R2-intake-key (logo/portret), signed op render
     contactEmail: text("contact_email").notNull(),
     contactPhone: text("contact_phone"),
     userId: uuid("user_id").references(() => authUsers.id, {

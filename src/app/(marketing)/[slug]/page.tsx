@@ -12,6 +12,7 @@
 
 import { notFound } from "next/navigation";
 import { getAffiliateBySlug } from "@/lib/services/affiliateSlug";
+import { signDownload } from "@/lib/services/r2";
 import { AffiliateLanding } from "@/components/affiliate/affiliate-landing";
 import { RefTracker } from "./ref-tracker";
 
@@ -59,6 +60,18 @@ export default async function AffiliateSlugPage({
     (affiliate.businessCommissionPct > 0 ||
       affiliate.businessCommissionFixedCents > 0);
 
+  // De partner z'n aangeleverde logo/portret staat als niet-publieke R2-key op de
+  // affiliate; sign 'm op render (de pagina is force-dynamic, dus altijd vers).
+  // Een handmatig gezette publieke brandLogoUrl gaat voor als die er is.
+  let brandLogoUrl: string | null = affiliate.brandLogoUrl;
+  if (!brandLogoUrl && affiliate.brandLogoR2Key) {
+    try {
+      brandLogoUrl = await signDownload(affiliate.brandLogoR2Key);
+    } catch {
+      brandLogoUrl = null;
+    }
+  }
+
   return (
     <>
       <RefTracker affiliateId={affiliate.id} />
@@ -66,7 +79,7 @@ export default async function AffiliateSlugPage({
         brand={{
           displayName,
           brandColor: affiliate.brandColor,
-          brandLogoUrl: affiliate.brandLogoUrl,
+          brandLogoUrl,
           welcomeMessage: affiliate.welcomeMessage,
           hasConsumer,
           hasBusiness,

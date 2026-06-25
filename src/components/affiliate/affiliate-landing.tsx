@@ -15,7 +15,6 @@ import { WorksAnywhereSection } from "@/components/marketing/sections/works-anyw
 import { FeaturesInsideSection } from "@/components/marketing/sections/features-inside";
 import { AudienceGridSection } from "@/components/marketing/sections/audience-grid";
 import { PrivacySection } from "@/components/marketing/sections/privacy";
-import { PricingPreviewSection } from "@/components/marketing/sections/pricing-preview";
 import { FaqSection } from "@/components/marketing/sections/faq";
 
 export type LandingBrand = {
@@ -39,7 +38,6 @@ export function AffiliateLanding({ brand }: { brand: LandingBrand }) {
       <FeaturesInsideSection />
       <AudienceGridSection />
       <PrivacySection />
-      <PricingPreviewSection />
       <FaqSection />
       <PartnerCta brand={brand} />
     </>
@@ -106,8 +104,8 @@ function PartnerHero({ brand }: { brand: LandingBrand }) {
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-[color:var(--text-muted)] sm:mt-6 sm:text-lg">
             Dicteren.ai typt voor je, in Word, je mail en WhatsApp Web. Lokaal, op
-            jouw computer. {displayName} gebruikt het zelf en raadt het z&apos;n
-            klanten aan.
+            jouw computer.{" "}
+            {`${displayName} gebruikt het zelf en raadt het z'n klanten aan.`}
           </p>
           <div className="mt-7 flex flex-col items-stretch gap-3 sm:mt-8 sm:flex-row sm:items-center sm:flex-wrap">
             <Link

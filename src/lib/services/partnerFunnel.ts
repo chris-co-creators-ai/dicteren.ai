@@ -291,6 +291,11 @@ export async function promoteContactToReseller(
         brandColor: existingAff.brandColor ?? contact.appliedBrandColor ?? null,
         welcomeMessage:
           existingAff.welcomeMessage ?? contact.appliedQuote ?? null,
+        brandLogoR2Key:
+          existingAff.brandLogoR2Key ??
+          contact.appliedLogoR2Key ??
+          contact.appliedPortraitR2Key ??
+          null,
         approvedAt: existingAff.approvedAt ?? new Date(),
         updatedAt: new Date(),
       })
@@ -328,6 +333,8 @@ export async function promoteContactToReseller(
         displayName,
         brandColor: contact.appliedBrandColor ?? null,
         welcomeMessage: contact.appliedQuote ?? null,
+        brandLogoR2Key:
+          contact.appliedLogoR2Key ?? contact.appliedPortraitR2Key ?? null,
         approvedAt: new Date(),
         updatedAt: new Date(),
       })
