@@ -401,6 +401,8 @@ const funnelContactCols = {
   appliedLogoR2Key: crmContacts.appliedLogoR2Key,
   appliedBrandColor: crmContacts.appliedBrandColor,
   appliedQuote: crmContacts.appliedQuote,
+  appliedPortraitR2Key: crmContacts.appliedPortraitR2Key,
+  appliedIntroText: crmContacts.appliedIntroText,
   commissionDiscussedAt: crmContacts.commissionDiscussedAt,
   discountAgreedAt: crmContacts.discountAgreedAt,
   expectedClientsLoggedAt: crmContacts.expectedClientsLoggedAt,
@@ -422,6 +424,8 @@ type FunnelContactRow = {
   appliedLogoR2Key: string | null;
   appliedBrandColor: string | null;
   appliedQuote: string | null;
+  appliedPortraitR2Key: string | null;
+  appliedIntroText: string | null;
   commissionDiscussedAt: Date | null;
   discountAgreedAt: Date | null;
   expectedClientsLoggedAt: Date | null;
@@ -458,6 +462,8 @@ function buildFunnelState(
     appliedLogoR2Key: c.appliedLogoR2Key,
     appliedBrandColor: c.appliedBrandColor,
     appliedQuote: c.appliedQuote,
+    appliedPortraitR2Key: c.appliedPortraitR2Key,
+    appliedIntroText: c.appliedIntroText,
   };
   return {
     ...input,

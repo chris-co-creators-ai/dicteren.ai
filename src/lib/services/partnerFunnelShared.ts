@@ -36,6 +36,8 @@ export type FunnelStateInput = {
   appliedLogoR2Key: string | null;
   appliedBrandColor: string | null;
   appliedQuote: string | null;
+  appliedPortraitR2Key: string | null;
+  appliedIntroText: string | null;
 };
 
 /** De hoofdroute van A tot Z (zonder het Niet-nu-zijspoor), voor de tracker. */
@@ -231,7 +233,9 @@ export function buildFunnelChecklist(s: FunnelStateInput): StageGroup[] {
   const brandIdentityFilled = !!(
     s.appliedLogoR2Key ||
     s.appliedBrandColor ||
-    s.appliedQuote
+    s.appliedQuote ||
+    s.appliedPortraitR2Key ||
+    s.appliedIntroText
   );
   const phoneInterested =
     !s.deckVisitedAt && (s.temperature === "warm" || s.temperature === "hot");
