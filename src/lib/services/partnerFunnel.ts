@@ -26,7 +26,10 @@ import {
   getAffiliateById,
   getAffiliateStats,
 } from "./affiliate";
-import { createDiscountCodeForAffiliate } from "./discount";
+import {
+  createDiscountCodeForAffiliate,
+  listDiscountCodesForAffiliate,
+} from "./discount";
 import { suggestSlugFromName, validateSlugAvailable } from "./affiliateSlug";
 import {
   deriveFunnelColumn,
@@ -260,40 +263,86 @@ export async function promoteContactToReseller(
     return { ok: false, error: "Contact heeft geen e-mailadres" };
 
   const displayName = contact.companyName || contact.name;
-  const affiliate = await createAffiliate({
-    name: displayName,
-    contactEmail: contact.email,
-    contactPhone: contact.phone ?? null,
-    commissionType: "percentage",
-    commissionPct: 0,
-    origin: "reseller_funnel",
-    internalNotes: `Gepromoveerd vanuit de partner-funnel (persoon ${contact.name}).`,
-  });
 
-  // Brandkit uit de aangeleverde + goedgekeurde aanmeld-data, plus een unieke slug.
-  // Het logo (niet-publieke intake-key) wordt bij de logo-upload-flow naar een
-  // publieke asset verplaatst; hier zetten we de direct beschikbare velden.
-  const slug = await uniquePartnerSlug(displayName);
-  await db
-    .update(affiliates)
-    .set({
-      slug,
-      displayName,
-      brandColor: contact.appliedBrandColor ?? null,
-      welcomeMessage: contact.appliedQuote ?? null,
-      approvedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(affiliates.id, affiliate.id));
+  // Bestaat er al een affiliate voor dit e-mailadres? (uniek op contact_email). Bv.
+  // een eerder gepromote contact dat is teruggezet, of dezelfde persoon via een
+  // ander contact. Hergebruik 'm i.p.v. een duplicate te maken — dat zou op de
+  // unique-index 500'en. Zo is publiceren idempotent.
+  const [existingAff] = await db
+    .select()
+    .from(affiliates)
+    .where(eq(affiliates.contactEmail, contact.email))
+    .limit(1);
 
-  // Eigen 15%-kortingscode voor de zakelijke licenties van het eigen bedrijf.
-  const discount = await createDiscountCodeForAffiliate({
-    affiliateId: affiliate.id,
-    affiliateName: displayName,
-    type: "percentage",
-    value: 15,
-    appliesTo: "organization",
-  });
+  let affiliate: Affiliate;
+  let slug: string | null;
+  let discountCode: string;
+
+  if (existingAff) {
+    affiliate = existingAff;
+    slug = existingAff.slug ?? (await uniquePartnerSlug(displayName));
+    await db
+      .update(affiliates)
+      .set({
+        status: "active",
+        slug,
+        displayName: existingAff.displayName ?? displayName,
+        // Bestaande brandkit niet overschrijven, alleen aanvullen waar leeg.
+        brandColor: existingAff.brandColor ?? contact.appliedBrandColor ?? null,
+        welcomeMessage:
+          existingAff.welcomeMessage ?? contact.appliedQuote ?? null,
+        approvedAt: existingAff.approvedAt ?? new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(affiliates.id, existingAff.id));
+    // Bestaande 15%-code hergebruiken; alleen aanmaken als er geen is.
+    const codes = await listDiscountCodesForAffiliate(existingAff.id);
+    discountCode =
+      codes.find((c) => c.isActive)?.code ??
+      codes[0]?.code ??
+      (
+        await createDiscountCodeForAffiliate({
+          affiliateId: existingAff.id,
+          affiliateName: displayName,
+          type: "percentage",
+          value: 15,
+          appliesTo: "organization",
+        })
+      ).code;
+  } else {
+    affiliate = await createAffiliate({
+      name: displayName,
+      contactEmail: contact.email,
+      contactPhone: contact.phone ?? null,
+      commissionType: "percentage",
+      commissionPct: 0,
+      origin: "reseller_funnel",
+      internalNotes: `Gepromoveerd vanuit de partner-funnel (persoon ${contact.name}).`,
+    });
+    // Brandkit uit de aangeleverde aanmeld-data, plus een unieke slug.
+    slug = await uniquePartnerSlug(displayName);
+    await db
+      .update(affiliates)
+      .set({
+        slug,
+        displayName,
+        brandColor: contact.appliedBrandColor ?? null,
+        welcomeMessage: contact.appliedQuote ?? null,
+        approvedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(affiliates.id, affiliate.id));
+    // Eigen 15%-kortingscode voor de zakelijke licenties van het eigen bedrijf.
+    discountCode = (
+      await createDiscountCodeForAffiliate({
+        affiliateId: affiliate.id,
+        affiliateName: displayName,
+        type: "percentage",
+        value: 15,
+        appliesTo: "organization",
+      })
+    ).code;
+  }
 
   await db
     .update(crmContacts)
@@ -316,7 +365,7 @@ export async function promoteContactToReseller(
   return {
     ok: true,
     affiliate: refreshed ?? affiliate,
-    discountCode: discount.code,
+    discountCode,
   };
 }
 
