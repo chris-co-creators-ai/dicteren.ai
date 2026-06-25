@@ -35,6 +35,7 @@ import {
 } from "./[userId]/support-actions";
 import { OrgSidePanel } from "./organizations/org-side-panel";
 import { FunnelCockpit } from "./organizations/funnel-cockpit";
+import { BrandIdentityBlock } from "./brand-identity-block";
 import { EntitySidePanel } from "./entity-side-panel";
 import { AccountSignalsBlock } from "./account-signals-block";
 import { cn } from "@/lib/utils";
@@ -2042,12 +2043,17 @@ function PersonSidePanel({
       activeTab={tab}
       onTabChange={(k) => setTab(k as typeof tab)}
       override={
-        <Link
-          href={`/admin/crm/${person.id}`}
-          className="flex w-full items-center justify-center rounded-lg bg-[color:var(--orange)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--orange-600)]"
-        >
-          Account profiel openen →
-        </Link>
+        // Alleen voor klanten: person.id is dan de auth-user-id en /admin/crm/[userId]
+        // bestaat. Een prospect/partner heeft geen detail-page (de side-panel ís het
+        // profiel), dus daar geen knop — die zou 404'en.
+        isProspect ? undefined : (
+          <Link
+            href={`/admin/crm/${person.id}`}
+            className="flex w-full items-center justify-center rounded-lg bg-[color:var(--orange)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--orange-600)]"
+          >
+            Account profiel openen →
+          </Link>
+        )
       }
       onClose={onClose}
     >
@@ -2388,7 +2394,12 @@ function PersonSidePanel({
             </div>
           )}
 
-      {tab === "partner" && <FunnelCockpit contactId={person.id} />}
+      {tab === "partner" && (
+        <>
+          <FunnelCockpit contactId={person.id} />
+          <BrandIdentityBlock contactId={person.id} />
+        </>
+      )}
     </EntitySidePanel>
   );
 }
