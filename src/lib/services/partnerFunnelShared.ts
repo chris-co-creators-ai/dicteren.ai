@@ -76,17 +76,32 @@ function afspraakRond(s: FunnelStateInput): boolean {
   );
 }
 
+/** Heeft de partner z'n brand identity aangeleverd? Eén ingevuld veld telt:
+ *  logo, merkkleur, quote, portret of introtekst. */
+export function brandIdentityFilled(s: FunnelStateInput): boolean {
+  return !!(
+    s.appliedLogoR2Key ||
+    s.appliedBrandColor ||
+    s.appliedQuote ||
+    s.appliedPortraitR2Key ||
+    s.appliedIntroText
+  );
+}
+
 /** Bepaal de huidige stage = de hoogste bereikte mijlpaal. Prioriteit hoog→laag.
- *  BELANGRIJK: "Deck bekeken" verspringt op een ECHT bezoek (deckVisitedAt), niet
- *  op temperature. Telefonische interesse is een sub-status binnen "Deck verstuurd",
- *  geen kolom-sprong (A2, vraag A). */
+ *  Strikt geordend (elke stage vereist de vorige): de partner z'n deel (aanmelden +
+ *  brand identity invullen) brengt 'm naar "Afspraak rond"; daar doet de AM de
+ *  afspraak (3 vinkjes), wat 'm naar "Brand identity controleren" brengt.
+ *  BELANGRIJK: "Deck bekeken" verspringt op een ECHT bezoek (deckVisitedAt). */
 export function deriveFunnelColumn(s: FunnelStateInput): FunnelColumn {
   if (s.promotedAffiliateId || s.orgStatus === "reseller") return "actief";
   if (s.orgStatus === "lost" || s.orgStatus === "churned" || s.doNotCall)
     return "niet_nu";
-  if (s.brandIdentityApprovedAt) return "brand_check";
-  if (afspraakRond(s)) return "afspraak_rond";
-  if (s.appliedAt) return "geinteresseerd";
+  const applied = !!s.appliedAt;
+  const brandFilled = applied && brandIdentityFilled(s);
+  if (brandFilled && afspraakRond(s)) return "brand_check";
+  if (brandFilled) return "afspraak_rond";
+  if (applied) return "geinteresseerd";
   if (s.deckVisitedAt) return "deck_bekeken";
   if (s.deckSentAt) return "deck_verstuurd";
   return "nieuw";
@@ -144,8 +159,8 @@ export function funnelNowZone(col: FunnelColumn): NowZone {
       };
     case "geinteresseerd":
       return {
-        headline: "Aangemeld — bel voor de afspraak",
-        hint: "Bel om commissie en de 15%-korting af te spreken, en vink het af.",
+        headline: "Aangemeld — wacht op de brand identity",
+        hint: "De partner vult z'n brand identity in via de aanmeldlink. Nog niet binnen? Bel 'm na.",
         action: null,
         actionLabel: null,
         confirm: false,
@@ -153,17 +168,17 @@ export function funnelNowZone(col: FunnelColumn): NowZone {
       };
     case "afspraak_rond":
       return {
-        headline: "Afspraak rond — controleer de brand identity",
-        hint: "Bekijk het logo, de kleur en de naam en keur goed.",
-        action: "approve_brand",
-        actionLabel: "Bekijk + goedkeuren",
+        headline: "Bel voor de afspraak",
+        hint: "Bel om commissie en de 15%-korting af te spreken, en vink de drie punten af.",
+        action: null,
+        actionLabel: null,
         confirm: false,
         confirmText: null,
       };
     case "brand_check":
       return {
-        headline: "Klaar om te publiceren",
-        hint: "Zet de partner live. De kortingscode en de welkomstmail volgen automatisch.",
+        headline: "Controleer de landingspagina en publiceer",
+        hint: "Bekijk de pagina, dan zet je de partner live. De kortingscode en de welkomstmail volgen automatisch.",
         action: "publish",
         actionLabel: "Publiceer landingpagina",
         confirm: true,
@@ -230,13 +245,7 @@ export function buildFunnelChecklist(s: FunnelStateInput): StageGroup[] {
   });
 
   const published = !!s.promotedAffiliateId;
-  const brandIdentityFilled = !!(
-    s.appliedLogoR2Key ||
-    s.appliedBrandColor ||
-    s.appliedQuote ||
-    s.appliedPortraitR2Key ||
-    s.appliedIntroText
-  );
+  const brandFilled = brandIdentityFilled(s);
   const phoneInterested =
     !s.deckVisitedAt && (s.temperature === "warm" || s.temperature === "hot");
 
@@ -275,7 +284,7 @@ export function buildFunnelChecklist(s: FunnelStateInput): StageGroup[] {
           "Brand identity ingevuld",
           "auto",
           s.appliedAt,
-          brandIdentityFilled,
+          brandFilled,
         ),
       ],
     },
@@ -294,16 +303,12 @@ export function buildFunnelChecklist(s: FunnelStateInput): StageGroup[] {
       ],
     },
     {
+      // Stap 6: de AM controleert de landingspagina en publiceert (de twee knoppen
+      // in de cockpit). Geen los vinkje meer — de "Controleer landingspagina"- en
+      // "Publiceer"-knoppen zijn het werk hier.
       stage: "brand_check",
       label: "Brand identity controleren",
-      items: [
-        item(
-          "brand_approved",
-          "Brand identity goedgekeurd",
-          "am",
-          s.brandIdentityApprovedAt,
-        ),
-      ],
+      items: [],
     },
     {
       stage: "actief",
