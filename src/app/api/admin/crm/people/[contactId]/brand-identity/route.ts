@@ -81,20 +81,26 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
     );
   }
 
-  const color = clean(body.brandColor, 7);
-  const brandColor = color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null;
+  // Partial update: alleen de meegestuurde velden, zodat per-veld-opslaan de rest
+  // niet wist. Upload-keys moeten onder de eigen contact-id vallen.
+  const ownPrefix = `partner-intake/${contactId}/`;
+  const ownKey = (v: unknown): string | null => {
+    const k = clean(v, 300);
+    return k && k.startsWith(ownPrefix) ? k : null;
+  };
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  if ("companyName" in body) patch.companyName = clean(body.companyName, 200) ?? undefined;
+  if ("brandColor" in body) {
+    const c = clean(body.brandColor, 7);
+    patch.appliedBrandColor = c && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null;
+  }
+  if ("quote" in body) patch.appliedQuote = clean(body.quote, 600);
+  if ("quoteAuthor" in body) patch.appliedQuoteAuthor = clean(body.quoteAuthor, 120);
+  if ("introText" in body) patch.appliedIntroText = clean(body.introText, 1200);
+  if ("logoR2Key" in body) patch.appliedLogoR2Key = ownKey(body.logoR2Key);
+  if ("portraitR2Key" in body) patch.appliedPortraitR2Key = ownKey(body.portraitR2Key);
 
-  await db
-    .update(crmContacts)
-    .set({
-      companyName: clean(body.companyName, 200) ?? undefined,
-      appliedBrandColor: brandColor,
-      appliedQuote: clean(body.quote, 600),
-      appliedQuoteAuthor: clean(body.quoteAuthor, 120),
-      appliedIntroText: clean(body.introText, 1200),
-      updatedAt: new Date(),
-    })
-    .where(eq(crmContacts.id, contactId));
+  await db.update(crmContacts).set(patch).where(eq(crmContacts.id, contactId));
 
   return NextResponse.json({ success: true });
 }
