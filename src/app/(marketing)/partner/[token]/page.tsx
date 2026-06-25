@@ -49,10 +49,10 @@ export default async function PartnerDeckPage({
       />
       <section
         id="aanmelden"
-        className="mx-auto max-w-3xl px-4 pb-24 sm:px-6"
+        className="mx-auto max-w-3xl px-4 pb-24 pt-20 sm:px-6 sm:pt-28"
       >
-        <h2 className="mb-6 text-center text-2xl font-bold text-[color:var(--navy)]">
-          Ja, ik wil partner worden
+        <h2 className="mb-6 text-center text-3xl font-bold text-[color:var(--navy)]">
+          Meld je aan als partner
         </h2>
         {contact.appliedAt ? (
           <div className="rounded-2xl border border-[color:var(--border-soft)] bg-white p-8 text-center text-[color:var(--text-muted)]">
