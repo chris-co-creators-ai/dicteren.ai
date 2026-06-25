@@ -1473,8 +1473,12 @@ export async function sendPartnerWelcomeEmail(params: {
     from: `${params.amName} (Dicteren.ai) <${params.amEmail}>`,
     replyTo: params.amEmail,
     tags: [{ name: "category", value: "other" }],
+    // Minuut-bucket: een dubbel-klik binnen de minuut wordt gededupeerd, maar een
+    // her-publish (idempotent, met andere slug/code/login-inhoud) krijgt een nieuwe
+    // sleutel. Een stabiele per-contact-key zou bij gewijzigde inhoud door Resend
+    // geweigerd worden ("idempotency key ... request body was modified").
     idempotencyKey: params.contactId
-      ? `partner-welcome/${params.contactId}`
+      ? `partner-welcome/${params.contactId}/${Math.floor(Date.now() / 60000)}`
       : undefined,
     log: { category: "other" },
   });
