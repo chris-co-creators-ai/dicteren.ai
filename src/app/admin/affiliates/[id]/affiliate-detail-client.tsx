@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Copy, Download, Edit, Pause, Play, Plus } from "lucide-react";
 import { affiliatePublicUrl } from "@/lib/url";
-import { EditAffiliateModal } from "./edit-affiliate-modal";
+import { AffiliateEditForm } from "./edit-affiliate-modal";
 import { CreateDiscountCodeModal } from "./create-discount-code-modal";
 
 type Affiliate = {
@@ -129,7 +129,6 @@ export function AffiliateDetailClient({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [editOpen, setEditOpen] = useState(false);
   const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [error, setError] = useState<string | null>(null);
@@ -297,10 +296,6 @@ export function AffiliateDetailClient({
                 Activeer
               </>
             )}
-          </button>
-          <button onClick={() => setEditOpen(true)} className="btn btn-secondary">
-            <Edit className="size-3.5" strokeWidth={2.2} />
-            Bewerk
           </button>
         </div>
       </div>
@@ -591,16 +586,10 @@ export function AffiliateDetailClient({
         </div>
       </section>
 
-      {editOpen && (
-        <EditAffiliateModal
-          affiliate={affiliate}
-          onClose={() => setEditOpen(false)}
-          onSaved={() => {
-            setEditOpen(false);
-            startTransition(() => router.refresh());
-          }}
-        />
-      )}
+      <AffiliateEditForm
+        affiliate={affiliate}
+        onSaved={() => startTransition(() => router.refresh())}
+      />
 
       {discountModalOpen && (
         <CreateDiscountCodeModal

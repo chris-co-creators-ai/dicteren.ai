@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
 
 type Affiliate = {
   id: string;
@@ -39,13 +38,12 @@ type Affiliate = {
 
 type Props = {
   affiliate: Affiliate;
-  onClose: () => void;
   onSaved: () => void;
 };
 
 type RuleType = "off" | "percentage" | "fixed_per_seat";
 
-export function EditAffiliateModal({ affiliate, onClose, onSaved }: Props) {
+export function AffiliateEditForm({ affiliate, onSaved }: Props) {
   const [name, setName] = useState(affiliate.name);
   const [slug, setSlug] = useState(affiliate.slug ?? "");
   const [displayName, setDisplayName] = useState(affiliate.displayName ?? "");
@@ -181,26 +179,11 @@ export function EditAffiliateModal({ affiliate, onClose, onSaved }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative my-8 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 grid size-8 place-items-center rounded-full hover:bg-muted"
-          aria-label="Sluiten"
-        >
-          <X className="size-4" />
-        </button>
-
-        <h2 className="text-xl font-bold">Affiliate bewerken</h2>
+    <section className="rounded-2xl border border-[color:var(--border-soft)] bg-white p-6">
+        <h2 className="text-xl font-bold">Instellingen</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Code <span className="font-mono">{affiliate.code}</span> kun je niet
-          wijzigen. Slug + commissies kunnen wel.
+          wijzigen. Slug, branding + commissies wel.
         </p>
 
         <form onSubmit={submit} className="mt-5 grid gap-5">
@@ -503,13 +486,6 @@ export function EditAffiliateModal({ affiliate, onClose, onSaved }: Props) {
 
           <div className="flex justify-end gap-3">
             <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-secondary"
-            >
-              Annuleer
-            </button>
-            <button
               type="submit"
               disabled={submitting}
               className="btn btn-primary disabled:opacity-50"
@@ -518,8 +494,7 @@ export function EditAffiliateModal({ affiliate, onClose, onSaved }: Props) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </section>
   );
 }
 
