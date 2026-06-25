@@ -162,6 +162,22 @@ export function FunnelCockpit({
     }
   }
 
+  async function resendWelcome() {
+    if (!state) return;
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/admin/crm/people/${state.contactId}/resend-welcome`,
+        { method: "POST" },
+      );
+      const d = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !d.success) toast.error(d.error ?? "Versturen mislukt");
+      else toast.success("Welkomstmail opnieuw verstuurd");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!loaded) return <p className="p-4 text-sm text-muted-foreground">Laden…</p>;
   if (!state)
     return (
@@ -313,6 +329,26 @@ export function FunnelCockpit({
                 >
                   <Rocket className="size-3.5" strokeWidth={2.2} />
                   {busy ? "Bezig…" : "Publiceer landingpagina"}
+                </button>
+              </div>
+            ) : stage.key === "actief" && current ? (
+              <div className="mt-2 flex flex-wrap gap-2 pl-7">
+                <button
+                  type="button"
+                  onClick={() => window.open("/admin/affiliates", "_blank")}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary px-3 py-1.5 text-xs font-semibold text-primary"
+                >
+                  <ExternalLink className="size-3.5" strokeWidth={2.2} />
+                  Bekijk in affiliates
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void resendWelcome()}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                >
+                  <Send className="size-3.5" strokeWidth={2.2} />
+                  {busy ? "Versturen…" : "Welkomstmail opnieuw sturen"}
                 </button>
               </div>
             ) : (
