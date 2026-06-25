@@ -136,6 +136,10 @@ export async function getAffiliateBySlug(
 export function suggestSlugFromName(name: string): string[] {
   const base = name
     .toLowerCase()
+    .trim()
+    // Strip een achterliggende domein-suffix (.ai/.nl/.com/…): "Co-Creatie.ai"
+    // → "co-creatie", "Dicteren.ai" → "dicteren". Vóór de punt-strip hieronder.
+    .replace(/\.[a-z]{2,4}$/, "")
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9\s-]/g, "")

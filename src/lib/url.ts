@@ -25,3 +25,15 @@ export function emailBase(): string {
     "https://www.dicteren.ai"
   );
 }
+
+/** De publieke deel-URL van een affiliate. De slug-landingpagina (bedrijfsnaam) is
+ *  leidend; alleen zonder slug valt 'ie terug op de directe ?ref=-link. Client-safe
+ *  (pure functie), gedeeld door het admin-detail, het dashboard en de welkomstmail. */
+export function affiliatePublicUrl(
+  affiliate: { slug: string | null; code: string },
+  baseUrl: string,
+): string {
+  return affiliate.slug
+    ? `${baseUrl}/${affiliate.slug}`
+    : `${baseUrl}/zakelijk/start?ref=${affiliate.code}`;
+}

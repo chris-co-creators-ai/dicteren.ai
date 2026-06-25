@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Copy, Download, Edit, Pause, Play, Plus } from "lucide-react";
+import { affiliatePublicUrl } from "@/lib/url";
 import { EditAffiliateModal } from "./edit-affiliate-modal";
 import { CreateDiscountCodeModal } from "./create-discount-code-modal";
 
@@ -137,7 +138,8 @@ export function AffiliateDetailClient({
     typeof window !== "undefined"
       ? window.location.origin
       : "https://www.dicteren.ai";
-  const affiliateLink = `${baseUrl}/zakelijk/start?ref=${affiliate.code}`;
+  // De bedrijfsnaam-slug is de partner-URL; alleen zonder slug de ?ref=-fallback.
+  const affiliateLink = affiliatePublicUrl(affiliate, baseUrl);
 
   const visibleCommissions = useMemo(() => {
     if (statusFilter === "all") return commissions;

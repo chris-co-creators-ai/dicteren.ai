@@ -10,7 +10,7 @@ import {
   listAffiliateReferrals,
   listAffiliateCommissions,
 } from "@/lib/services/affiliate";
-import { emailBase } from "@/lib/url";
+import { affiliatePublicUrl, emailBase } from "@/lib/url";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mijn affiliate-dashboard · Dicteren.ai" };
@@ -99,9 +99,7 @@ export default async function AffiliateDashboardPage() {
     .limit(12);
 
   const baseUrl = emailBase();
-  const affiliateLink = affiliate.slug
-    ? `${baseUrl}/${affiliate.slug}`
-    : `${baseUrl}/zakelijk/start?ref=${affiliate.code}`;
+  const affiliateLink = affiliatePublicUrl(affiliate, baseUrl);
 
   const hasConsumer =
     affiliate.consumerCommissionType !== null &&
