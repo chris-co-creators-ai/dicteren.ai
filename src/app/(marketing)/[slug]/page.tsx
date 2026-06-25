@@ -23,13 +23,17 @@ type Params = Promise<{ slug: string }>;
 export async function generateMetadata({ params }: { params: Params }) {
   const { slug } = await params;
   const affiliate = await getAffiliateBySlug(slug);
+  // Nooit indexeren: anders vinden mensen die de affiliate zoeken Dicteren.ai via
+  // deze pagina en betalen we commissie op een klant die toch al was binnengekomen.
+  const noindex = { index: false, follow: false } as const;
   if (!affiliate || affiliate.status !== "active") {
-    return { title: "Niet gevonden · Dicteren.ai" };
+    return { title: "Niet gevonden · Dicteren.ai", robots: noindex };
   }
   const displayName = affiliate.displayName ?? affiliate.name;
   return {
     title: `Doorverwezen door ${displayName} · Dicteren.ai`,
     description: `${displayName} raadt Dicteren.ai aan. Praat. En het staat er, in elke app — Nederlands, lokaal.`,
+    robots: noindex,
   };
 }
 
