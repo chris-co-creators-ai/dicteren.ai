@@ -20,8 +20,9 @@
 
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, organization, mcp, captcha } from "better-auth/plugins";
+import { admin, organization, mcp, captcha, magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
+import { setCapturedMagicLink } from "./magicLinkCapture";
 import { dbAuth } from "@/lib/db";
 import { resolveSignupToCrm } from "@/lib/services/crmIdentityResolution";
 import { attributeReferral } from "@/lib/services/referral";
@@ -280,6 +281,19 @@ export const auth = betterAuth({
           inviteUrl: acceptUrl,
           licenseCode,
         });
+      },
+    }),
+    // Magic-link: alleen gebruikt voor de één-klik-login in de partner-welkomstmail.
+    // We versturen 'm niet hier — de callback vangt de URL op (zie magicLinkCapture)
+    // zodat de promote-route 'm in onze eigen rijke welkomstmail kan zetten.
+    // disableSignUp: we maken het partner-account zelf aan (ensurePartnerAuthAccount).
+    magicLink({
+      disableSignUp: true,
+      // 7 dagen geldig: de partner klikt de welkomstmail soms pas later open. De
+      // default (5 min) zou de link dood maken. Lage-privilege partner-account.
+      expiresIn: 60 * 60 * 24 * 7,
+      sendMagicLink: async ({ url }) => {
+        setCapturedMagicLink(url);
       },
     }),
     nextCookies(),

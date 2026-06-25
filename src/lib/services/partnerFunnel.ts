@@ -245,7 +245,8 @@ export async function promoteContactToReseller(
   contactId: string,
   actorUserId: string,
 ): Promise<
-  { ok: true; affiliate: Affiliate } | { ok: false; error: string }
+  | { ok: true; affiliate: Affiliate; discountCode: string }
+  | { ok: false; error: string }
 > {
   const [contact] = await db
     .select()
@@ -286,7 +287,7 @@ export async function promoteContactToReseller(
     .where(eq(affiliates.id, affiliate.id));
 
   // Eigen 15%-kortingscode voor de zakelijke licenties van het eigen bedrijf.
-  await createDiscountCodeForAffiliate({
+  const discount = await createDiscountCodeForAffiliate({
     affiliateId: affiliate.id,
     affiliateName: displayName,
     type: "percentage",
@@ -312,7 +313,11 @@ export async function promoteContactToReseller(
   );
 
   const refreshed = await getAffiliateById(affiliate.id);
-  return { ok: true, affiliate: refreshed ?? affiliate };
+  return {
+    ok: true,
+    affiliate: refreshed ?? affiliate,
+    discountCode: discount.code,
+  };
 }
 
 export type FunnelStats = {

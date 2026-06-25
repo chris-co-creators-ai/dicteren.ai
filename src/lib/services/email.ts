@@ -1388,11 +1388,44 @@ function partnerWelcomeHtml(params: {
   contactName?: string | null;
   amName: string;
   amPhone?: string | null;
+  landingUrl?: string | null;
+  discountCode?: string | null;
+  portalUrl?: string | null;
+  loginUrl?: string | null;
 }): string {
   const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
+
+  // Gecentreerd blok met de spullen van de partner: landingspagina, eigen
+  // kortingscode en het portaal. Alleen tonen wat we hebben.
+  const rows: string[] = [];
+  if (params.landingUrl) {
+    rows.push(
+      `<p style="margin:0 0 14px 0;"><span style="color:#4a6080;font-size:13px;">Je landingspagina</span><br><a href="${params.landingUrl}" style="color:#042660;font-weight:600;text-decoration:none;">${params.landingUrl}</a></p>`,
+    );
+  }
+  if (params.discountCode) {
+    rows.push(
+      `<p style="margin:0 0 14px 0;"><span style="color:#4a6080;font-size:13px;">Je eigen kortingscode (15% op je zakelijke licenties)</span><br><strong style="color:#042660;font-size:18px;letter-spacing:0.5px;">${params.discountCode}</strong></p>`,
+    );
+  }
+  if (params.portalUrl) {
+    rows.push(
+      `<p style="margin:0;"><span style="color:#4a6080;font-size:13px;">Je partnerportaal</span><br><a href="${params.portalUrl}" style="color:#042660;font-weight:600;text-decoration:none;">${params.portalUrl}</a></p>`,
+    );
+  }
+  const bullets = rows.length
+    ? `<div style="margin:0 0 20px 0;padding:20px 24px;background:#f4f8fd;border-radius:12px;text-align:center;">${rows.join("")}</div>`
+    : "";
+
+  const loginBtn = params.loginUrl
+    ? `<p style="text-align:center;margin:0 0 20px 0;"><a href="${params.loginUrl}" style="display:inline-block;background:#FF8441;color:#ffffff;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:10px;">Log direct in op je portaal</a></p>`
+    : "";
+
   const body = `
     <p style="margin:0 0 16px 0;">${hi}</p>
-    <p style="margin:0 0 16px 0;">Top dat je meedoet. Je bent nu partner van Dicteren.ai.</p>
+    <p style="margin:0 0 16px 0;">Top dat je meedoet. Je bent nu partner van Dicteren.ai. Hierbij alvast je spullen:</p>
+    ${bullets}
+    ${loginBtn}
     <p style="margin:0 0 16px 0;">Ik bel je deze week om je commissie en je eigen pagina af te ronden. Heb je voor die tijd een vraag? Antwoord gewoon op deze mail.</p>
     ${amSignatureHtml(params.amName, params.amPhone)}`;
   return funnelMailShell(
@@ -1408,11 +1441,26 @@ export async function sendPartnerWelcomeEmail(params: {
   amName: string;
   amEmail: string;
   contactId?: string;
+  landingUrl?: string | null;
+  discountCode?: string | null;
+  portalUrl?: string | null;
+  loginUrl?: string | null;
 }): Promise<ServiceResult<SendResult>> {
   const phone = amPhone(params.amEmail);
   const hi = params.contactName ? `Hoi ${params.contactName},` : "Hoi,";
   const sig = `${params.amName}\nAccountmanager${phone ? `\n${phone}` : ""}\nDicteren.ai`;
-  const text = `${hi}\n\nTop dat je meedoet. Je bent nu partner van Dicteren.ai.\n\nIk bel je deze week om je commissie en je eigen pagina af te ronden. Heb je voor die tijd een vraag? Antwoord gewoon op deze mail.\n\n${sig}`;
+  const lines: string[] = [];
+  if (params.landingUrl) lines.push(`Je landingspagina: ${params.landingUrl}`);
+  if (params.discountCode)
+    lines.push(
+      `Je eigen kortingscode (15% op je zakelijke licenties): ${params.discountCode}`,
+    );
+  if (params.portalUrl) lines.push(`Je partnerportaal: ${params.portalUrl}`);
+  const spullen = lines.length ? `\n\n${lines.join("\n")}` : "";
+  const login = params.loginUrl
+    ? `\n\nLog direct in op je portaal: ${params.loginUrl}`
+    : "";
+  const text = `${hi}\n\nTop dat je meedoet. Je bent nu partner van Dicteren.ai. Hierbij alvast je spullen:${spullen}${login}\n\nIk bel je deze week om je commissie en je eigen pagina af te ronden. Heb je voor die tijd een vraag? Antwoord gewoon op deze mail.\n\n${sig}`;
   return sendEmail({
     to: params.to,
     subject: "Welkom als partner van Dicteren.ai",
