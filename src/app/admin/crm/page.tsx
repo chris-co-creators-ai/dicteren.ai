@@ -15,6 +15,7 @@ import {
   listCrmOrganizations,
 } from "@/lib/services/crmDeals";
 import { loadCrmPeoplePage } from "@/lib/services/crmPeople";
+import { countProspectsByType } from "@/lib/services/crmList";
 import { canPerform } from "@/lib/services/staffActionPermissions";
 import { CrmContainer } from "./crm-container";
 
@@ -93,6 +94,9 @@ export default async function AdminCrmPage({
     limit: 50,
   });
 
+  // Echte totalen per funnel-spoor voor de Kanban-toggle (los van de pagina).
+  const funnelCounts = await countProspectsByType();
+
   const conversionPct =
     stages.trial_active + stages.trial_expired + stages.converted > 0
       ? Math.round(
@@ -162,6 +166,7 @@ export default async function AdminCrmPage({
         customers: peoplePage.rows,
         initialNextCursor: peoplePage.nextCursor,
         totalPeople: peoplePage.total,
+        funnelCounts,
         customColumns,
         affiliates: affiliates.map((a) => ({
           id: a.id,

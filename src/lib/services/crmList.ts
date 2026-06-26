@@ -192,7 +192,9 @@ export async function listCrmPeoplePage(args: {
   limit?: number;
 }): Promise<{ rows: CrmPeopleListRow[]; nextCursor: CrmPeopleCursor | null }> {
   const filters = args.filters ?? {};
-  const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
+  // Cap op 1000: het Kanban-bord laadt een heel funnel-spoor in één keer (geen
+  // paginering) zodat alle kaarten per stage zichtbaar zijn. De tabel blijft op 50.
+  const limit = Math.min(Math.max(args.limit ?? 50, 1), 1000);
   const conds = buildConditions(filters);
   if (args.cursor) {
     conds.push(
@@ -280,4 +282,22 @@ export async function countCrmPeople(
     sql`${PEOPLE_CTE} SELECT count(*)::int AS n FROM people${whereClause(conds)}`,
   );
   return res.rows?.[0]?.n ?? 0;
+}
+
+/** Aantal prospects per funnel-spoor — voedt de Eindklant|Reseller-toggle op het
+ *  Kanban-bord met echte totalen (los van de geladen pagina). Migratie 0052. */
+export async function countProspectsByType(): Promise<{
+  eindklant: number;
+  reseller: number;
+}> {
+  const res = await db.execute<{ prospect_type: string; n: number }>(
+    sql`SELECT prospect_type::text AS prospect_type, count(*)::int AS n
+        FROM public.crm_contacts GROUP BY prospect_type`,
+  );
+  const out = { eindklant: 0, reseller: 0 };
+  for (const r of res.rows ?? []) {
+    if (r.prospect_type === "reseller") out.reseller = r.n;
+    else out.eindklant = r.n;
+  }
+  return out;
 }

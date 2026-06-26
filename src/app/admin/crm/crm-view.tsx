@@ -409,6 +409,7 @@ export function CrmView({
   customers,
   initialNextCursor,
   totalPeople,
+  funnelCounts,
   affiliates,
   discountCodes,
   lists,
@@ -425,6 +426,8 @@ export function CrmView({
   customers: Customer[];
   initialNextCursor: PeopleCursor | null;
   totalPeople: number;
+  /** Echte totalen per funnel-spoor (server-count, los van de pagina). */
+  funnelCounts: { eindklant: number; reseller: number };
   affiliates: AffiliateOption[];
   discountCodes: DiscountOption[];
   lists: LeadListOption[];
@@ -502,6 +505,12 @@ export function CrmView({
     if (minScoreFilter.trim()) p.set("minScore", minScoreFilter.trim());
     if (dispositionFilter !== "all") p.set("disposition", dispositionFilter);
     if (effectiveHideLost) p.set("excludeLost", "1");
+    // Kanban-bord: filter server-side op het gekozen funnel-spoor en laad het hele
+    // spoor in één keer (geen paginering) zodat elke stage-kolom compleet is.
+    if (viewMode === "kanban") {
+      p.set("prospectType", funnel);
+      p.set("limit", "1000");
+    }
     if (!reset && cursor) {
       p.set("cursorCreatedAt", cursor.createdAt);
       p.set("cursorId", cursor.id);
@@ -541,6 +550,8 @@ export function CrmView({
     minScoreFilter,
     dispositionFilter,
     effectiveHideLost,
+    viewMode,
+    funnel,
   ]);
 
   // Na een mutatie: herlaad de huidige gefilterde eerste pagina.
@@ -1493,9 +1504,7 @@ export function CrmView({
                     { key: "reseller", label: "Reseller" },
                   ] as const
                 ).map((f) => {
-                  const n = filtered.filter(
-                    (c) => c.prospectType === f.key,
-                  ).length;
+                  const n = funnelCounts[f.key];
                   return (
                     <button
                       key={f.key}
