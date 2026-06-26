@@ -36,6 +36,8 @@ export type CrmPeopleFilters = {
   disposition?: string | null;
   /** Belronde-hygiëne: verberg stage lost/churned (default in de UI). */
   excludeLost?: boolean | null;
+  /** Funnel-spoor: eindklant-werving vs reseller-werving (migratie 0052). */
+  prospectType?: "eindklant" | "reseller" | null;
 };
 
 export type CrmPeopleCursor = { createdAt: string; id: string };
@@ -48,6 +50,11 @@ export type CrmPeopleListRow = {
   phone: string | null;
   company: string | null;
   crmStage: string | null;
+  /** Funnel-spoor van het contact (migratie 0052). */
+  prospectType: "eindklant" | "reseller";
+  /** Afgeleide reseller-funnel-kolom (uit deck-timestamps). Alleen zinvol als
+   *  prospectType = 'reseller'; voor eindklanten genegeerd. */
+  resellerStage: string;
   temperature: string | null;
   assigneeId: string | null;
   notes: string | null;
@@ -93,6 +100,17 @@ const PEOPLE_CTE = sql`
         WHEN 'reseller' THEN 'reseller'
         ELSE 'lead'
       END                                AS crm_stage,
+      c.prospect_type::text              AS prospect_type,
+      -- Reseller-funnel-kolom afgeleid van de deck-/aanmeld-timestamps (geen
+      -- aparte stage-enum). Volgorde = verst-gevorderd eerst.
+      CASE
+        WHEN c.promoted_affiliate_id IS NOT NULL THEN 'actief'
+        WHEN c.applied_at IS NOT NULL THEN 'aangemeld'
+        WHEN c.commission_discussed_at IS NOT NULL THEN 'gesprek'
+        WHEN c.deck_visited_at IS NOT NULL THEN 'bezocht'
+        WHEN c.deck_sent_at IS NOT NULL THEN 'deck_verstuurd'
+        ELSE 'geworven'
+      END                                AS reseller_stage,
       o.temperature::text                AS temperature,
       COALESCE(c.assigned_to_user_id, o.account_owner_id)::text AS assignee_id,
       c.notes                            AS notes,
@@ -155,6 +173,9 @@ function buildConditions(filters: CrmPeopleFilters): SQL[] {
   } else if (filters.disposition) {
     conds.push(sql`people.last_disposition = ${filters.disposition}`);
   }
+  if (filters.prospectType) {
+    conds.push(sql`people.prospect_type = ${filters.prospectType}`);
+  }
   if (filters.excludeLost) {
     // NULL-stage (klant zonder attributes-rij) telt als niet-verloren.
     conds.push(
@@ -199,6 +220,8 @@ export async function listCrmPeoplePage(args: {
     phone: string | null;
     company: string | null;
     crm_stage: string | null;
+    prospect_type: string | null;
+    reseller_stage: string | null;
     temperature: string | null;
     assignee_id: string | null;
     notes: string | null;
@@ -217,7 +240,7 @@ export async function listCrmPeoplePage(args: {
     org_specialisatie: string | null;
   }>(
     sql`${PEOPLE_CTE}
-        SELECT id, kind, name, email, phone, company, crm_stage, temperature, assignee_id, notes, organization_id, has_account, created_at,
+        SELECT id, kind, name, email, phone, company, crm_stage, prospect_type, reseller_stage, temperature, assignee_id, notes, organization_id, has_account, created_at,
                first_name, last_name, mobile_phone, role_at_company,
                org_kvk, org_vat_number, org_branche_vereniging, org_aantal_vestigingen, org_hoofdkantoor, org_specialisatie
         FROM people${whereClause(conds)}
@@ -235,6 +258,8 @@ export async function listCrmPeoplePage(args: {
     phone: r.phone,
     company: r.company,
     crmStage: r.crm_stage,
+    prospectType: (r.prospect_type as "eindklant" | "reseller") ?? "eindklant",
+    resellerStage: r.reseller_stage ?? "geworven",
     temperature: r.temperature,
     assigneeId: r.assignee_id,
     notes: r.notes,

@@ -139,6 +139,10 @@ type Customer = {
     affiliateId: string | null;
   } | null;
   crmStage: CrmStage;
+  /** Funnel-spoor (migratie 0052): eindklant- vs reseller-werving. */
+  prospectType: "eindklant" | "reseller";
+  /** Afgeleide reseller-funnel-kolom (deck-timestamps). Alleen bij reseller. */
+  resellerStage: string;
   crmTemperature: Temperature;
   assignedToUserId: string | null;
   notes: string | null;
@@ -434,6 +438,8 @@ export function CrmView({
 }) {
   const [activeListId, setActiveListId] = useState<string | "all">("all");
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+  // Funnel-spoor van het bord (migratie 0052): eindklant- vs reseller-werving.
+  const [funnel, setFunnel] = useState<"eindklant" | "reseller">("eindklant");
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [tempFilter, setTempFilter] = useState<string>("all");
@@ -1434,29 +1440,76 @@ export function CrmView({
 
           {/* Kanban-view */}
           {viewMode === "kanban" && (
-            <KanbanView
-              customers={filtered.map((c) => ({
-                id: c.id,
-                name: c.name,
-                email: c.email,
-                crmStage: c.crmStage,
-                crmTemperature: c.crmTemperature,
-                segment: c.segment,
-                assignedToUserId: c.assignedToUserId,
-                paidLicenseCount: c.paidLicenseCount,
-                trialStatus: c.trialStatus,
-                accountOwner: c.accountOwner
-                  ? {
-                      name: c.accountOwner.name,
-                      code: c.accountOwner.code,
-                    }
-                  : null,
-              }))}
-              adminUsers={adminUsers}
-              onStageChange={(userId, stage) =>
-                rowUpdate(userId, { stage })
-              }
-            />
+            <div>
+              {/* Funnel-toggle: twee gescheiden pijplijnen op één bord. */}
+              <div className="mb-2 flex items-center gap-1 px-2">
+                {(
+                  [
+                    { key: "eindklant", label: "Eindklant" },
+                    { key: "reseller", label: "Reseller" },
+                  ] as const
+                ).map((f) => {
+                  const n = filtered.filter(
+                    (c) => c.prospectType === f.key,
+                  ).length;
+                  return (
+                    <button
+                      key={f.key}
+                      onClick={() => setFunnel(f.key)}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+                        funnel === f.key
+                          ? "bg-[color:var(--navy)] text-white"
+                          : "bg-[color:var(--bg)] text-[color:var(--text-muted)] hover:bg-[color:var(--bg-deep)]",
+                      )}
+                    >
+                      {f.label}
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[0.625rem]",
+                          funnel === f.key
+                            ? "bg-white/20"
+                            : "bg-white text-[color:var(--text-muted)]",
+                        )}
+                      >
+                        {n}
+                      </span>
+                    </button>
+                  );
+                })}
+                {funnel === "reseller" && (
+                  <span className="ml-2 text-xs text-[color:var(--text-soft)]">
+                    Kolommen volgen de deck-flow. Voortgang loopt via de Partner-tab, niet via slepen.
+                  </span>
+                )}
+              </div>
+              <KanbanView
+                funnel={funnel}
+                customers={filtered
+                  .filter((c) => c.prospectType === funnel)
+                  .map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    email: c.email,
+                    crmStage: c.crmStage,
+                    prospectType: c.prospectType,
+                    resellerStage: c.resellerStage,
+                    crmTemperature: c.crmTemperature,
+                    segment: c.segment,
+                    assignedToUserId: c.assignedToUserId,
+                    paidLicenseCount: c.paidLicenseCount,
+                    trialStatus: c.trialStatus,
+                    accountOwner: c.accountOwner
+                      ? {
+                          name: c.accountOwner.name,
+                          code: c.accountOwner.code,
+                        }
+                      : null,
+                  }))}
+                adminUsers={adminUsers}
+                onStageChange={(userId, stage) => rowUpdate(userId, { stage })}
+              />
+            </div>
           )}
 
           {/* Tabel + altijd-zichtbaar org-side-panel rechts */}
@@ -1870,6 +1923,16 @@ function PersonSidePanel({
     | "email"
     | "partner"
   >("overzicht");
+  // Val terug op Overzicht als de Partner-tab verdwijnt (eindklant-prospect of
+  // van funnel gewisseld) — anders blijft de body op een niet-zichtbare tab hangen.
+  useEffect(() => {
+    if (
+      tab === "partner" &&
+      !(person.kind === "prospect" && person.prospectType === "reseller")
+    ) {
+      setTab("overzicht");
+    }
+  }, [tab, person.kind, person.prospectType]);
   const [timeline, setTimeline] = useState<
     { id: string; at: string; kind: string; title: string; detail: string | null }[]
   >([]);
@@ -2000,10 +2063,15 @@ function PersonSidePanel({
   // Taken-POST zou een FK-violation geven. Een prospect ziet Overzicht + de
   // funnel; z'n activiteit/taken leven op de org (bereikbaar via de spring-link).
   const isProspect = person.kind === "prospect";
+  // De Partner-tab (reseller-deck-cockpit) hoort alleen bij reseller-prospects.
+  // Eindklant-prospects zien 'm niet (migratie 0052). Reseller-flow zelf ongemoeid.
+  const isResellerProspect = isProspect && person.prospectType === "reseller";
   const TABS: { key: typeof tab; label: string }[] = [
     { key: "overzicht", label: "Overzicht" },
     ...(isProspect
-      ? [{ key: "partner" as const, label: "Partner" }]
+      ? isResellerProspect
+        ? [{ key: "partner" as const, label: "Partner" }]
+        : []
       : [
           { key: "activiteit" as const, label: "Activiteit" },
           { key: "taken" as const, label: "Taken" },

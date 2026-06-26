@@ -83,6 +83,10 @@ export type CrmPersonRow = {
     | "lost"
     | "churned"
     | "reseller";
+  /** Funnel-spoor (migratie 0052): bepaalt het bord en de Partner-tab. */
+  prospectType: "eindklant" | "reseller";
+  /** Afgeleide reseller-funnel-kolom (deck-timestamps). Alleen zinvol bij reseller. */
+  resellerStage: string;
   crmTemperature: "cold" | "lukewarm" | "warm" | "hot";
   assignedToUserId: string | null;
   notes: string | null;
@@ -201,6 +205,8 @@ export async function loadCrmPeoplePage(args: {
             }
           : null,
         crmStage: attr?.stage ?? defaultStageFor(r.paidLicenseCount, r.trialStatus),
+        prospectType: "eindklant",
+        resellerStage: "geworven",
         crmTemperature:
           attr?.temperature ??
           defaultTemperatureFor(r.trialStatus, r.paidLicenseCount),
@@ -263,6 +269,8 @@ export async function loadCrmPeoplePage(args: {
         accountOwner: null,
         discountCodeUsed: null,
         crmStage: (p.crmStage as CrmPersonRow["crmStage"]) ?? "lead",
+        prospectType: p.prospectType,
+        resellerStage: p.resellerStage,
         crmTemperature: (p.temperature as CrmPersonRow["crmTemperature"]) ?? "cold",
         assignedToUserId: p.assigneeId,
         notes: p.notes,

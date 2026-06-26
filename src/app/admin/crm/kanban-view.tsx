@@ -21,6 +21,10 @@ export type KanbanCustomer = {
   name: string;
   email: string;
   crmStage: CrmStage;
+  /** Funnel-spoor (migratie 0052). Bepaalt op welk bord deze kaart hoort. */
+  prospectType: "eindklant" | "reseller";
+  /** Afgeleide reseller-funnel-kolom (deck-timestamps). Alleen bij reseller. */
+  resellerStage: string;
   crmTemperature: Temperature;
   segment: string;
   assignedToUserId: string | null;
@@ -34,15 +38,27 @@ type AdminUser = {
   name: string;
 };
 
-const COLUMNS: { key: CrmStage; label: string; color: string }[] = [
+// Eindklant-funnel: de klassieke sales-stages (sleepbaar, zet customer_stage).
+const EINDKLANT_COLUMNS: { key: string; label: string; color: string }[] = [
   { key: "lead", label: "Lead", color: "#6B7280" },
   { key: "prospect", label: "Prospect", color: "#3B82F6" },
   { key: "mql", label: "MQL", color: "#A855F7" },
   { key: "sql", label: "SQL", color: "#EAB308" },
   { key: "customer", label: "Klant", color: "#22C55E" },
-  { key: "reseller", label: "Reseller", color: "#14B8A6" },
   { key: "lost", label: "Verloren", color: "#EF4444" },
   { key: "churned", label: "Churned", color: "#F97316" },
+];
+
+// Reseller-funnel: afgeleid van de deck-/aanmeld-timestamps. NIET sleepbaar —
+// de progressie volgt de flow (deck sturen, bezoek-tracking, aanmelding, promote),
+// niet handmatig slepen. De AM werkt 'm bij via de Partner-tab in het side-panel.
+const RESELLER_COLUMNS: { key: string; label: string; color: string }[] = [
+  { key: "geworven", label: "Geworven", color: "#6B7280" },
+  { key: "deck_verstuurd", label: "Deck verstuurd", color: "#3B82F6" },
+  { key: "bezocht", label: "Deck bezocht", color: "#06B6D4" },
+  { key: "gesprek", label: "Gesprek", color: "#A855F7" },
+  { key: "aangemeld", label: "Aangemeld", color: "#EAB308" },
+  { key: "actief", label: "Actieve reseller", color: "#14B8A6" },
 ];
 
 const TEMP_DOT: Record<Temperature, string> = {
@@ -56,17 +72,25 @@ export function KanbanView({
   customers,
   adminUsers,
   onStageChange,
+  funnel = "eindklant",
 }: {
   customers: KanbanCustomer[];
   adminUsers: AdminUser[];
   onStageChange: (userId: string, stage: CrmStage) => void;
+  /** Welk funnel-spoor dit bord toont. Reseller-kolommen zijn afgeleid + read-only. */
+  funnel?: "eindklant" | "reseller";
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
 
-  const grouped = new Map<CrmStage, KanbanCustomer[]>();
-  for (const col of COLUMNS) grouped.set(col.key, []);
+  const isReseller = funnel === "reseller";
+  const columns = isReseller ? RESELLER_COLUMNS : EINDKLANT_COLUMNS;
+  const stageOf = (c: KanbanCustomer): string =>
+    isReseller ? c.resellerStage : c.crmStage;
+
+  const grouped = new Map<string, KanbanCustomer[]>();
+  for (const col of columns) grouped.set(col.key, []);
   for (const c of customers) {
-    const list = grouped.get(c.crmStage);
+    const list = grouped.get(stageOf(c));
     if (list) list.push(c);
   }
 
@@ -78,15 +102,15 @@ export function KanbanView({
   return (
     <div className="overflow-x-auto px-2 py-3">
       <div className="flex gap-3 min-w-max">
-        {COLUMNS.map((col) => {
+        {columns.map((col) => {
           const items = grouped.get(col.key) ?? [];
           return (
             <div
               key={col.key}
-              onDragOver={(e) => e.preventDefault()}
+              onDragOver={(e) => !isReseller && e.preventDefault()}
               onDrop={() => {
-                if (dragId) {
-                  onStageChange(dragId, col.key);
+                if (!isReseller && dragId) {
+                  onStageChange(dragId, col.key as CrmStage);
                   setDragId(null);
                 }
               }}
@@ -105,19 +129,21 @@ export function KanbanView({
               <div className="flex flex-col gap-2">
                 {items.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-[color:var(--border-soft)] p-3 text-center text-xs text-[color:var(--text-soft)]">
-                    Sleep een klant hierheen
+                    {isReseller ? "Geen contacten" : "Sleep een klant hierheen"}
                   </div>
                 ) : (
                   items.map((c) => (
                     <div
                       key={c.id}
-                      draggable
-                      onDragStart={() => setDragId(c.id)}
+                      draggable={!isReseller}
+                      onDragStart={() => !isReseller && setDragId(c.id)}
                       onDragEnd={() => setDragId(null)}
                       className={cn(
                         "rounded-xl border border-[color:var(--border-soft)] bg-white p-3 shadow-sm transition-shadow",
                         dragId === c.id && "opacity-50",
-                        "hover:shadow-md cursor-grab active:cursor-grabbing",
+                        isReseller
+                          ? "hover:shadow-md"
+                          : "hover:shadow-md cursor-grab active:cursor-grabbing",
                       )}
                     >
                       <Link
