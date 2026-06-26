@@ -52,6 +52,7 @@ export async function createLeadList(args: {
   name: string;
   description?: string | null;
   color?: ListColorValue;
+  listType?: "eindklant" | "reseller";
   ownerUserId: string;
   isShared?: boolean;
 }): Promise<LeadList> {
@@ -61,6 +62,7 @@ export async function createLeadList(args: {
       name: args.name.trim(),
       description: args.description ?? null,
       color: args.color ?? "blue",
+      listType: args.listType ?? "eindklant",
       ownerUserId: args.ownerUserId,
       isShared: args.isShared ?? true,
     })

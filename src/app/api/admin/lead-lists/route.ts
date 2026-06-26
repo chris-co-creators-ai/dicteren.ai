@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     name?: string;
     description?: string | null;
     color?: ListColorValue;
+    listType?: "eindklant" | "reseller";
     isShared?: boolean;
   };
   try {
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     name: body.name,
     description: body.description ?? null,
     color: body.color,
+    listType: body.listType === "reseller" ? "reseller" : "eindklant",
     ownerUserId: session.user.id,
     isShared: body.isShared ?? true,
   });

@@ -815,6 +815,7 @@ export function CrmView({
     stage?: CrmStage | null;
     temperature?: Temperature | null;
     assignedToUserId?: string | null;
+    prospectType?: "eindklant" | "reseller";
   }) {
     // Klant-rijen (auth.user-ids) via het customer-bulk-endpoint.
     const userIds = selectedArray.filter(
@@ -844,6 +845,19 @@ export function CrmView({
           body: JSON.stringify({
             contactIds: prospectIds,
             assignToUserId: patch.assignedToUserId,
+          }),
+        }),
+      );
+    }
+    // Funnel-spoor geldt alleen voor prospects (klanten zijn altijd eindklant).
+    if (prospectIds.length > 0 && patch.prospectType !== undefined) {
+      calls.push(
+        fetch("/api/admin/crm/contacts/prospect-type", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            contactIds: prospectIds,
+            prospectType: patch.prospectType,
           }),
         }),
       );
@@ -1139,17 +1153,37 @@ export function CrmView({
               <span className="text-xs text-[color:var(--text-muted)]">
                 {activeList.description}
               </span>
-              <LeadListCampaignSheet
-                listId={activeList.id}
-                listName={activeList.name}
-                canEdit={isAdmin || activeList.ownerUserId === currentUserId}
-                onApplied={refresh}
-                trigger={
-                  <button className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)]">
-                    Campagne-stappen
-                  </button>
-                }
-              />
+              <div className="flex shrink-0 items-center gap-2">
+                <InlineSelect
+                  placeholder="Hele lijst → funnel…"
+                  options={[
+                    { value: "eindklant", label: "Alles → Eindklant" },
+                    { value: "reseller", label: "Alles → Reseller" },
+                  ]}
+                  onChange={async (v) => {
+                    await fetch(
+                      `/api/admin/lead-lists/${activeList.id}/prospect-type`,
+                      {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ prospectType: v }),
+                      },
+                    );
+                    refresh();
+                  }}
+                />
+                <LeadListCampaignSheet
+                  listId={activeList.id}
+                  listName={activeList.name}
+                  canEdit={isAdmin || activeList.ownerUserId === currentUserId}
+                  onApplied={refresh}
+                  trigger={
+                    <button className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[color:var(--border-soft)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-muted)] hover:text-[color:var(--navy)]">
+                      Campagne-stappen
+                    </button>
+                  }
+                />
+              </div>
             </div>
           )}
 
@@ -1405,6 +1439,16 @@ export function CrmView({
                   bulkUpdate({
                     assignedToUserId: v === "__none__" ? null : v,
                   })
+                }
+              />
+              <InlineSelect
+                placeholder="Set funnel…"
+                options={[
+                  { value: "eindklant", label: "Eindklant" },
+                  { value: "reseller", label: "Reseller" },
+                ]}
+                onChange={(v) =>
+                  bulkUpdate({ prospectType: v as "eindklant" | "reseller" })
                 }
               />
               <button
@@ -3928,6 +3972,7 @@ function CreateListModal({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("blue");
+  const [listType, setListType] = useState<"eindklant" | "reseller">("eindklant");
   const [isShared, setIsShared] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -3941,7 +3986,7 @@ function CreateListModal({
     const res = await fetch("/api/admin/lead-lists", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, description, color, isShared }),
+      body: JSON.stringify({ name, description, color, listType, isShared }),
     });
     const data = await res.json();
     if (!data.success) {
@@ -3994,6 +4039,34 @@ function CreateListModal({
             ))}
           </div>
         </label>
+        <div className="grid gap-1">
+          <span className="text-xs font-semibold">Funnel</span>
+          <div className="flex gap-2">
+            {(
+              [
+                { key: "eindklant", label: "Eindklant prospects" },
+                { key: "reseller", label: "Reseller prospects" },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setListType(t.key)}
+                className={cn(
+                  "flex-1 rounded-lg border px-3 py-2 text-xs font-semibold",
+                  listType === t.key
+                    ? "border-[color:var(--navy)] bg-[color:var(--navy)] text-white"
+                    : "border-[color:var(--border-soft)] text-[color:var(--text-muted)] hover:bg-[color:var(--bg)]",
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <span className="text-[0.6875rem] text-[color:var(--text-soft)]">
+            Bepaalt op welk bord nieuwe contacten in deze lijst landen.
+          </span>
+        </div>
         <label className="flex items-center gap-2 text-xs font-semibold">
           <input
             type="checkbox"
