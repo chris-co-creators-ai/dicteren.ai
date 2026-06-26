@@ -1967,16 +1967,12 @@ function PersonSidePanel({
     | "email"
     | "partner"
   >("overzicht");
-  // Val terug op Overzicht als de Partner-tab verdwijnt (eindklant-prospect of
-  // van funnel gewisseld) — anders blijft de body op een niet-zichtbare tab hangen.
+  // Val terug op Overzicht als de Partner-tab niet bestaat (klant, geen prospect).
   useEffect(() => {
-    if (
-      tab === "partner" &&
-      !(person.kind === "prospect" && person.prospectType === "reseller")
-    ) {
+    if (tab === "partner" && person.kind !== "prospect") {
       setTab("overzicht");
     }
-  }, [tab, person.kind, person.prospectType]);
+  }, [tab, person.kind]);
   const [timeline, setTimeline] = useState<
     { id: string; at: string; kind: string; title: string; detail: string | null }[]
   >([]);
@@ -2107,15 +2103,14 @@ function PersonSidePanel({
   // Taken-POST zou een FK-violation geven. Een prospect ziet Overzicht + de
   // funnel; z'n activiteit/taken leven op de org (bereikbaar via de spring-link).
   const isProspect = person.kind === "prospect";
-  // De Partner-tab (reseller-deck-cockpit) hoort alleen bij reseller-prospects.
-  // Eindklant-prospects zien 'm niet (migratie 0052). Reseller-flow zelf ongemoeid.
-  const isResellerProspect = isProspect && person.prospectType === "reseller";
+  // Partner-tab (reseller-deck-cockpit) voor ALLE prospects zichtbaar. We verbergen
+  // 'm bewust NIET op prospect_type, want zolang de 230 leads nog niet handmatig
+  // geclassificeerd zijn zou dat de halve partner-pipeline verstoppen. De reseller-
+  // only-beperking komt pas terug als de classificatie compleet is (migratie 0052).
   const TABS: { key: typeof tab; label: string }[] = [
     { key: "overzicht", label: "Overzicht" },
     ...(isProspect
-      ? isResellerProspect
-        ? [{ key: "partner" as const, label: "Partner" }]
-        : []
+      ? [{ key: "partner" as const, label: "Partner" }]
       : [
           { key: "activiteit" as const, label: "Activiteit" },
           { key: "taken" as const, label: "Taken" },
