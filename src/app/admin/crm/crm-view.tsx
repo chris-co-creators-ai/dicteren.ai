@@ -93,6 +93,17 @@ type CrmStage =
 
 type Temperature = "cold" | "lukewarm" | "warm" | "hot";
 
+// Tabs van het persoon-side-panel. De default-tab is instelbaar zodat de
+// reseller-Kanban meteen op "partner" opent en de rest op "overzicht".
+type PanelTab =
+  | "overzicht"
+  | "activiteit"
+  | "taken"
+  | "commercie"
+  | "apparaten"
+  | "email"
+  | "partner";
+
 type Customer = {
   id: string;
   name: string;
@@ -490,6 +501,9 @@ export function CrmView({
   const [notesFor, setNotesFor] = useState<Customer | null>(null);
   const [enrichFor, setEnrichFor] = useState<Customer | null>(null);
   const [personFor, setPersonFor] = useState<Customer | null>(null);
+  // Welke tab het side-panel toont bij openen. Reseller-Kanban → "partner".
+  const [personInitialTab, setPersonInitialTab] =
+    useState<PanelTab>("overzicht");
   // Altijd-zichtbaar org-side-panel rechts: de organisatie van het geselecteerde
   // prospect-contact. Zo kan de AM direct notuleren + data inzien.
   const [dockedOrgId, setDockedOrgId] = useState<string | null>(null);
@@ -832,8 +846,9 @@ export function CrmView({
   // bereik je via de spring-link in de kop. Wordt aangeroepen door het
   // Expand-icoon links in de checkbox-kolom (op hover) én de pijl-knop in de
   // actie-kolom.
-  function openRecord(r: Customer) {
+  function openRecord(r: Customer, initialTab: PanelTab = "overzicht") {
     // Toggle: zelfde rij nog eens = panel dicht.
+    setPersonInitialTab(initialTab);
     setPersonFor((cur) => (cur?.id === r.id ? null : r));
   }
 
@@ -1578,7 +1593,11 @@ export function CrmView({
                 onStageChange={(userId, stage) => rowUpdate(userId, { stage })}
                 onOpenRecord={(id) => {
                   const row = rowsById.get(id);
-                  if (row) openRecord(row);
+                  if (row)
+                    openRecord(
+                      row,
+                      funnel === "reseller" ? "partner" : "overzicht",
+                    );
                 }}
               />
             </div>
@@ -1793,7 +1812,10 @@ export function CrmView({
                               lists={lists}
                               onUpdate={(p) => rowUpdate(r.id, p)}
                               onOpenNotes={() => setNotesFor(r)}
-                              onOpenProfile={() => setPersonFor(r)}
+                              onOpenProfile={() => {
+                                setPersonInitialTab("overzicht");
+                                setPersonFor(r);
+                              }}
                               onFieldSave={(field, value) =>
                                 fieldSave(r.id, field, value)
                               }
@@ -1956,7 +1978,9 @@ export function CrmView({
 
       {personFor && (
         <PersonSidePanel
+          key={`${personFor.id}:${personInitialTab}`}
           person={personFor}
+          initialTab={personInitialTab}
           adminUsers={adminUsers}
           lists={lists}
           onClose={() => setPersonFor(null)}
@@ -1975,26 +1999,20 @@ export function CrmView({
 //    de volledige /admin/crm/[id]-subpagina. ──
 function PersonSidePanel({
   person,
+  initialTab = "overzicht",
   adminUsers,
   lists,
   onClose,
   onOpenOrg,
 }: {
   person: Customer;
+  initialTab?: PanelTab;
   adminUsers: AdminUser[];
   lists: LeadListOption[];
   onClose: () => void;
   onOpenOrg?: (orgId: string) => void;
 }) {
-  const [tab, setTab] = useState<
-    | "overzicht"
-    | "activiteit"
-    | "taken"
-    | "commercie"
-    | "apparaten"
-    | "email"
-    | "partner"
-  >("overzicht");
+  const [tab, setTab] = useState<PanelTab>(initialTab);
   // Val terug op Overzicht als de Partner-tab niet bestaat (klant, geen prospect).
   useEffect(() => {
     if (tab === "partner" && person.kind !== "prospect") {
