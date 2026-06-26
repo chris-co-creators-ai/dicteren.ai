@@ -440,13 +440,14 @@ export function CrmView({
   onTabChange: (k: CrmTabKey) => void;
 }) {
   // Start-weergave (Christian, 2026-06-26): de CRM opent op het reseller-werkbord.
-  // Een account manager landt op z'n eigen AI-experts-lijst; admin (en wie geen
-  // eigen AI-experts-lijst heeft) op het volledige reseller-bord over alle AM's.
-  // Naam-match dekt "AI-experts — Krishna" én "AI Experts 92".
-  const ownAiExpertsListId =
-    lists.find(
-      (l) => l.ownerUserId === currentUserId && /ai[\s-]?experts/i.test(l.name),
-    )?.id ?? null;
+  // Een account manager landt op z'n eigen AI-experts-lijst (naam-match dekt
+  // "AI-experts — Krishna"); admin landt bewust op "Alle leads" = het volledige
+  // reseller-bord over alle AM's, ook al heeft admin zelf een (lege) AI-experts-lijst.
+  const ownAiExpertsListId = isAdmin
+    ? null
+    : (lists.find(
+        (l) => l.ownerUserId === currentUserId && /ai[\s-]?experts/i.test(l.name),
+      )?.id ?? null);
   const [activeListId, setActiveListId] = useState<string | "all">(
     ownAiExpertsListId ?? "all",
   );
