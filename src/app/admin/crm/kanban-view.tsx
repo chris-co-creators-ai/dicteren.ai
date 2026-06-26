@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { FUNNEL_TRACK } from "@/lib/services/partnerFunnelShared";
 
 type CrmStage =
   | "lead"
@@ -23,8 +24,8 @@ export type KanbanCustomer = {
   crmStage: CrmStage;
   /** Funnel-spoor (migratie 0052). Bepaalt op welk bord deze kaart hoort. */
   prospectType: "eindklant" | "reseller";
-  /** Afgeleide reseller-funnel-kolom (deck-timestamps). Alleen bij reseller. */
-  resellerStage: string;
+  /** Afgeleide partner-funnel-kolom (exact `deriveFunnelColumn`). Alleen bij reseller. */
+  funnelColumn: string;
   crmTemperature: Temperature;
   segment: string;
   assignedToUserId: string | null;
@@ -49,16 +50,28 @@ const EINDKLANT_COLUMNS: { key: string; label: string; color: string }[] = [
   { key: "churned", label: "Churned", color: "#F97316" },
 ];
 
-// Reseller-funnel: afgeleid van de deck-/aanmeld-timestamps. NIET sleepbaar —
-// de progressie volgt de flow (deck sturen, bezoek-tracking, aanmelding, promote),
-// niet handmatig slepen. De AM werkt 'm bij via de Partner-tab in het side-panel.
+// Reseller-funnel: EXACT de 7-stage partner-funnel uit partnerFunnelShared
+// (`FUNNEL_TRACK` + `deriveFunnelColumn`), dezelfde waarheid als de Partner-cockpit.
+// NIET sleepbaar — de progressie volgt de flow (deck sturen, bezoek-tracking,
+// aanmelding, afspraak-vinkjes, publiceren), niet handmatig slepen. De AM werkt 'm
+// bij via de Partner-tab. "Niet nu" (lost/churned/do-not-call) als zijspoor erachter.
+const FUNNEL_COLORS: Record<string, string> = {
+  nieuw: "#6B7280",
+  deck_verstuurd: "#3B82F6",
+  deck_bekeken: "#06B6D4",
+  geinteresseerd: "#A855F7",
+  afspraak_rond: "#EAB308",
+  brand_check: "#F59E0B",
+  actief: "#14B8A6",
+  niet_nu: "#9CA3AF",
+};
 const RESELLER_COLUMNS: { key: string; label: string; color: string }[] = [
-  { key: "geworven", label: "Geworven", color: "#6B7280" },
-  { key: "deck_verstuurd", label: "Deck verstuurd", color: "#3B82F6" },
-  { key: "bezocht", label: "Deck bezocht", color: "#06B6D4" },
-  { key: "gesprek", label: "Gesprek", color: "#A855F7" },
-  { key: "aangemeld", label: "Aangemeld", color: "#EAB308" },
-  { key: "actief", label: "Actieve reseller", color: "#14B8A6" },
+  ...FUNNEL_TRACK.map((s) => ({
+    key: s.key,
+    label: s.label,
+    color: FUNNEL_COLORS[s.key] ?? "#6B7280",
+  })),
+  { key: "niet_nu", label: "Niet nu", color: FUNNEL_COLORS.niet_nu },
 ];
 
 const TEMP_DOT: Record<Temperature, string> = {
@@ -85,7 +98,7 @@ export function KanbanView({
   const isReseller = funnel === "reseller";
   const columns = isReseller ? RESELLER_COLUMNS : EINDKLANT_COLUMNS;
   const stageOf = (c: KanbanCustomer): string =>
-    isReseller ? c.resellerStage : c.crmStage;
+    isReseller ? c.funnelColumn : c.crmStage;
 
   const grouped = new Map<string, KanbanCustomer[]>();
   for (const col of columns) grouped.set(col.key, []);

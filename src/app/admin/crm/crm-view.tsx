@@ -141,8 +141,8 @@ type Customer = {
   crmStage: CrmStage;
   /** Funnel-spoor (migratie 0052): eindklant- vs reseller-werving. */
   prospectType: "eindklant" | "reseller";
-  /** Afgeleide reseller-funnel-kolom (deck-timestamps). Alleen bij reseller. */
-  resellerStage: string;
+  /** Afgeleide partner-funnel-kolom (exact `deriveFunnelColumn`). Alleen bij reseller. */
+  funnelColumn: string;
   crmTemperature: Temperature;
   assignedToUserId: string | null;
   notes: string | null;
@@ -1537,7 +1537,7 @@ export function CrmView({
                     email: c.email,
                     crmStage: c.crmStage,
                     prospectType: c.prospectType,
-                    resellerStage: c.resellerStage,
+                    funnelColumn: c.funnelColumn,
                     crmTemperature: c.crmTemperature,
                     segment: c.segment,
                     assignedToUserId: c.assignedToUserId,

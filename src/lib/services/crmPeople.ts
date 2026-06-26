@@ -29,6 +29,8 @@ import {
   enrichmentByContact,
   type ProspectEnrichment,
 } from "./crmContactEnrichment";
+import { funnelColumnsByContactIds } from "./partnerFunnel";
+import type { FunnelColumn } from "./partnerFunnelShared";
 
 export type CrmPersonRow = {
   id: string;
@@ -85,8 +87,10 @@ export type CrmPersonRow = {
     | "reseller";
   /** Funnel-spoor (migratie 0052): bepaalt het bord en de Partner-tab. */
   prospectType: "eindklant" | "reseller";
-  /** Afgeleide reseller-funnel-kolom (deck-timestamps). Alleen zinvol bij reseller. */
-  resellerStage: string;
+  /** Afgeleide partner-funnel-kolom (exact `deriveFunnelColumn` uit
+   *  partnerFunnelShared — zelfde 7-stage-waarheid als de cockpit). Alleen bij
+   *  reseller-prospects zinvol. */
+  funnelColumn: FunnelColumn;
   crmTemperature: "cold" | "lukewarm" | "warm" | "hot";
   assignedToUserId: string | null;
   notes: string | null;
@@ -132,8 +136,15 @@ export async function loadCrmPeoplePage(args: {
 
   const lists = await listLeadLists({ userId: args.sessionUserId });
   const visibleListIds = lists.map((l) => l.id);
-  const [funnelRows, attrs, memberships, contactMemberships, enrichments, dispositions] =
-    await Promise.all([
+  const [
+    funnelRows,
+    attrs,
+    memberships,
+    contactMemberships,
+    enrichments,
+    dispositions,
+    funnelColumns,
+  ] = await Promise.all([
       customerIds.length
         ? listCustomerFunnel({ userIds: customerIds })
         : Promise.resolve([]),
@@ -146,6 +157,9 @@ export async function loadCrmPeoplePage(args: {
         ? enrichmentByContact(prospectIds)
         : Promise.resolve(new Map<string, ProspectEnrichment>()),
       dispositionByOrgIds(prospectOrgIds),
+      prospectIds.length
+        ? funnelColumnsByContactIds(prospectIds)
+        : Promise.resolve(new Map<string, FunnelColumn>()),
     ]);
   const funnelById = new Map(funnelRows.map((r) => [r.id, r]));
 
@@ -206,7 +220,7 @@ export async function loadCrmPeoplePage(args: {
           : null,
         crmStage: attr?.stage ?? defaultStageFor(r.paidLicenseCount, r.trialStatus),
         prospectType: "eindklant",
-        resellerStage: "geworven",
+        funnelColumn: "nieuw",
         crmTemperature:
           attr?.temperature ??
           defaultTemperatureFor(r.trialStatus, r.paidLicenseCount),
@@ -270,7 +284,7 @@ export async function loadCrmPeoplePage(args: {
         discountCodeUsed: null,
         crmStage: (p.crmStage as CrmPersonRow["crmStage"]) ?? "lead",
         prospectType: p.prospectType,
-        resellerStage: p.resellerStage,
+        funnelColumn: funnelColumns.get(p.id) ?? "nieuw",
         crmTemperature: (p.temperature as CrmPersonRow["crmTemperature"]) ?? "cold",
         assignedToUserId: p.assigneeId,
         notes: p.notes,

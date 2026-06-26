@@ -10,7 +10,7 @@
 
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   affiliates,
@@ -518,6 +518,68 @@ export async function getOrgFunnelState(
   const c = contacts.find((x) => x.isPrimary) ?? contacts[0];
   const stats = await funnelStatsFor(c.promotedAffiliateId);
   return buildFunnelState(c, org.status, org.doNotCall ?? false, stats);
+}
+
+/** Batch: de afgeleide funnel-kolom per contact, voor het reseller-Kanban-bord.
+ *  Hergebruikt `deriveFunnelColumn` — exact dezelfde 7-stage-waarheid als de
+ *  cockpit (Partner-tab), geen tweede afleiding. Eén query op de contacten + één
+ *  op de betrokken orgs (status + do_not_call). */
+export async function funnelColumnsByContactIds(
+  contactIds: string[],
+): Promise<Map<string, FunnelColumn>> {
+  const out = new Map<string, FunnelColumn>();
+  if (contactIds.length === 0) return out;
+
+  const contacts = await db
+    .select(funnelContactCols)
+    .from(crmContacts)
+    .where(inArray(crmContacts.id, contactIds));
+
+  const orgIds = [
+    ...new Set(
+      contacts
+        .map((c) => c.crmOrganizationId)
+        .filter((x): x is string => Boolean(x)),
+    ),
+  ];
+  const orgMap = new Map<string, { status: string | null; doNotCall: boolean }>();
+  if (orgIds.length) {
+    const orgs = await db
+      .select({
+        id: crmOrganizations.id,
+        status: crmOrganizations.status,
+        doNotCall: crmOrganizations.doNotCall,
+      })
+      .from(crmOrganizations)
+      .where(inArray(crmOrganizations.id, orgIds));
+    for (const o of orgs)
+      orgMap.set(o.id, { status: o.status, doNotCall: o.doNotCall ?? false });
+  }
+
+  for (const c of contacts) {
+    const org = c.crmOrganizationId ? orgMap.get(c.crmOrganizationId) : undefined;
+    const input: FunnelStateInput = {
+      deckSentAt: iso(c.deckSentAt),
+      deckVisitedAt: iso(c.deckVisitedAt),
+      appliedAt: iso(c.appliedAt),
+      commissionDiscussedAt: iso(c.commissionDiscussedAt),
+      discountAgreedAt: iso(c.discountAgreedAt),
+      expectedClientsLoggedAt: iso(c.expectedClientsLoggedAt),
+      brandIdentityApprovedAt: iso(c.brandIdentityApprovedAt),
+      promotedAffiliateId: c.promotedAffiliateId,
+      orgStatus: org?.status ?? null,
+      doNotCall: org?.doNotCall ?? false,
+      temperature: c.temperature,
+      lastContactAt: iso(c.lastContactAt),
+      appliedLogoR2Key: c.appliedLogoR2Key,
+      appliedBrandColor: c.appliedBrandColor,
+      appliedQuote: c.appliedQuote,
+      appliedPortraitR2Key: c.appliedPortraitR2Key,
+      appliedIntroText: c.appliedIntroText,
+    };
+    out.set(c.id, deriveFunnelColumn(input));
+  }
+  return out;
 }
 
 /** Funnel-state voor het persoon-side-panel. De funnel-velden leven op de
