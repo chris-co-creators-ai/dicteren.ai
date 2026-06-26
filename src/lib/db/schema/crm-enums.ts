@@ -33,3 +33,10 @@ export const listColor = pgEnum("list_color", [
   "navy",
   "aqua",
 ]);
+
+// Funnel-discriminator. Splitst eindklant-werving van reseller-werving zodat het
+// bord, het side-panel en de funnel-cijfers per spoor zuiver blijven. Leeft op
+// crm_contacts (de waarheid) én op lead_lists (de ingang/default). Migratie 0052.
+export const prospectType = pgEnum("prospect_type", ["eindklant", "reseller"]);
+
+export const listType = pgEnum("list_type", ["eindklant", "reseller"]);

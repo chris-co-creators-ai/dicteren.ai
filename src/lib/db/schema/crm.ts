@@ -17,11 +17,12 @@ import {
   customerStage,
   customerTemperature,
   listColor,
+  listType,
 } from "./crm-enums";
 
 // Re-export zodat bestaande consumers (incl. @/lib/db/schema via export *)
 // deze enums blijven vinden onder de crm-module.
-export { customerStage, customerTemperature, listColor };
+export { customerStage, customerTemperature, listColor, listType };
 
 /** Per-user CRM-attributen naast auth.user. Lazy: rij wordt pas
  *  aangemaakt bij eerste edit. */
@@ -53,6 +54,10 @@ export const leadLists = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     color: listColor("color").notNull().default("blue"),
+    // Funnel-type van de lijst (migratie 0052): de ingang bij "+ Nieuwe lijst" en
+    // de default voor contacts die erin landen. Het contact-type blijft leidend
+    // voor de bord-indeling.
+    listType: listType("list_type").notNull().default("eindklant"),
     ownerUserId: uuid("owner_user_id").references(() => authUsers.id, {
       onDelete: "set null",
     }),

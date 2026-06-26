@@ -36,6 +36,7 @@ export async function listLeadLists(_args: {
       name: leadLists.name,
       description: leadLists.description,
       color: leadLists.color,
+      listType: leadLists.listType,
       ownerUserId: leadLists.ownerUserId,
       isShared: leadLists.isShared,
       createdAt: leadLists.createdAt,

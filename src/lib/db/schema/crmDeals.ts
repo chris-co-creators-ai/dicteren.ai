@@ -25,7 +25,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { authUsers, authOrganizations } from "./auth-bridge";
-import { customerTemperature } from "./crm-enums";
+import { customerTemperature, prospectType } from "./crm-enums";
 
 export const crmOrgStatus = pgEnum("crm_org_status", [
   "lead",           // net aangemaakt, nog geen contact
@@ -206,6 +206,12 @@ export const crmContacts = pgTable(
       { onDelete: "set null" },
     ),
 
+    // ── Funnel-type: eindklant-werving vs reseller-werving (migratie 0052). De
+    //    waarheid voor de bord-indeling; de lijst zet alleen de default. Default
+    //    'eindklant' = het veilige spoor. Reseller-kolommen blijven afgeleid van
+    //    de deck-timestamps hieronder (geen aparte reseller-stage-enum). ──
+    prospectType: prospectType("prospect_type").notNull().default("eindklant"),
+
     // ── Persoon (Clay person-enrichment) ──
     firstName: text("first_name"),
     lastName: text("last_name"),
@@ -299,6 +305,7 @@ export const crmContacts = pgTable(
     index("crm_contacts_email_idx").on(t.email),
     index("crm_contacts_auth_user_idx").on(t.authUserId),
     index("crm_contacts_assigned_idx").on(t.assignedToUserId),
+    index("crm_contacts_prospect_type_idx").on(t.prospectType),
     index("crm_contacts_industry_idx").on(t.industry),
     index("crm_contacts_score_idx").on(t.leadScore),
     uniqueIndex("crm_contacts_deck_token_idx").on(t.deckToken),
