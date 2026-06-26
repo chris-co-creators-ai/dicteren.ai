@@ -1561,6 +1561,10 @@ export function CrmView({
                   }))}
                 adminUsers={adminUsers}
                 onStageChange={(userId, stage) => rowUpdate(userId, { stage })}
+                onOpenRecord={(id) => {
+                  const row = rowsById.get(id);
+                  if (row) openRecord(row);
+                }}
               />
             </div>
           )}

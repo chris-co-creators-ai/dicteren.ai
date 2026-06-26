@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { FUNNEL_TRACK } from "@/lib/services/partnerFunnelShared";
 
@@ -85,11 +84,15 @@ export function KanbanView({
   customers,
   adminUsers,
   onStageChange,
+  onOpenRecord,
   funnel = "eindklant",
 }: {
   customers: KanbanCustomer[];
   adminUsers: AdminUser[];
   onStageChange: (userId: string, stage: CrmStage) => void;
+  /** Opent het persoon-side-panel voor deze kaart (zelfde panel als de tabel-rij).
+   *  Prospects hebben geen auth.user, dus een detail-route 404't — altijd het panel. */
+  onOpenRecord: (id: string) => void;
   /** Welk funnel-spoor dit bord toont. Reseller-kolommen zijn afgeleid + read-only. */
   funnel?: "eindklant" | "reseller";
 }) {
@@ -159,9 +162,10 @@ export function KanbanView({
                           : "hover:shadow-md cursor-grab active:cursor-grabbing",
                       )}
                     >
-                      <Link
-                        href={`/admin/crm/${c.id}`}
-                        className="block"
+                      <button
+                        type="button"
+                        onClick={() => onOpenRecord(c.id)}
+                        className="block w-full text-left"
                       >
                         <div className="flex items-start gap-2">
                           <span
@@ -199,7 +203,7 @@ export function KanbanView({
                           {assigneeName(c.assignedToUserId)}
                           {c.accountOwner && ` · ${c.accountOwner.code}`}
                         </div>
-                      </Link>
+                      </button>
                     </div>
                   ))
                 )}
