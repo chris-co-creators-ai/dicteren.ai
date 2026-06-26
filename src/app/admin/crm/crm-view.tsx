@@ -439,10 +439,20 @@ export function CrmView({
   activeTab: CrmTabKey;
   onTabChange: (k: CrmTabKey) => void;
 }) {
-  const [activeListId, setActiveListId] = useState<string | "all">("all");
-  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
+  // Start-weergave (Christian, 2026-06-26): de CRM opent op het reseller-werkbord.
+  // Een account manager landt op z'n eigen AI-experts-lijst; admin (en wie geen
+  // eigen AI-experts-lijst heeft) op het volledige reseller-bord over alle AM's.
+  // Naam-match dekt "AI-experts — Krishna" én "AI Experts 92".
+  const ownAiExpertsListId =
+    lists.find(
+      (l) => l.ownerUserId === currentUserId && /ai[\s-]?experts/i.test(l.name),
+    )?.id ?? null;
+  const [activeListId, setActiveListId] = useState<string | "all">(
+    ownAiExpertsListId ?? "all",
+  );
+  const [viewMode, setViewMode] = useState<"table" | "kanban">("kanban");
   // Funnel-spoor van het bord (migratie 0052): eindklant- vs reseller-werving.
-  const [funnel, setFunnel] = useState<"eindklant" | "reseller">("eindklant");
+  const [funnel, setFunnel] = useState<"eindklant" | "reseller">("reseller");
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [tempFilter, setTempFilter] = useState<string>("all");
@@ -532,7 +542,11 @@ export function CrmView({
   useEffect(() => {
     if (firstRender.current) {
       firstRender.current = false;
-      return;
+      // De server leverde pagina 1 voor de klassieke tabel-default (alle leads,
+      // limit 50, geen funnel-filter). Wijkt de start-weergave daarvan af
+      // (Kanban + reseller, evt. een eigen lijst), dan klopt die server-data
+      // niet — meteen de juiste set ophalen i.p.v. de skip.
+      if (viewMode === "table" && activeListId === "all") return;
     }
     const t = setTimeout(() => {
       void fetchPeople(true);
