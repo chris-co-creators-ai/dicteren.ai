@@ -51,7 +51,13 @@ export default async function AdminEmailsPage() {
           detail: "send-fout (Resend)",
         },
       ]}
-      categoryStats={kpis.byCategory}
+      categoryStats={kpis.byCategory.map((c) => ({
+        category: c.category,
+        count: c.count,
+        delivered: c.delivered,
+        problems: c.problems,
+        lastSentAt: c.lastSentAt?.toISOString() ?? null,
+      }))}
     />
   );
 }

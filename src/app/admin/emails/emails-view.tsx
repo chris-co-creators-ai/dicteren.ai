@@ -1,7 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Filter, Mail, Search, Send } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Building2,
+  Clock,
+  Coins,
+  Handshake,
+  KeyRound,
+  Mail,
+  Search,
+  Send,
+  Sparkles,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 
 type EmailRow = {
@@ -26,15 +38,141 @@ type EmailRow = {
 
 type Kpi = { label: string; value: string; detail: string };
 
-const CATEGORY_LABEL: Record<string, string> = {
-  license_issued: "Licentie",
-  welcome: "Welkom",
-  subscription_past_due: "Past_due",
-  subscription_canceled: "Opgezegd",
-  subscription_renewed: "Verlengd",
-  refund: "Refund",
-  other: "Overig",
+// Groep = kleur + icoon, zodat de kaarten in één oogopslag te scannen zijn.
+const GROUP_META: Record<string, { color: string; icon: LucideIcon }> = {
+  trial: { color: "var(--aqua)", icon: Clock },
+  license: { color: "var(--green)", icon: KeyRound },
+  welcome: { color: "var(--aqua)", icon: Sparkles },
+  affiliate: { color: "var(--orange)", icon: Coins },
+  partner: { color: "var(--green)", icon: Handshake },
+  org: { color: "var(--navy)", icon: Building2 },
+  other: { color: "var(--navy-300)", icon: Mail },
 };
+
+// Per mail-soort: leesbare naam + wat de mail is + groep. De omschrijving is
+// admin-intern (geen klant-copy) maar wel B1/helder.
+const CATEGORY_META: Record<
+  string,
+  { label: string; description: string; group: keyof typeof GROUP_META }
+> = {
+  trial_started: {
+    label: "Proef gestart",
+    description: "Bevestiging zodra iemand een gratis proef start.",
+    group: "trial",
+  },
+  trial_reminder_d7: {
+    label: "Proef-herinnering dag 7",
+    description: "Herinnering halverwege de proefperiode.",
+    group: "trial",
+  },
+  trial_reminder_d13: {
+    label: "Proef-herinnering dag 13",
+    description: "Laatste duwtje vlak voor de proef afloopt.",
+    group: "trial",
+  },
+  trial_expired: {
+    label: "Proef afgelopen",
+    description: "Bericht dat de proefperiode is verlopen.",
+    group: "trial",
+  },
+  license_issued: {
+    label: "Licentie verstuurd",
+    description: "Licentiecode na een aankoop.",
+    group: "license",
+  },
+  welcome: {
+    label: "Welkom",
+    description: "Welkomstmail bij een nieuw account.",
+    group: "welcome",
+  },
+  affiliate_first_commission: {
+    label: "Eerste commissie",
+    description: "Melding bij de eerste commissie van een affiliate.",
+    group: "affiliate",
+  },
+  affiliate_payout_scheduled: {
+    label: "Uitbetaling ingepland",
+    description: "Affiliate-commissie staat klaar voor uitbetaling.",
+    group: "affiliate",
+  },
+  affiliate_payout_paid: {
+    label: "Uitbetaling gedaan",
+    description: "Affiliate-commissie is uitbetaald.",
+    group: "affiliate",
+  },
+  affiliate_approved: {
+    label: "Affiliate goedgekeurd",
+    description: "Aanmelding als affiliate is geaccepteerd.",
+    group: "affiliate",
+  },
+  partner_deck: {
+    label: "Partnerdeck",
+    description: "Reseller-deck verstuurd naar een partner.",
+    group: "partner",
+  },
+  org_subscription_canceled: {
+    label: "Zakelijk opgezegd",
+    description: "Een zakelijk abonnement is opgezegd.",
+    group: "org",
+  },
+  org_tier_changed: {
+    label: "Staffel gewijzigd",
+    description: "De prijsstaffel van een organisatie is aangepast.",
+    group: "org",
+  },
+  org_member_welcome: {
+    label: "Teamlid welkom",
+    description: "Welkom voor een nieuw teamlid in een organisatie.",
+    group: "org",
+  },
+  org_seats_expanded: {
+    label: "Seats uitgebreid",
+    description: "Een organisatie heeft seats bijgekocht.",
+    group: "org",
+  },
+  org_member_removed: {
+    label: "Teamlid verwijderd",
+    description: "Een teamlid is uit de organisatie gehaald.",
+    group: "org",
+  },
+  org_owner_joined: {
+    label: "Eigenaar toegevoegd",
+    description: "Een nieuwe eigenaar is aan de organisatie toegevoegd.",
+    group: "org",
+  },
+  org_owner_left: {
+    label: "Eigenaar vertrokken",
+    description: "Een eigenaar heeft de organisatie verlaten.",
+    group: "org",
+  },
+  org_invite_reminder: {
+    label: "Uitnodiging-herinnering",
+    description: "Herinnering voor een openstaande team-uitnodiging.",
+    group: "org",
+  },
+  org_seats_reduced: {
+    label: "Seats verlaagd",
+    description: "Een organisatie heeft het aantal seats verlaagd.",
+    group: "org",
+  },
+  org_device_revoked: {
+    label: "Apparaat ingetrokken",
+    description: "Toegang van een apparaat is ingetrokken.",
+    group: "org",
+  },
+  other: {
+    label: "Overig",
+    description: "Mails zonder vaste categorie.",
+    group: "other",
+  },
+};
+
+function catLabel(category: string): string {
+  return (
+    CATEGORY_META[category]?.label ??
+    category.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+  );
+}
 
 const STATUS_META: Record<
   string,
@@ -74,6 +212,13 @@ function formatDateTime(iso: string): string {
   });
 }
 
+function formatDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString("nl-NL", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
 function matchesTab(row: EmailRow, tab: string): boolean {
   if (tab === "all") return true;
   if (tab === "sent") return row.status === "sent";
@@ -92,7 +237,13 @@ export function EmailsView({
 }: {
   emails: EmailRow[];
   kpis: Kpi[];
-  categoryStats: { category: string; count: number }[];
+  categoryStats: {
+    category: string;
+    count: number;
+    delivered: number;
+    problems: number;
+    lastSentAt: string | null;
+  }[];
 }) {
   const [tab, setTab] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -148,42 +299,92 @@ export function EmailsView({
         </div>
 
         {categoryStats.length > 0 && (
-          <div className="rounded-xl border border-[color:var(--border-soft)] bg-white p-4">
-            <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
-              Per categorie — klik om te filteren
+          <div>
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-bold">Per soort mail</h2>
+                <p className="text-[0.6875rem] text-[color:var(--text-muted)]">
+                  Klik een kaart om de lijst hieronder te filteren.
+                </p>
+              </div>
+              {categoryFilter && (
+                <button
+                  onClick={() => setCategoryFilter(null)}
+                  className="shrink-0 text-xs font-semibold text-[color:var(--text-muted)] underline hover:text-[color:var(--navy)]"
+                >
+                  Filter wissen
+                </button>
+              )}
             </div>
-            <div className="mt-3 flex flex-wrap gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {categoryStats.map((c) => {
                 const active = categoryFilter === c.category;
+                const meta = CATEGORY_META[c.category];
+                const group = GROUP_META[meta?.group ?? "other"];
+                const Icon = group.icon;
+                const deliveredPct =
+                  c.count > 0
+                    ? Math.round((c.delivered / c.count) * 100)
+                    : 0;
                 return (
                   <button
                     key={c.category}
                     onClick={() =>
                       setCategoryFilter(active ? null : c.category)
                     }
-                    className={
+                    title={active ? "Klik om filter te wissen" : "Filter op dit soort mail"}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-xl border bg-white p-3 text-left transition-all hover:shadow-sm",
                       active
-                        ? "inline-flex items-center gap-2 rounded-md border border-[color:var(--navy)] bg-[color:var(--navy)] px-2.5 py-1 text-xs text-white"
-                        : "inline-flex items-center gap-2 rounded-md border border-[color:var(--border-soft)] bg-[color:var(--surface-2)] px-2.5 py-1 text-xs hover:border-[color:var(--navy)]"
-                    }
+                        ? "border-[color:var(--navy)] ring-1 ring-[color:var(--navy)]"
+                        : "border-[color:var(--border-soft)] hover:border-[color:var(--navy)]/40",
+                    )}
                   >
-                    <span className="font-semibold">
-                      {CATEGORY_LABEL[c.category] ?? c.category}
-                    </span>
-                    <span className={active ? "text-white/80" : "text-[color:var(--text-muted)]"}>
-                      {c.count}
-                    </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="grid size-7 shrink-0 place-items-center rounded-lg"
+                          style={{
+                            background: `color-mix(in srgb, ${group.color} 14%, white)`,
+                            color: group.color,
+                          }}
+                        >
+                          <Icon className="size-3.5" strokeWidth={2.2} />
+                        </span>
+                        <span className="truncate text-sm font-semibold">
+                          {catLabel(c.category)}
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-lg font-bold tabular-nums leading-none">
+                        {c.count}
+                      </span>
+                    </div>
+
+                    <p className="line-clamp-2 text-[0.6875rem] leading-snug text-[color:var(--text-muted)]">
+                      {meta?.description ?? "Mail zonder vaste categorie."}
+                    </p>
+
+                    <div className="mt-auto flex items-center justify-between gap-2 border-t border-[color:var(--border-soft)] pt-2 text-[0.625rem]">
+                      <span className="flex items-center gap-1">
+                        <span className="font-semibold text-[color:var(--green)]">
+                          {deliveredPct}%
+                        </span>
+                        <span className="text-[color:var(--text-soft)]">
+                          afgeleverd
+                        </span>
+                        {c.problems > 0 && (
+                          <span className="ml-0.5 rounded bg-[color:var(--red)]/10 px-1 font-semibold text-[color:var(--red)]">
+                            {c.problems} mis
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-[color:var(--text-soft)]">
+                        {c.lastSentAt ? formatDateShort(c.lastSentAt) : "—"}
+                      </span>
+                    </div>
                   </button>
                 );
               })}
-              {categoryFilter && (
-                <button
-                  onClick={() => setCategoryFilter(null)}
-                  className="text-xs font-semibold text-[color:var(--text-muted)] underline"
-                >
-                  Filter wissen
-                </button>
-              )}
             </div>
           </div>
         )}
@@ -272,7 +473,7 @@ export function EmailsView({
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs">
-                        {CATEGORY_LABEL[r.category] ?? r.category}
+                        {catLabel(r.category)}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -360,7 +561,7 @@ function EmailDrawer({
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-[color:var(--text-muted)]">
-              {CATEGORY_LABEL[email.category] ?? email.category}
+              {catLabel(email.category)}
             </div>
             <h2 className="mt-1 text-lg font-bold">{email.subject}</h2>
           </div>

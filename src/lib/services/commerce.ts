@@ -705,13 +705,23 @@ export async function listEmailLogs(limit = 200): Promise<EmailLogRow[]> {
   return rows;
 }
 
+export type EmailCategoryStat = {
+  category: string;
+  count: number;
+  /** delivered + opened + clicked */
+  delivered: number;
+  /** bounced + complained + failed */
+  problems: number;
+  lastSentAt: Date | null;
+};
+
 export type EmailKpis = {
   total: number;
   sent: number;
   delivered: number;
   failed: number;
   bounced: number;
-  byCategory: { category: string; count: number }[];
+  byCategory: EmailCategoryStat[];
 };
 
 export async function emailKpis(): Promise<EmailKpis> {
@@ -726,8 +736,16 @@ export async function emailKpis(): Promise<EmailKpis> {
     .groupBy(emailLogs.status);
   const tally = (s: string) => statusRows.find((r) => r.status === s)?.c ?? 0;
 
+  // Per categorie: totaal + aflever-gezondheid + laatst verstuurd. Filtered
+  // aggregates (count(*) filter) en max() kan Drizzle niet typed, dus raw sql.
   const catRows = await db
-    .select({ category: emailLogs.category, c: count() })
+    .select({
+      category: emailLogs.category,
+      c: count(),
+      delivered: sql<number>`count(*) filter (where ${emailLogs.status} in ('delivered','opened','clicked'))`,
+      problems: sql<number>`count(*) filter (where ${emailLogs.status} in ('bounced','complained','failed'))`,
+      lastSentAt: sql<string | null>`max(${emailLogs.sentAt})`,
+    })
     .from(emailLogs)
     .groupBy(emailLogs.category)
     .orderBy(desc(count()));
@@ -738,6 +756,12 @@ export async function emailKpis(): Promise<EmailKpis> {
     delivered: tally("delivered") + tally("opened") + tally("clicked"),
     failed: tally("failed"),
     bounced: tally("bounced") + tally("complained"),
-    byCategory: catRows.map((r) => ({ category: r.category, count: r.c })),
+    byCategory: catRows.map((r) => ({
+      category: r.category,
+      count: Number(r.c),
+      delivered: Number(r.delivered),
+      problems: Number(r.problems),
+      lastSentAt: r.lastSentAt ? new Date(r.lastSentAt) : null,
+    })),
   };
 }
