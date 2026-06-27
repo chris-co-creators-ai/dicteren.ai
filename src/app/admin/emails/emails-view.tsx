@@ -110,6 +110,16 @@ const CATEGORY_META: Record<
     description: "Reseller-deck verstuurd naar een partner.",
     group: "partner",
   },
+  partner_welcome: {
+    label: "Partner welkom",
+    description: "Welkomstmail zodra een reseller partner wordt.",
+    group: "partner",
+  },
+  brand_identity_request: {
+    label: "Brand-identity opgevraagd",
+    description: "Vraag om logo, kleuren en tekst voor de partnerpagina.",
+    group: "partner",
+  },
   org_subscription_canceled: {
     label: "Zakelijk opgezegd",
     description: "Een zakelijk abonnement is opgezegd.",

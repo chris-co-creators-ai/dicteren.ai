@@ -926,7 +926,7 @@ export async function sendBrandIdentityRequestEmail(params: {
     from: "Dicteren.ai <info@dicteren.ai>",
     replyTo: params.accountManagerEmail,
     tags: [{ name: "category", value: "brand_identity_request" }],
-    log: { category: "other" },
+    log: { category: "brand_identity_request" },
   });
 }
 

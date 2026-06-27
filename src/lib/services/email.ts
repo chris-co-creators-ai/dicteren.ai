@@ -19,6 +19,8 @@ export type EmailCategory =
   | "license_issued"
   | "welcome"
   | "partner_deck"
+  | "partner_welcome"
+  | "brand_identity_request"
   | "subscription_past_due"
   | "subscription_canceled"
   | "subscription_renewed"
@@ -1472,7 +1474,7 @@ export async function sendPartnerWelcomeEmail(params: {
     text,
     from: `${params.amName} (Dicteren.ai) <${params.amEmail}>`,
     replyTo: params.amEmail,
-    tags: [{ name: "category", value: "other" }],
+    tags: [{ name: "category", value: "partner_welcome" }],
     // Minuut-bucket: een dubbel-klik binnen de minuut wordt gededupeerd, maar een
     // her-publish (idempotent, met andere slug/code/login-inhoud) krijgt een nieuwe
     // sleutel. Een stabiele per-contact-key zou bij gewijzigde inhoud door Resend
@@ -1480,6 +1482,6 @@ export async function sendPartnerWelcomeEmail(params: {
     idempotencyKey: params.contactId
       ? `partner-welcome/${params.contactId}/${Math.floor(Date.now() / 60000)}`
       : undefined,
-    log: { category: "other" },
+    log: { category: "partner_welcome" },
   });
 }
