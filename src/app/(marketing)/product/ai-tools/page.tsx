@@ -66,7 +66,7 @@ export default function AiToolsPage() {
               <Download className="size-4" />
               Start 14 dagen gratis
             </Link>
-            <Link href="/product/privacy" className="btn btn-secondary btn-lg">
+            <Link href="/privacy" className="btn btn-secondary btn-lg">
               Lees de privacy-uitleg
             </Link>
           </div>
