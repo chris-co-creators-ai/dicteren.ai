@@ -328,6 +328,17 @@ function SignUpForm({ redirectTo }: { redirectTo: string }) {
       )}
       {error && <ErrorMessage>{error}</ErrorMessage>}
       <SubmitButton pending={isPending}>Account aanmaken</SubmitButton>
+      <p className="text-center text-xs text-[color:var(--text-muted)]">
+        Door een account aan te maken ga je akkoord met de{" "}
+        <a href="/voorwaarden" className="underline">
+          voorwaarden
+        </a>{" "}
+        en de{" "}
+        <a href="/privacy" className="underline">
+          privacyverklaring
+        </a>
+        .
+      </p>
     </form>
   );
 }

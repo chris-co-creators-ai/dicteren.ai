@@ -281,6 +281,17 @@ export function CheckoutClient({
           <p className="mt-3 text-center text-xs text-[color:var(--text-soft)]">
             Beveiligd via Mollie. Maandelijks opzegbaar.
           </p>
+          <p className="mt-2 text-center text-xs text-[color:var(--text-soft)]">
+            Met je betaling ga je akkoord met de{" "}
+            <a href="/voorwaarden" className="underline">
+              voorwaarden
+            </a>{" "}
+            en de{" "}
+            <a href="/privacy" className="underline">
+              privacyverklaring
+            </a>
+            .
+          </p>
         </div>
       </div>
     </main>

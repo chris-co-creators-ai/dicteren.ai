@@ -402,6 +402,17 @@ export function CheckoutForm({
           en kun je teamleden uitnodigen.
         </p>
       )}
+      <p className="text-[0.6875rem] text-[color:var(--text-soft)]">
+        Door verder te gaan ga je akkoord met de{" "}
+        <a href="/voorwaarden" className="underline">
+          voorwaarden
+        </a>{" "}
+        en de{" "}
+        <a href="/privacy" className="underline">
+          privacyverklaring
+        </a>
+        .
+      </p>
     </form>
   );
 }
