@@ -83,7 +83,7 @@ export function QScore({ v }: { v: number }) {
 }
 
 export function Delta({ cur, prev, invert, suffix }: { cur: number; prev?: number | null; invert?: boolean; suffix?: string }) {
-  if (prev == null) return null;
+  if (prev == null || prev === 0) return null;
   const change = (cur - prev) / prev;
   const good = invert ? change < 0 : change > 0;
   const up = change > 0;

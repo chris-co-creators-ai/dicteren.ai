@@ -152,6 +152,15 @@ export function PageOverview({ data, period, setPeriod, store, nav }: {
                   <td><div style={{ display: "flex", justifyContent: "flex-end" }}><Sparkline data={c.series.slice(-14).map((s) => s.cost_micros / 1e6)} color={c.status === "PAUSED" ? "var(--fg-faint)" : "var(--orange)"} /></div></td>
                 </tr>
               ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={11} className="empty">
+                    <div className="empty-ic"><Icon d="megaphone" size={22} /></div>
+                    <div className="empty-title">Nog geen campagnes</div>
+                    <div className="empty-sub">Zodra de Google Ads-sync draait (na Basic-access op het token) verschijnen je campagnes hier.</div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

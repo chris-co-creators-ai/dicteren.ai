@@ -125,7 +125,7 @@ export function ProposalDialog({ p, onClose, onApprove, onReject }: {
         </div>
         <div>
           <div style={{ fontSize: 10.5, color: "var(--fg-faint)", textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 600, marginBottom: 6 }}>Mutate-payload (server-side bewaakt)</div>
-          <pre style={{ margin: 0, background: "var(--bg)", border: "1px solid var(--border-soft)", borderRadius: 8, padding: "12px 14px", fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--aqua)", overflowX: "auto" }}>{JSON.stringify({ type: p.type, ...p.payload }, null, 2)}</pre>
+          <pre style={{ margin: 0, background: "var(--surface-2)", border: "1px solid var(--border-soft)", borderRadius: 8, padding: "12px 14px", fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--aqua-600)", overflowX: "auto" }}>{JSON.stringify({ type: p.type, ...p.payload }, null, 2)}</pre>
         </div>
         {p.status === "applied" && p.resourceId && <Field label="Google Ads resource-id"><span className="mono" style={{ fontSize: 12, color: "var(--fg-muted)", wordBreak: "break-all" }}>{p.resourceId}</span></Field>}
         {p.status === "rejected" && p.note && <Field label="Reden afwijzing"><span style={{ color: "var(--red)" }}>{p.note}</span></Field>}

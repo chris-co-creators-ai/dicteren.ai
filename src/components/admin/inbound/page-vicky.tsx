@@ -9,8 +9,26 @@ import type { InboundData } from "@/lib/inbound/data";
 import type { NavFn } from "./types";
 
 export function PageVicky({ data, focusRun, nav }: { data: InboundData; focusRun: string | null; nav: NavFn }) {
-  const [sel, setSel] = useState(focusRun || data.vickyRuns[0].id);
+  const [sel, setSel] = useState(focusRun || data.vickyRuns[0]?.id || "");
   const run = data.vickyRuns.find((r) => r.id === sel) || data.vickyRuns[0];
+
+  if (!run) {
+    return (
+      <div className="stack">
+        <div className="row" style={{ gap: 11 }}>
+          <span style={{ width: 34, height: 34, borderRadius: 9, background: "linear-gradient(135deg,var(--orange),var(--orange-600))", display: "grid", placeItems: "center", color: "#fff" }}><Icon d="cpu" size={18} /></span>
+          <div><h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>Vicky-console</h1><div style={{ fontSize: 13, color: "var(--fg-soft)" }}>PPC/CRO-agent · read-only observability (agent_runs / agent_steps)</div></div>
+        </div>
+        <Card>
+          <div className="empty">
+            <div className="empty-ic"><Icon d="cpu" size={22} /></div>
+            <div className="empty-title">Vicky heeft nog niet gedraaid</div>
+            <div className="empty-sub">Zodra de ochtend-loop start, verschijnen haar runs en stappen hier.</div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="stack">

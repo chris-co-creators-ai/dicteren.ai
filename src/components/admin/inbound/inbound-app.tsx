@@ -45,7 +45,7 @@ export function InboundApp({ data }: { data: InboundData }) {
   const [period, setPeriod] = useState("30d");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState(data.account.lastSync);
+  const [lastSync, setLastSync] = useState<string | null>(data.account.lastSync);
   const [tokenBanner, setTokenBanner] = useState(data.account.tokenAccess === "test");
   const store = useInboundStore(data.proposals);
 
@@ -84,7 +84,7 @@ export function InboundApp({ data }: { data: InboundData }) {
         <Badge tone="green"><Icon d="globe" size={11} />NL-geo actief</Badge>
         <button className="select" style={{ gap: 7 }} onClick={doSync} disabled={syncing}>
           <span style={{ display: "inline-flex", color: syncing ? "var(--aqua-600)" : "var(--green)" }} className={syncing ? "spin" : ""}><Icon d="sync" size={13} /></span>
-          <span style={{ fontSize: 12.5 }}>{syncing ? "Synct…" : "Gesynct " + fmt.time(lastSync)}</span>
+          <span style={{ fontSize: 12.5 }}>{syncing ? "Synct…" : lastSync ? "Gesynct " + fmt.time(lastSync) : "Nog niet gesynct"}</span>
         </button>
       </header>
 
