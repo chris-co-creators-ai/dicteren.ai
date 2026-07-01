@@ -39,6 +39,24 @@ export default async function PartnerDeckPage({
     contact.firstName ?? contact.name?.split(" ")[0] ?? null;
   const audience = contact.niche ?? contact.industry ?? null;
 
+  const applyForm = (
+    <section
+      id="aanmelden"
+      className="mx-auto max-w-3xl px-4 py-20 sm:px-6"
+    >
+      <h2 className="mb-6 text-center text-3xl font-bold text-[color:var(--navy)]">
+        Meld je aan als partner
+      </h2>
+      {contact.appliedAt ? (
+        <div className="rounded-2xl border border-[color:var(--border-soft)] bg-white p-8 text-center text-[color:var(--text-muted)]">
+          Je aanmelding staat al bij ons. We nemen contact met je op.
+        </div>
+      ) : (
+        <PartnerApplyForm token={token} companyName={contact.companyName} />
+      )}
+    </section>
+  );
+
   return (
     <>
       <DeckVisitTracker token={token} />
@@ -46,22 +64,8 @@ export default async function PartnerDeckPage({
         firstName={firstName}
         companyName={contact.companyName}
         audience={audience}
+        applyForm={applyForm}
       />
-      <section
-        id="aanmelden"
-        className="mx-auto max-w-3xl px-4 pb-24 pt-20 sm:px-6 sm:pt-28"
-      >
-        <h2 className="mb-6 text-center text-3xl font-bold text-[color:var(--navy)]">
-          Meld je aan als partner
-        </h2>
-        {contact.appliedAt ? (
-          <div className="rounded-2xl border border-[color:var(--border-soft)] bg-white p-8 text-center text-[color:var(--text-muted)]">
-            Je aanmelding staat al bij ons. We nemen contact met je op.
-          </div>
-        ) : (
-          <PartnerApplyForm token={token} companyName={contact.companyName} />
-        )}
-      </section>
     </>
   );
 }

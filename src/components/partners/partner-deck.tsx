@@ -5,6 +5,7 @@
 // Bron: .claude/prds/partner-deck-page/. CTA's en het apply-formulier rendert de
 // page eronder (#aanmelden).
 
+import type { ReactNode } from "react";
 import Image from "next/image";
 import {
   Laptop,
@@ -238,10 +239,12 @@ export function PartnerDeck({
   firstName,
   companyName,
   audience,
+  applyForm,
 }: {
   firstName?: string | null;
   companyName?: string | null;
   audience?: string | null;
+  applyForm?: ReactNode;
 }) {
   const company = companyName?.trim() || null;
   const companyUpper = company ? company.toUpperCase() : "JOUW BUREAU";
@@ -353,6 +356,8 @@ export function PartnerDeck({
           </div>
         </div>
       </section>
+
+      {applyForm}
 
       {/* ═══════════ 01 · HET ECHTE PROBLEEM ═══════════ */}
       <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-16">
