@@ -249,7 +249,9 @@ export function PartnerDeck({
   const company = companyName?.trim() || null;
   const companyUpper = company ? company.toUpperCase() : "JOUW BUREAU";
   const companySlug = company ? slugify(company) : "jouw-bureau";
-  const greeting = firstName?.trim() ? `Hoi ${firstName.trim()}. ` : "";
+  const heroGreeting = firstName?.trim()
+    ? `Hoi ${firstName.trim()}, leuk dat je er bent!`
+    : "Leuk dat je er bent!";
   void audience;
 
   return (
@@ -268,9 +270,11 @@ export function PartnerDeck({
           <div className="mt-16 grid gap-10 sm:mt-20 lg:grid-cols-2 lg:items-center">
             {/* Links */}
             <div>
-              <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">
-                <span className="h-px w-8 bg-white/40" />
-                Partnerprogramma 2026
+              <div className="flex items-center gap-3">
+                <span className="h-px w-8 bg-[color:var(--orange)]" />
+                <p className="text-lg font-semibold text-[color:var(--aqua)] sm:text-xl">
+                  {heroGreeting}
+                </p>
               </div>
               <h1 className="mt-5 text-5xl font-bold leading-[1.02] tracking-tight sm:text-6xl">
                 <span className="block">Eigen land.</span>
@@ -367,10 +371,10 @@ export function PartnerDeck({
           <Avatar size={48} />
           <div className="flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--aqua)]">
-              Welkom · 2 minuten leestijd
+              2 minuten leestijd
             </p>
             <p className="mt-1 text-[15px] font-medium leading-snug">
-              {greeting}In heel Nederland kiezen we 25 partners. Jij leest dit omdat
+              In heel Nederland kiezen we 25 partners. Jij leest dit omdat
               we denken dat jij er één bent.
             </p>
           </div>
