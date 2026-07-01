@@ -94,9 +94,12 @@ export function brandIdentityFilled(s: FunnelStateInput): boolean {
  *  afspraak (3 vinkjes), wat 'm naar "Brand identity controleren" brengt.
  *  BELANGRIJK: "Deck bekeken" verspringt op een ECHT bezoek (deckVisitedAt). */
 export function deriveFunnelColumn(s: FunnelStateInput): FunnelColumn {
-  if (s.promotedAffiliateId || s.orgStatus === "reseller") return "actief";
-  if (s.orgStatus === "lost" || s.orgStatus === "churned" || s.doNotCall)
-    return "niet_nu";
+  // De reseller-Kanban volgt UITSLUITEND de echte partner-workflow: deck sturen →
+  // bekijken → aanmelden → brand identity → afspraak → promote. Handmatige CRM-
+  // annotaties (stage/org-status, temperatuur, account manager, call-disposities
+  // incl. niet-bellen) verplaatsen de kaart NIET — dat zijn losse AM-reminders die
+  // de AM vrij bijhoudt. "Actief" komt alleen van een echte promote naar affiliate.
+  if (s.promotedAffiliateId) return "actief";
   const applied = !!s.appliedAt;
   const brandFilled = applied && brandIdentityFilled(s);
   if (brandFilled && afspraakRond(s)) return "brand_check";

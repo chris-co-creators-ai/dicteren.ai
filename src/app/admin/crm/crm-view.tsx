@@ -236,6 +236,8 @@ const ORG_PATCH_FIELDS: Record<string, string> = {
   orgAantalVestigingen: "aantalVestigingen",
   orgHoofdkantoor: "hoofdkantoor",
   orgSpecialisatie: "specialisatie",
+  // Handmatige AM-reminder: vrij tekstveld, raakt de reseller-funnel niet.
+  nextAction: "nextAction",
 };
 
 const STAGE_TO_ORG_STATUS: Record<CrmStage, string> = {
@@ -3517,27 +3519,24 @@ function CellRenderer({
         <span className="text-[color:var(--text-soft)]">—</span>
       );
     case "nextAction": {
-      if (!row.nextAction) {
-        return <span className="text-[color:var(--text-soft)]">—</span>;
+      // Klanten: read-only weergave (geen org-veld om naar te schrijven).
+      if (!isProspect) {
+        return row.nextAction ? (
+          <span className="block truncate text-xs" title={row.nextAction}>
+            {row.nextAction}
+          </span>
+        ) : (
+          <span className="text-[color:var(--text-soft)]">—</span>
+        );
       }
-      const due = row.nextActionAt ? new Date(row.nextActionAt) : null;
-      const overdue = due ? due.getTime() < Date.now() : false;
+      // Prospect: vrij-editbare AM-reminder. Schrijft naar org.nextAction en
+      // raakt de reseller-funnel NIET (deriveFunnelColumn leest dit veld niet).
       return (
-        <span className="block truncate text-xs" title={row.nextAction}>
-          {row.nextAction}
-          {due ? (
-            <span
-              className={
-                overdue
-                  ? "font-semibold text-[color:var(--danger,#dc2626)]"
-                  : "text-[color:var(--text-soft)]"
-              }
-            >
-              {" · "}
-              {formatDate(row.nextActionAt as string)}
-            </span>
-          ) : null}
-        </span>
+        <EditableText
+          value={row.nextAction ?? null}
+          placeholder="—"
+          onSave={(v) => onFieldSave?.("nextAction", v)}
+        />
       );
     }
     case "segment": {
