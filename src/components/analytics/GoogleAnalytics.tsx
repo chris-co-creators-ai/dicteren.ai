@@ -1,19 +1,21 @@
-// Dicteren.ai — Google Analytics 4 + Consent Mode v2
+// Dicteren.ai — Google tag (GA4 + Google Ads) + Consent Mode v2
 //
 // Twee componenten:
 //   - ConsentModeBootstrap: zet default-denied state vóór ELKE script-load.
 //     MOET in <head> staan zodat het uitgevoerd wordt voordat gtag.js
 //     consent-checks doet. EU-conform.
-//   - GoogleAnalytics: laadt gtag.js + initialiseert GA4 met measurement-id.
-//     Alleen actief als NEXT_PUBLIC_GA_ID env-var aanwezig is. Beide kunnen
-//     veilig in productie zonder GA-id staan (no-op).
+//   - GoogleAnalytics: laadt gtag.js en configt wat er in env staat — GA4
+//     (NEXT_PUBLIC_GA_ID) en/of Google Ads (NEXT_PUBLIC_GOOGLE_ADS_ID, voor
+//     conversie-meting op /admin/inbound-campagnes). Zonder env-vars: no-op.
 //
 // Werkt samen met lib/consent/ConsentProvider — bij user-consent-update
-// roept die `gtag('consent', 'update', …)` aan.
+// roept die `gtag('consent', 'update', …)` aan. Conversies vuren via
+// components/analytics/ConversionPing + lib/tracking/googleAds.ts.
 
 import Script from "next/script";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
 
 /** Inline-script dat dataLayer + gtag stub + default-denied consent zet.
  *  Plaats in <head>. */
@@ -45,25 +47,30 @@ gtag('set', 'url_passthrough', true);
   );
 }
 
-/** GA4 tag-loader. Alleen actief als measurement-id geconfigureerd is. */
+/** Google-tag-loader (GA4 + Ads). Alleen actief als er minstens één id is. */
 export function GoogleAnalytics() {
-  if (!GA_ID) return null;
+  const primaryId = GA_ID ?? ADS_ID;
+  if (!primaryId) return null;
+  const configs = [
+    GA_ID &&
+      `gtag('config', '${GA_ID}', { anonymize_ip: true, send_page_view: true });`,
+    ADS_ID && `gtag('config', '${ADS_ID}');`,
+  ]
+    .filter(Boolean)
+    .join("\n");
   return (
     <>
       <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+        src={`https://www.googletagmanager.com/gtag/js?id=${primaryId}`}
         strategy="afterInteractive"
       />
       <Script
-        id="ga4-init"
+        id="google-tag-init"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
 gtag('js', new Date());
-gtag('config', '${GA_ID}', {
-  anonymize_ip: true,
-  send_page_view: true
-});
+${configs}
           `.trim(),
         }}
       />

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { getCheckoutReceipt } from "@/lib/services/order";
 import { formatMollieAmount } from "@/lib/services/mollie";
 import { CopyButtonClient } from "./copy-button-client";
+import { ConversionPing } from "@/components/analytics/ConversionPing";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bedankt voor je aankoop" };
@@ -48,6 +49,16 @@ export default async function CheckoutSuccessPage({
         en stopt het. Geen client JS nodig.
       */}
       {isPending && <meta httpEquiv="refresh" content="3" />}
+      {/* Google Ads "Abonnement gekocht" — pas als de webhook de order op paid
+          heeft gezet; order-id als transaction_id dedupliceert een refresh. */}
+      {!isPending && (
+        <ConversionPing
+          type="purchase"
+          valueEur={order.amountCents / 100}
+          currency={order.currency}
+          transactionId={order.id}
+        />
+      )}
       <div className="mb-6 inline-flex items-center gap-2 text-[color:var(--green)]">
         <CheckCircle2 className="size-7" strokeWidth={2} />
         <span className="text-sm font-bold uppercase tracking-[0.05em]">

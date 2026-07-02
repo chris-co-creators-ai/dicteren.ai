@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { CookieBanner } from "@/components/cookie/CookieBanner";
+import { SourceCapture } from "@/components/analytics/SourceCapture";
 import { ConsentProvider } from "@/lib/consent/ConsentProvider";
 import { getSession } from "@/lib/auth/session";
 
@@ -30,6 +31,7 @@ export default async function MarketingLayout({
       <main className="flex-1">{children}</main>
       <SiteFooter />
       <CookieBanner />
+      <SourceCapture />
     </ConsentProvider>
   );
 }

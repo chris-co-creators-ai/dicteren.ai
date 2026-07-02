@@ -4,6 +4,7 @@ import { CheckCircle2, Clock, Download, Mail } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { claimAndNotifyTrial } from "@/lib/services";
 import { CopyButtonClient } from "@/app/checkout/success/copy-button-client";
+import { ConversionPing } from "@/components/analytics/ConversionPing";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Start je gratis trial · Dicteren.ai" };
@@ -62,6 +63,8 @@ export default async function TrialStartPage() {
 
   return (
     <TrialShell>
+      {/* Google Ads "Trial gestart" — alleen bij een verse trial, niet bij herbezoek. */}
+      {!isExisting && <ConversionPing type="trial" transactionId={license.code} />}
       <div className="mb-6 inline-flex items-center gap-2 text-[color:var(--green)]">
         <CheckCircle2 className="size-7" strokeWidth={2} />
         <span className="text-sm font-bold uppercase tracking-[0.05em]">
