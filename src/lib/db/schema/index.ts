@@ -34,3 +34,4 @@ export * from "./staffActionPermissions";
 export * from "./kanban";
 export * from "./content";
 export * from "./agentRuns";
+export * from "./advertising";
