@@ -18,6 +18,7 @@ Het commerciële Next.js-platform achter dicteren.ai: marketing-site, Better Aut
 - **Build-check vóór push** als de wijziging meer dan 5 regels raakt: `bun run build`. Meet de exit-code apart (`bun run build; echo BUILD_EXIT=$?`) — een keten met `grep`/`echo` maskeert build-falen.
 - **CSS:** alleen bestaande vars of directe hex. Geen verzonnen vars als `var(--orange-500)`.
 - **Copy is een claim.** Elke regel user-facing tekst toetsen aan `.claude/skills/dicteren-app-truth.md` en de TOV (`.claude/docs/tone-of-voice.md`). Humanizer-skill vooraf. Geen HTML-entities (`&apos;`/`&rsquo;`) in JSX — herschrijf de zin.
+- **Jarvis/CENTER/Instantly context:** bij CRM, MCP, Instantly, Jungler, CENTER-sync of agent-handoff werk eerst `docs/jarvis-center-bridge/README.md` lezen. Contract: Dicteren.ai CRM is source of truth; CENTER is staging/orchestratie; Instantly is alleen outreach-uitvoering.
 
 ## Work Guidance
 
@@ -35,3 +36,4 @@ Het commerciële Next.js-platform achter dicteren.ai: marketing-site, Better Aut
 - `src/lib/CLAUDE.md` — de niet-UI-kern: services, db/schema, config, auth.
 - `src/components/CLAUDE.md` — React-componenten en de shadcn/ui-laag.
 - `drizzle/CLAUDE.md` — SQL-migraties en migratie-discipline.
+- `docs/CLAUDE.md` — interne projectdocumentatie, inclusief Jarvis/CENTER/Instantly bridge-context.

@@ -15,6 +15,7 @@ De Drizzle-schema-definities (`schema/`) en de Neon-Postgres-client. Better Auth
 - **Anti-misbruik e-mail:** `email_normalized` heeft een UNIQUE INDEX (plus-strip + disposable-block). Gmail-dots blijven aparte accounts, dus géén dot-strip.
 - **Trials zijn consumer-licenties** met status `trial` (prefix `DIC-TRIAL-`), nooit type `beta`. De enum-waarde `beta` blijft ongebruikt.
 - **Typed helpers** voor alle queries; raw `sql\`...\`` alleen voor wat Drizzle niet kan.
+- **CRM/Instantly schema:** lifecycle-events, webhook audit en suppressionvelden horen consistent te blijven met `docs/jarvis-center-bridge/implementation-map.md` en de MCP-toolcontracten. Suppressionvelden zijn harde outbound-gates.
 
 ## Verification
 

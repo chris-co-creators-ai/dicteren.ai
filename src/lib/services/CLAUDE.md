@@ -15,6 +15,7 @@ De herbruikbare mechanics van het platform: license, token, mollie, email + orgE
 - **neon-http-limieten:** geen `db.transaction()`, geen `db.query.findFirst` zonder relations-declaratie. Zie `../db/CLAUDE.md`.
 - **Mollie-werk:** `mollie.ts` volgt `.claude/skills/mollie-integration.md`. Email/Resend-werk volgt `.claude/skills/resend-integration.md`.
 - **Skill-koppeling:** wijzig je `prospectImport.ts` of het import-contract, werk dan `.claude/skills/clay-integration/SKILL.md` in dezelfde sessie bij.
+- **CRM lifecycle bridge:** wijzig je `instantlyWebhook.ts`, `outreachSuppression.ts`, `leadList.ts`, `prospectImport.ts`, `crmAssign.ts`, `partnerFunnel.ts` of `signals.ts` voor Instantly/CENTER/Jarvis flows, update dan `docs/jarvis-center-bridge/` in dezelfde sessie.
 
 ## Verification
 

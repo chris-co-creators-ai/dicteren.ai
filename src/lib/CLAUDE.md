@@ -12,6 +12,7 @@ De logica-laag onder de UI: services (herbruikbare mechanics), db (schema + clie
 
 - **Server-only code** blijft server-only. `import "server-only"` waar het hoort; let op dat dit `bun`-testscripts breekt tenzij je `bun --conditions=react-server` gebruikt.
 - **Eén waarheid per begrip:** geen synoniem-services voor hetzelfde domein. Zoek een bestaande service vóór je een nieuwe maakt.
+- **Jarvis/CENTER/Instantly services:** services rond `instantlyWebhook`, `outreachSuppression`, `prospectImport`, `leadList`, `signals` of CRM-import volgen `docs/jarvis-center-bridge/implementation-map.md`. Live Dicteren.ai CRM is source of truth; CENTER-data blijft staging tot import via service/MCP.
 
 ## Child DOX Index
 

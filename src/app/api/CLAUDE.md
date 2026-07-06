@@ -11,6 +11,8 @@ Machine-to-machine endpoints: licentie-activatie/status/trial, checkout, Mollie-
 ## Local Contracts
 
 - **Rate-limit verplicht** op elke nieuwe `route.ts` die niet cron / webhook / admin is. Direct na de signature, vóór session-check of body-parse: `enforceRateLimit(request, bucket)`. Nieuwe bucket toevoegen aan de `RATE_LIMITS`-config in `src/lib/services/rateLimit.ts` (de canonieke lijst), geen inline `checkRateLimit`. Zie `.claude/skills/rate-limit.md`.
+- **Jarvis/CENTER bridge:** routes voor MCP, Instantly webhooks, CRM import of CENTER-sync volgen `docs/jarvis-center-bridge/README.md` en `docs/jarvis-center-bridge/implementation-map.md`. Dicteren.ai CRM blijft source of truth; CENTER is staging; Instantly is uitvoerder.
+- **Instantly webhook:** `/api/instantly/webhook` vereist `INSTANTLY_WEBHOOK_SECRET` + header `x-instantly-secret`, dedupe via `instantly_webhook_events`, en mag suppression nooit omzeilen.
 - **Auth:** beschermde routes checken de Better Auth-sessie. Admin-routes checken bovendien staff-permissions.
 - **Drizzle:** typed helpers (`eq`, `inArray`, `isNull`, `and`, `or`...), geen raw `sql\`...\`` tenzij echt nodig. neon-http-driver kent geen `db.transaction()`. Zie `src/lib/db/CLAUDE.md`.
 
