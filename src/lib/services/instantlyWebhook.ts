@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "crypto";
-import { eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   crmContacts,
@@ -72,6 +72,17 @@ function pickDate(...values: unknown[]): Date {
   return new Date();
 }
 
+function eventTimeFromPayload(payload: unknown): Date {
+  return pickDate(
+    valueAt(payload, ["timestamp"]),
+    valueAt(payload, ["created_at"]),
+    valueAt(payload, ["createdAt"]),
+    valueAt(payload, ["data", "timestamp"]),
+    valueAt(payload, ["data", "created_at"]),
+    valueAt(payload, ["data", "createdAt"]),
+  );
+}
+
 function minuteBucket(date: Date): Date {
   const bucket = new Date(date);
   bucket.setSeconds(0, 0);
@@ -107,14 +118,7 @@ function extractEnvelope(payload: unknown, rawBody: string) {
     valueAt(payload, ["data", "campaign", "id"]),
   );
 
-  const eventTime = pickDate(
-    valueAt(payload, ["timestamp"]),
-    valueAt(payload, ["created_at"]),
-    valueAt(payload, ["createdAt"]),
-    valueAt(payload, ["data", "timestamp"]),
-    valueAt(payload, ["data", "created_at"]),
-    valueAt(payload, ["data", "createdAt"]),
-  );
+  const eventTime = eventTimeFromPayload(payload);
 
   const bucket = minuteBucket(eventTime);
   const bodyHash = createHash("sha256").update(rawBody).digest("hex").slice(0, 16);
@@ -130,7 +134,10 @@ function mappingFor(eventType: string): EventMapping {
       return { crmEventKind: "email_sent", touch: true, lastContact: true };
     case "email_opened":
       return { crmEventKind: "email_opened" };
+    // Instantly's subscription-enum zegt "email_link_clicked", de afgeleverde
+    // payload documenteert "link_clicked". Beide accepteren.
     case "email_link_clicked":
+    case "link_clicked":
       return {
         crmEventKind: "email_clicked",
         signal: { kind: "outreach_click", score: 40 },
@@ -228,54 +235,46 @@ function contactPatchFor(mapping: EventMapping, eventTime: Date): Partial<NewCrm
   return patch;
 }
 
-export async function processInstantlyWebhookPayload(
-  payload: unknown,
-  rawBody: string,
+type StoredWebhookRow = {
+  id: string;
+  eventType: string;
+  leadEmail: string | null;
+  campaignId: string | null;
+  payload: unknown;
+};
+
+/** Verwerk een al opgeslagen audit-rij tot CRM-effecten. Gedeeld door de
+ *  live webhook-flow, de duplicate-self-heal en de reprocess-cron. */
+async function processStoredWebhookEvent(
+  row: StoredWebhookRow,
+  eventTime: Date,
 ): Promise<InstantlyWebhookProcessResult> {
-  const payloadRecord = asRecord(payload) ?? { raw: payload };
-  const envelope = extractEnvelope(payloadRecord, rawBody);
-  const mapping = mappingFor(envelope.eventType);
+  const mapping = mappingFor(row.eventType);
+  const payloadRecord = asRecord(row.payload) ?? { raw: row.payload };
 
-  const [inserted] = await db
-    .insert(instantlyWebhookEvents)
-    .values({
-      dedupeKey: envelope.dedupeKey,
-      eventType: envelope.eventType,
-      leadEmail: envelope.leadEmail,
-      campaignId: envelope.campaignId,
-      timestampBucket: envelope.bucket,
-      payload: payloadRecord,
-    })
-    .onConflictDoNothing({ target: instantlyWebhookEvents.dedupeKey })
-    .returning({ id: instantlyWebhookEvents.id });
-
-  if (!inserted) {
-    return { received: true, eventType: envelope.eventType, skipped: "duplicate" };
-  }
-
-  if (!envelope.leadEmail) {
+  if (!row.leadEmail) {
     await db
       .update(instantlyWebhookEvents)
       .set({ skippedReason: "no_lead_email", processedAt: new Date() })
-      .where(eq(instantlyWebhookEvents.id, inserted.id));
+      .where(eq(instantlyWebhookEvents.id, row.id));
     return {
       received: true,
-      eventType: envelope.eventType,
-      webhookEventId: inserted.id,
+      eventType: row.eventType,
+      webhookEventId: row.id,
       skipped: "no_lead_email",
     };
   }
 
-  const contact = await findContactByEmail(envelope.leadEmail);
+  const contact = await findContactByEmail(row.leadEmail);
   if (!contact) {
     await db
       .update(instantlyWebhookEvents)
       .set({ skippedReason: "unknown_lead_email", processedAt: new Date() })
-      .where(eq(instantlyWebhookEvents.id, inserted.id));
+      .where(eq(instantlyWebhookEvents.id, row.id));
     return {
       received: true,
-      eventType: envelope.eventType,
-      webhookEventId: inserted.id,
+      eventType: row.eventType,
+      webhookEventId: row.id,
       skipped: "unknown_lead_email",
     };
   }
@@ -291,10 +290,10 @@ export async function processInstantlyWebhookPayload(
         kind: mapping.crmEventKind,
         payload: {
           via: "instantly",
-          eventType: envelope.eventType,
-          leadEmail: envelope.leadEmail,
-          campaignId: envelope.campaignId,
-          eventTime: envelope.eventTime.toISOString(),
+          eventType: row.eventType,
+          leadEmail: row.leadEmail,
+          campaignId: row.campaignId,
+          eventTime: eventTime.toISOString(),
           payload: payloadRecord,
         },
       })
@@ -302,7 +301,7 @@ export async function processInstantlyWebhookPayload(
     crmEventId = event.id;
   }
 
-  const patch = contactPatchFor(mapping, envelope.eventTime);
+  const patch = contactPatchFor(mapping, eventTime);
   await db.update(crmContacts).set(patch).where(eq(crmContacts.id, contact.id));
   if (mapping.touch) {
     await db
@@ -325,10 +324,10 @@ export async function processInstantlyWebhookPayload(
         score: mapping.signal.score,
         payload: {
           via: "instantly",
-          eventType: envelope.eventType,
-          campaignId: envelope.campaignId,
-          leadEmail: envelope.leadEmail,
-          webhookEventId: inserted.id,
+          eventType: row.eventType,
+          campaignId: row.campaignId,
+          leadEmail: row.leadEmail,
+          webhookEventId: row.id,
         },
       });
     } else {
@@ -346,16 +345,174 @@ export async function processInstantlyWebhookPayload(
       skippedReason,
       processedAt: new Date(),
     })
-    .where(eq(instantlyWebhookEvents.id, inserted.id));
+    .where(eq(instantlyWebhookEvents.id, row.id));
 
   return {
     received: true,
-    eventType: envelope.eventType,
-    webhookEventId: inserted.id,
+    eventType: row.eventType,
+    webhookEventId: row.id,
     contactId: contact.id,
     organizationId: contact.crmOrganizationId,
     ...(crmEventId ? { crmEventId } : {}),
     ...(signalId ? { signalId } : {}),
     ...(skippedReason ? { skipped: skippedReason } : {}),
   };
+}
+
+export async function processInstantlyWebhookPayload(
+  payload: unknown,
+  rawBody: string,
+): Promise<InstantlyWebhookProcessResult> {
+  const payloadRecord = asRecord(payload) ?? { raw: payload };
+  const envelope = extractEnvelope(payloadRecord, rawBody);
+
+  const [inserted] = await db
+    .insert(instantlyWebhookEvents)
+    .values({
+      dedupeKey: envelope.dedupeKey,
+      eventType: envelope.eventType,
+      leadEmail: envelope.leadEmail,
+      campaignId: envelope.campaignId,
+      timestampBucket: envelope.bucket,
+      payload: payloadRecord,
+    })
+    .onConflictDoNothing({ target: instantlyWebhookEvents.dedupeKey })
+    .returning({ id: instantlyWebhookEvents.id });
+
+  if (!inserted) {
+    // Zelf-heal: een eerdere delivery kan gecrasht zijn ná de audit-insert
+    // maar vóór verwerking (geen transactions op neon-http). De 60s-guard
+    // voorkomt dat we een nog lopende verwerking dubbel uitvoeren.
+    const [existing] = await db
+      .select({
+        id: instantlyWebhookEvents.id,
+        eventType: instantlyWebhookEvents.eventType,
+        leadEmail: instantlyWebhookEvents.leadEmail,
+        campaignId: instantlyWebhookEvents.campaignId,
+        payload: instantlyWebhookEvents.payload,
+        processedAt: instantlyWebhookEvents.processedAt,
+        receivedAt: instantlyWebhookEvents.receivedAt,
+      })
+      .from(instantlyWebhookEvents)
+      .where(eq(instantlyWebhookEvents.dedupeKey, envelope.dedupeKey))
+      .limit(1);
+    if (
+      existing &&
+      !existing.processedAt &&
+      existing.receivedAt.getTime() < Date.now() - 60_000
+    ) {
+      return processStoredWebhookEvent(existing, envelope.eventTime);
+    }
+    return { received: true, eventType: envelope.eventType, skipped: "duplicate" };
+  }
+
+  return processStoredWebhookEvent(
+    {
+      id: inserted.id,
+      eventType: envelope.eventType,
+      leadEmail: envelope.leadEmail,
+      campaignId: envelope.campaignId,
+      payload: payloadRecord,
+    },
+    envelope.eventTime,
+  );
+}
+
+/** Vangnet 1 (cron): audit-rijen die na een crash op processed_at NULL bleven
+ *  hangen alsnog verwerken. Kan een zeldzaam dubbel timeline-event opleveren
+ *  als de eerste poging al een crm_event schreef; nooit een dubbele status. */
+export async function reprocessStuckInstantlyEvents(opts?: {
+  olderThanMinutes?: number;
+  limit?: number;
+}): Promise<{ reprocessed: number }> {
+  const olderThan = new Date(Date.now() - (opts?.olderThanMinutes ?? 5) * 60_000);
+  const stuck = await db
+    .select({
+      id: instantlyWebhookEvents.id,
+      eventType: instantlyWebhookEvents.eventType,
+      leadEmail: instantlyWebhookEvents.leadEmail,
+      campaignId: instantlyWebhookEvents.campaignId,
+      payload: instantlyWebhookEvents.payload,
+    })
+    .from(instantlyWebhookEvents)
+    .where(
+      and(
+        isNull(instantlyWebhookEvents.processedAt),
+        lt(instantlyWebhookEvents.receivedAt, olderThan),
+      ),
+    )
+    .orderBy(asc(instantlyWebhookEvents.receivedAt))
+    .limit(opts?.limit ?? 25);
+
+  for (const row of stuck) {
+    await processStoredWebhookEvent(row, eventTimeFromPayload(row.payload));
+  }
+  return { reprocessed: stuck.length };
+}
+
+const INSTANTLY_API_BASE = "https://api.instantly.ai/api/v2";
+
+export type InstantlyReconcileResult =
+  | { configured: false }
+  | { configured: true; checked: number; replayed: number; duplicates: number };
+
+/** Vangnet 2 (cron): Instantly retryt failed deliveries maar 3x binnen 30s.
+ *  Alles wat daarbuiten valt halen we via hun webhook-events-API op en spelen
+ *  we opnieuw af door de normale flow; de dedupe-key maakt dit idempotent. */
+export async function reconcileInstantlyWebhookEvents(opts?: {
+  lookbackHours?: number;
+  maxEvents?: number;
+}): Promise<InstantlyReconcileResult> {
+  const apiKey = process.env.INSTANTLY_API_KEY;
+  if (!apiKey) return { configured: false };
+
+  const from = new Date(
+    Date.now() - (opts?.lookbackHours ?? 6) * 3_600_000,
+  ).toISOString();
+  const maxEvents = opts?.maxEvents ?? 200;
+
+  let checked = 0;
+  let replayed = 0;
+  let duplicates = 0;
+  let startingAfter: string | null = null;
+
+  while (checked < maxEvents) {
+    const params = new URLSearchParams({ limit: "100", success: "false", from });
+    if (startingAfter) params.set("starting_after", startingAfter);
+    const res = await fetch(`${INSTANTLY_API_BASE}/webhook-events?${params}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) {
+      throw new Error(`Instantly webhook-events API gaf ${res.status}`);
+    }
+    const body = (await res.json()) as {
+      items?: unknown[];
+      next_starting_after?: string;
+    };
+    const items = Array.isArray(body.items) ? body.items : [];
+    if (items.length === 0) break;
+
+    for (const item of items) {
+      if (checked >= maxEvents) break;
+      const rec = asRecord(item);
+      if (!rec) continue;
+      checked++;
+      // Alleen deliveries voor ónze route; een workspace kan meer webhooks hebben.
+      const url = typeof rec.webhook_url === "string" ? rec.webhook_url : "";
+      if (!url.includes("/api/instantly/webhook")) continue;
+      const eventPayload = asRecord(rec.payload);
+      if (!eventPayload) continue;
+      const result = await processInstantlyWebhookPayload(
+        eventPayload,
+        JSON.stringify(eventPayload),
+      );
+      if (result.skipped === "duplicate") duplicates++;
+      else replayed++;
+    }
+
+    if (!body.next_starting_after) break;
+    startingAfter = body.next_starting_after;
+  }
+
+  return { configured: true, checked, replayed, duplicates };
 }

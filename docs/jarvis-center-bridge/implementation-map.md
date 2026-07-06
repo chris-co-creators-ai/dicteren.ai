@@ -28,12 +28,23 @@ Let op: `/Users/christianbleeker/Desktop/iAPPS/apps/dicteren-ai` is geen Git-roo
   - MCP endpoint voor CRM-agent tools.
   - Bevat workspace-capabilities en tools voor leadlijst/import/deck/suppression.
 
+- `src/app/api/cron/instantly-reconcile/route.ts`
+  - Vercel cron, elke 30 min (`vercel.json`), CRON_SECRET-guard.
+  - Vangnet 1: reprocess van audit-rijen met `processed_at IS NULL` (crash na insert).
+  - Vangnet 2: failed deliveries ophalen via Instantly `GET /api/v2/webhook-events`
+    (Instantly retryt zelf maar 3x binnen 30s) en replayen door de normale flow.
+  - Vereist `INSTANTLY_API_KEY`; zonder key rapporteert de run `configured:false`.
+
 ### Services
 
 - `src/lib/services/instantlyWebhook.ts`
   - Parse/dedupe van Instantly events.
   - Contact lookup op e-mail.
   - Mapping naar `crm_events`, `crm_signals` en suppressionvelden.
+  - Self-heal op de duplicate-path: een audit-rij die ouder is dan 60s en nog
+    `processed_at IS NULL` heeft, wordt bij een retry alsnog verwerkt.
+  - `reprocessStuckInstantlyEvents` + `reconcileInstantlyWebhookEvents` voor de
+    instantly-reconcile cron.
 
 - `src/lib/services/outreachSuppression.ts`
   - Zet `unsubscribed`, `not_interested` of `do_not_contact` op contact.
@@ -66,8 +77,13 @@ Let op: `/Users/christianbleeker/Desktop/iAPPS/apps/dicteren-ai` is geen Git-roo
 - `scripts/fixtures/instantly-webhook-lead-meeting-booked.json`
   - Voorbeeldpayload voor webhook-smoke.
 
+- `scripts/setup-instantly-webhook.ts`
+  - Config-as-code: maakt of patcht de Instantly-webhook (`all_events`,
+    target = onze route, `headers: { x-instantly-secret }`) via de Instantly API.
+  - Idempotent op target-URL. Run: `bun scripts/setup-instantly-webhook.ts`.
+
 - `.env.example`
-  - Bevat placeholder voor `INSTANTLY_WEBHOOK_SECRET`.
+  - Bevat placeholders voor `INSTANTLY_WEBHOOK_SECRET` en `INSTANTLY_API_KEY`.
 
 ## MCP tools die nu bestaan voor agents
 
@@ -94,7 +110,7 @@ De webhook service mapt o.a.:
 | --- | --- |
 | `email_sent` | `crm_events.kind = email_sent`, touch-count omhoog. |
 | `email_opened` | `crm_events.kind = email_opened`. |
-| `email_link_clicked` | `crm_events.kind = email_clicked`, signal `outreach_click`. |
+| `email_link_clicked` / `link_clicked` | `crm_events.kind = email_clicked`, signal `outreach_click`. Instantly's subscription-enum zegt `email_link_clicked`, de afgeleverde payload documenteert `link_clicked`; wij mappen beide. |
 | `reply_received` | `crm_events.kind = email_replied`, signal `outreach_reply`. |
 | `email_bounced` | `crm_events.kind = email_bounced`. |
 | `lead_unsubscribed` | `email_unsubscribed = true`, `do_not_contact = true`, event `email_unsubscribed`. |
@@ -125,14 +141,19 @@ Nodig in Vercel:
 
 ```text
 INSTANTLY_WEBHOOK_SECRET=<shared secret buiten git>
+INSTANTLY_API_KEY=<Instantly API v2 key, scopes webhooks:all — voor de reconcile-cron>
 ```
 
-Nodig in Instantly webhook-config:
+Instantly webhook-config gaat via config-as-code:
 
-```text
-Header: x-instantly-secret
-Value: dezelfde secret als Vercel
+```bash
+cd web && bun scripts/setup-instantly-webhook.ts
 ```
+
+Dat zet de webhook op `all_events` met header `x-instantly-secret` = dezelfde
+secret als Vercel. Handmatig in het Instantly-dashboard kan ook, maar het
+script is idempotent en reproduceerbaar. Webhooks vereisen het
+Hypergrowth-plan of hoger.
 
 ## Verificatiecommando's
 
@@ -143,6 +164,7 @@ bunx tsc --noEmit
 bun run build
 bunx eslint \
   'src/app/api/instantly/webhook/route.ts' \
+  'src/app/api/cron/instantly-reconcile/route.ts' \
   'src/lib/services/instantlyWebhook.ts' \
   'src/lib/services/outreachSuppression.ts' \
   'src/app/api/mcp/[transport]/route.ts' \

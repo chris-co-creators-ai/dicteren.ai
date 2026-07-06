@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Vercel-cron-endpoints: pending-seats opruimen, invitations/orders laten verlopen, invite- en trial-reminders, maandelijkse affiliate-payout, rate-limit prunen, tiers herijken, Mollie-subs reconciliëren, signals routen, seat-warnings, commissions ontgrendelen.
+Vercel-cron-endpoints: pending-seats opruimen, invitations/orders laten verlopen, invite- en trial-reminders, maandelijkse affiliate-payout, rate-limit prunen, tiers herijken, Mollie-subs reconciliëren, signals routen, seat-warnings, commissions ontgrendelen, Instantly-webhook-events reprocessen/reconciliëren.
 
 ## Local Contracts
 

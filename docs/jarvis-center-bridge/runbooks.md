@@ -83,8 +83,19 @@ Gebruik `deckUrl` als Instantly custom variable. Niet zelf URL's verzinnen.
 ### Prerequisites
 
 - Code staat live op `www.dicteren.ai`.
-- Vercel env heeft `INSTANTLY_WEBHOOK_SECRET`.
-- Instantly webhook stuurt header `x-instantly-secret` met dezelfde waarde.
+- Vercel env heeft `INSTANTLY_WEBHOOK_SECRET` (en `INSTANTLY_API_KEY` voor de reconcile-cron).
+- Instantly-plan is Hypergrowth of hoger (webhooks-vereiste).
+- Lokale `web/.env.local` heeft `INSTANTLY_API_KEY` + `INSTANTLY_WEBHOOK_SECRET` voor het setup-script.
+
+### Webhook aanmaken (config-as-code, voorkeursroute)
+
+```bash
+cd /Users/christianbleeker/Desktop/iAPPS/apps/dicteren-ai/web
+bun scripts/setup-instantly-webhook.ts
+```
+
+Idempotent: bestaat er al een webhook op onze target-URL, dan wordt die gepatcht.
+Zet `all_events` + header `x-instantly-secret`. Print nooit de secret.
 
 ### Check route
 
@@ -153,6 +164,7 @@ Target-lint voor bridgebestanden:
 ```bash
 bunx eslint \
   'src/app/api/instantly/webhook/route.ts' \
+  'src/app/api/cron/instantly-reconcile/route.ts' \
   'src/lib/services/instantlyWebhook.ts' \
   'src/lib/services/outreachSuppression.ts' \
   'src/app/api/mcp/[transport]/route.ts' \

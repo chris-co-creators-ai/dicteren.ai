@@ -14,6 +14,7 @@
     { "path": "/api/cron/recalibrate-tiers", "schedule": "0 5 * * *" },
     { "path": "/api/cron/unlock-commissions", "schedule": "30 4 * * *" },
     { "path": "/api/cron/monthly-affiliate-payout", "schedule": "0 9 25 * *" },
-    { "path": "/api/cron/apply-referral-rewards", "schedule": "0 */2 * * *" }
+    { "path": "/api/cron/apply-referral-rewards", "schedule": "0 */2 * * *" },
+    { "path": "/api/cron/instantly-reconcile", "schedule": "*/30 * * * *" }
   ]
 }

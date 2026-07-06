@@ -86,6 +86,11 @@ Belangrijk gedrag:
 - Webhook-events worden gededuped in `instantly_webhook_events`.
 - Herkende events schrijven naar `crm_events`, `crm_signals` en contactvelden.
 - Unsubscribe/not-interested/do-not-contact worden als harde suppressions vastgelegd.
+- De keten is self-healing: half-verwerkte events (crash na de audit-insert) worden
+  via de duplicate-path of de `instantly-reconcile` cron alsnog verwerkt, en
+  deliveries die Instantly's eigen retry-window (3x binnen 30s) misten haalt
+  diezelfde cron via de Instantly API op en replayt ze. Vereist `INSTANTLY_API_KEY`.
+- Webhook-configuratie is config-as-code: `bun scripts/setup-instantly-webhook.ts`.
 
 ### 4. Database uitgebreid
 
