@@ -25,6 +25,7 @@ import {
 import { loadCrmPeoplePage } from "@/lib/services/crmPeople";
 import {
   getCrmOrganization,
+  getCrmContact,
   listContactsForOrg,
   listTasksForOrg,
   addCrmOrgTask,
@@ -46,11 +47,115 @@ import {
   type ActivityType,
   type ActivityDirection,
 } from "@/lib/config/crmActivity";
+import { createLeadList, getLeadList, listLeadLists } from "@/lib/services/leadList";
+import {
+  importEnrichedProspects,
+  type EnrichedProspectRow,
+} from "@/lib/services/prospectImport";
+import { setContactsProspectType } from "@/lib/services/crmAssign";
+import { ensureDeckToken } from "@/lib/services/partnerFunnel";
+import { appBase } from "@/lib/url";
+import {
+  markContactOutreach,
+  OUTREACH_MARKS,
+} from "@/lib/services/outreachSuppression";
 
 const TASK_KINDS = ["follow_up", "email", "phone", "demo", "other"] as const;
 const ACTIVITY_KEYS = ACTIVITY_TYPES.map((t) => t.key) as [string, ...string[]];
 const DISPOSITION_KEYS = DISPOSITIONS.map((d) => d.key) as [string, ...string[]];
 const STAGE_KEYS = Object.keys(STAGE_RANK) as [string, ...string[]];
+const LIST_TYPES = ["eindklant", "reseller"] as const;
+const PROSPECT_TYPES = ["eindklant", "reseller"] as const;
+const OUTREACH_MARK_KEYS = OUTREACH_MARKS as unknown as [string, ...string[]];
+const TEMPERATURES = ["cold", "lukewarm", "warm", "hot"] as const;
+
+const ProspectRowSchema = z
+  .object({
+    email: z.string().min(1),
+    name: z.string().nullable().optional(),
+    firstName: z.string().nullable().optional(),
+    lastName: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    jobTitle: z.string().nullable().optional(),
+    seniority: z.string().nullable().optional(),
+    department: z.string().nullable().optional(),
+    linkedinUrl: z.string().nullable().optional(),
+    twitterUrl: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    emailStatus: z.string().nullable().optional(),
+    company: z.string().nullable().optional(),
+    companyDomain: z.string().nullable().optional(),
+    companyLinkedinUrl: z.string().nullable().optional(),
+    niche: z.string().nullable().optional(),
+    industry: z.string().nullable().optional(),
+    companySizeRange: z.string().nullable().optional(),
+    employeeCount: z.number().nullable().optional(),
+    revenueRange: z.string().nullable().optional(),
+    foundedYear: z.number().nullable().optional(),
+    techStack: z.array(z.string()).nullable().optional(),
+    keywords: z.array(z.string()).nullable().optional(),
+    followersLinkedin: z.number().nullable().optional(),
+    followersInstagram: z.number().nullable().optional(),
+    followersFacebook: z.number().nullable().optional(),
+    followersYoutube: z.number().nullable().optional(),
+    followersSubstack: z.number().nullable().optional(),
+    followersOwn: z.number().nullable().optional(),
+    leadScore: z.number().nullable().optional(),
+    temperature: z.enum(TEMPERATURES).nullable().optional(),
+    notes: z.string().nullable().optional(),
+    extra: z.record(z.string(), z.unknown()).nullable().optional(),
+  })
+  .passthrough();
+
+const KNOWN_PROSPECT_KEYS = new Set(Object.keys(ProspectRowSchema.shape));
+
+type ProspectRowInput = z.infer<typeof ProspectRowSchema>;
+
+function normalizeProspectRows(rows: ProspectRowInput[]): EnrichedProspectRow[] {
+  return rows.map((row) => {
+    const extra: Record<string, unknown> = { ...(row.extra ?? {}) };
+    for (const [key, value] of Object.entries(row)) {
+      if (!KNOWN_PROSPECT_KEYS.has(key)) extra[key] = value;
+    }
+    return {
+      email: row.email,
+      name: row.name ?? null,
+      firstName: row.firstName ?? null,
+      lastName: row.lastName ?? null,
+      phone: row.phone ?? null,
+      jobTitle: row.jobTitle ?? null,
+      seniority: row.seniority ?? null,
+      department: row.department ?? null,
+      linkedinUrl: row.linkedinUrl ?? null,
+      twitterUrl: row.twitterUrl ?? null,
+      city: row.city ?? null,
+      country: row.country ?? null,
+      emailStatus: row.emailStatus ?? null,
+      company: row.company ?? null,
+      companyDomain: row.companyDomain ?? null,
+      companyLinkedinUrl: row.companyLinkedinUrl ?? null,
+      niche: row.niche ?? null,
+      industry: row.industry ?? null,
+      companySizeRange: row.companySizeRange ?? null,
+      employeeCount: row.employeeCount ?? null,
+      revenueRange: row.revenueRange ?? null,
+      foundedYear: row.foundedYear ?? null,
+      techStack: row.techStack ?? null,
+      keywords: row.keywords ?? null,
+      followersLinkedin: row.followersLinkedin ?? null,
+      followersInstagram: row.followersInstagram ?? null,
+      followersFacebook: row.followersFacebook ?? null,
+      followersYoutube: row.followersYoutube ?? null,
+      followersSubstack: row.followersSubstack ?? null,
+      followersOwn: row.followersOwn ?? null,
+      leadScore: row.leadScore ?? null,
+      temperature: row.temperature ?? null,
+      notes: row.notes ?? null,
+      extra: Object.keys(extra).length ? extra : row.extra ?? null,
+    };
+  });
+}
 
 // Activity-type → crm_org_tasks.kind (zelfde mapping als de interactions-route).
 const STEP_TASK_KIND: Record<ActivityType, string> = {
@@ -177,6 +282,11 @@ const handler = async (req: Request) => {
                   tools: [
                     "crm_leads_list",
                     "crm_lead_get",
+                    "crm_leadlist_create",
+                    "crm_leadlist_list",
+                    "crm_leads_import",
+                    "crm_deck_token_get",
+                    "crm_outreach_mark",
                     "crm_task_create",
                     "crm_interaction_log",
                     "crm_disposition_set",
@@ -192,6 +302,7 @@ const handler = async (req: Request) => {
                 },
                 rules: [
                   "Een organisatie op do_not_call accepteert geen dispositie meer.",
+                  "Een contact op email_unsubscribed/do_not_contact mag niet opnieuw naar Instantly of een outbound-sequence.",
                   "Een stage vooruit vereist de verplichte velden van die stage.",
                   "Elke actie wordt op naam van de agent gelogd; geef requestedBy mee wie de opdracht gaf.",
                 ],
@@ -347,6 +458,220 @@ const handler = async (req: Request) => {
                 : "Lead opgehaald",
               refs: { organizationId: input.organizationId },
             }),
+          ),
+      );
+
+      server.registerTool(
+        "crm_leadlist_create",
+        {
+          title: "Leadlijst aanmaken",
+          description:
+            "Maak een CRM-leadlijst aan voor eindklant- of resellerwerving. Gebruik reseller voor Instantly-partnerwerving.",
+          inputSchema: {
+            name: z.string().min(1),
+            listType: z.enum(LIST_TYPES),
+            description: z.string().nullable().optional(),
+            requestedBy: z.string().optional(),
+          },
+          outputSchema: {
+            listId: z.string(),
+            name: z.string(),
+            listType: z.string(),
+          },
+        },
+        async (input) =>
+          withStep(
+            "crm_leadlist_create",
+            input,
+            async () => {
+              const list = await createLeadList({
+                name: input.name,
+                description: input.description ?? null,
+                listType: input.listType,
+                ownerUserId: agentUserId,
+                isShared: true,
+              });
+              return ok({ listId: list.id, name: list.name, listType: list.listType });
+            },
+            (r) => ({
+              summary: `Leadlijst aangemaakt: ${(r.structuredContent.name as string) ?? ""}`,
+              refs: { listId: r.structuredContent.listId },
+            }),
+            input.requestedBy,
+          ),
+      );
+
+      server.registerTool(
+        "crm_leadlist_list",
+        {
+          title: "Leadlijsten tonen",
+          description: "Toon CRM-leadlijsten met member-counts en funnel-type.",
+          inputSchema: {
+            requestedBy: z.string().optional(),
+          },
+          outputSchema: {
+            count: z.number(),
+            rows: z.array(z.record(z.string(), z.unknown())),
+          },
+        },
+        async (input) =>
+          withStep(
+            "crm_leadlist_list",
+            input,
+            async () => {
+              const rows = await listLeadLists({ userId: agentUserId });
+              return ok({
+                count: rows.length,
+                rows: rows as unknown as Record<string, unknown>[],
+              });
+            },
+            (r) => ({ summary: `${(r.structuredContent.count as number) ?? 0} leadlijsten gevonden` }),
+            input.requestedBy,
+          ),
+      );
+
+      server.registerTool(
+        "crm_leads_import",
+        {
+          title: "Prospects importeren",
+          description:
+            "Importeer verrijkte prospects in CRM + leadlijst. assignToUserId is verplicht zodat signals later naar een account-owner routen.",
+          inputSchema: {
+            listId: z.string(),
+            prospectType: z.enum(PROSPECT_TYPES),
+            assignToUserId: z.string().min(1),
+            source: z.string().optional(),
+            rows: z.array(ProspectRowSchema).min(1).max(1000),
+            requestedBy: z.string().optional(),
+          },
+          outputSchema: {
+            created: z.number(),
+            updated: z.number(),
+            skipped: z.number(),
+            errors: z.array(z.record(z.string(), z.unknown())),
+            contactIds: z.array(z.string()),
+            prospectType: z.string(),
+            listId: z.string(),
+          },
+        },
+        async (input) =>
+          withStep(
+            "crm_leads_import",
+            input,
+            async () => {
+              const list = await getLeadList(input.listId);
+              if (!list) return fail("Leadlijst niet gevonden", { listId: input.listId });
+              if (list.listType !== input.prospectType) {
+                return fail(
+                  `Lijsttype '${list.listType}' past niet bij prospectType '${input.prospectType}'.`,
+                  { listType: list.listType, prospectType: input.prospectType },
+                );
+              }
+              const rows = normalizeProspectRows(input.rows as ProspectRowInput[]);
+              const result = await importEnrichedProspects(rows, {
+                actorUserId: agentUserId,
+                assignToUserId: input.assignToUserId,
+                listId: input.listId,
+                source: input.source ?? "mcp-import",
+              });
+              if (result.contactIds.length > 0) {
+                await setContactsProspectType({
+                  contactIds: result.contactIds,
+                  prospectType: input.prospectType,
+                  actorUserId: agentUserId,
+                });
+              }
+              return ok({
+                ...result,
+                errors: result.errors as unknown as Record<string, unknown>[],
+                prospectType: input.prospectType,
+                listId: input.listId,
+              });
+            },
+            (r) => ({
+              summary: `Import: ${r.structuredContent.created ?? 0} nieuw, ${r.structuredContent.updated ?? 0} bijgewerkt, ${r.structuredContent.skipped ?? 0} overgeslagen`,
+              refs: { listId: input.listId },
+            }),
+            input.requestedBy,
+          ),
+      );
+
+      server.registerTool(
+        "crm_deck_token_get",
+        {
+          title: "Partnerdeck-link ophalen",
+          description:
+            "Genereer of hergebruik de persoonlijke /partner/<token>-URL voor een contact.",
+          inputSchema: {
+            contactId: z.string(),
+            requestedBy: z.string().optional(),
+          },
+          outputSchema: {
+            contactId: z.string(),
+            deckToken: z.string(),
+            deckUrl: z.string(),
+          },
+        },
+        async (input) =>
+          withStep(
+            "crm_deck_token_get",
+            input,
+            async () => {
+              const contact = await getCrmContact(input.contactId);
+              if (!contact) return fail("Contact niet gevonden", { contactId: input.contactId });
+              const deckToken = await ensureDeckToken(input.contactId);
+              return ok({
+                contactId: input.contactId,
+                deckToken,
+                deckUrl: `${appBase()}/partner/${deckToken}`,
+              });
+            },
+            (r) => ({
+              summary: "Partnerdeck-link opgehaald",
+              refs: { contactId: input.contactId, deckToken: r.structuredContent.deckToken },
+            }),
+            input.requestedBy,
+          ),
+      );
+
+      server.registerTool(
+        "crm_outreach_mark",
+        {
+          title: "Outreach-suppressie markeren",
+          description:
+            "Markeer een contact als unsubscribed, not_interested of do_not_contact. Dit zet CRM-flags en een timeline-event.",
+          inputSchema: {
+            contactId: z.string(),
+            mark: z.enum(OUTREACH_MARK_KEYS),
+            reason: z.string().nullable().optional(),
+            requestedBy: z.string().optional(),
+          },
+          outputSchema: {
+            contactId: z.string(),
+            organizationId: z.string().nullable(),
+            mark: z.string(),
+            eventId: z.string(),
+          },
+        },
+        async (input) =>
+          withStep(
+            "crm_outreach_mark",
+            input,
+            async () => {
+              const result = await markContactOutreach({
+                contactId: input.contactId,
+                mark: input.mark as (typeof OUTREACH_MARKS)[number],
+                actorUserId: agentUserId,
+                reason: input.reason ?? null,
+              });
+              if (!result) return fail("Contact niet gevonden", { contactId: input.contactId });
+              return ok(result);
+            },
+            (r) => ({
+              summary: `Outreach-markering gezet: ${(r.structuredContent.mark as string) ?? ""}`,
+              refs: { contactId: input.contactId, eventId: r.structuredContent.eventId },
+            }),
+            input.requestedBy,
           ),
       );
 

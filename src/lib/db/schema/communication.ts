@@ -12,6 +12,7 @@ import { authUsers } from "./auth-bridge";
 import { orders, subscriptions } from "./billing";
 import { licenses } from "./licensing";
 import { affiliates } from "./affiliate";
+import { crmContacts, crmOrganizations } from "./crmDeals";
 
 export const emailStatus = pgEnum("email_status", [
   "sent",
@@ -177,7 +178,44 @@ export const rateLimitEvents = pgTable(
   ],
 );
 
+/** Inbound Instantly lifecycle webhooks. Dedupe-key is owned by our receiver
+ *  because Instantly does not send idempotency keys. */
+export const instantlyWebhookEvents = pgTable(
+  "instantly_webhook_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    dedupeKey: text("dedupe_key").notNull(),
+    eventType: text("event_type").notNull(),
+    leadEmail: text("lead_email"),
+    campaignId: text("campaign_id"),
+    timestampBucket: timestamp("timestamp_bucket", { withTimezone: true }).notNull(),
+    payload: jsonb("payload").notNull(),
+    crmContactId: uuid("crm_contact_id").references(() => crmContacts.id, {
+      onDelete: "set null",
+    }),
+    crmOrganizationId: uuid("crm_organization_id").references(
+      () => crmOrganizations.id,
+      { onDelete: "set null" },
+    ),
+    crmEventId: uuid("crm_event_id"),
+    signalId: uuid("signal_id"),
+    skippedReason: text("skipped_reason"),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("instantly_webhook_events_dedupe_idx").on(t.dedupeKey),
+    index("instantly_webhook_events_event_idx").on(t.eventType),
+    index("instantly_webhook_events_contact_idx").on(t.crmContactId),
+    index("instantly_webhook_events_received_idx").on(t.receivedAt),
+  ],
+);
+
 export type EmailLog = typeof emailLogs.$inferSelect;
 export type NewEmailLog = typeof emailLogs.$inferInsert;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type NewContactMessage = typeof contactMessages.$inferInsert;
+export type InstantlyWebhookEvent = typeof instantlyWebhookEvents.$inferSelect;
+export type NewInstantlyWebhookEvent = typeof instantlyWebhookEvents.$inferInsert;

@@ -101,6 +101,10 @@ export const RATE_LIMITS = {
   // bursts (belronde voorbereiden = veel reads), dus ruim, maar niet eindeloos
   // zodat een loop niet de DB hamert. Key = het access-token-fingerprint.
   mcp: { limit: 240, windowSeconds: 60 },
+
+  // Instantly lifecycle-webhooks kunnen in bursts binnenkomen na campagnes.
+  // Secret-header auth doet de echte gate; deze cap voorkomt runaway retries.
+  "instantly:webhook": { limit: 600, windowSeconds: 600 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

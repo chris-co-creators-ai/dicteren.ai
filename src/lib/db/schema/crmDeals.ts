@@ -57,6 +57,12 @@ export const crmEventKind = pgEnum("crm_event_kind", [
   "email_opened",
   "email_clicked",
   "email_bounced",
+  "email_replied",
+  "email_unsubscribed",
+  "meeting_booked",
+  "meeting_completed",
+  "meeting_no_show",
+  "campaign_completed",
   "payment_link_generated",
   "payment_link_sent",
   "payment_link_resent",
@@ -254,6 +260,11 @@ export const crmContacts = pgTable(
     lastContactAt: timestamp("last_contact_at", { withTimezone: true }),
     lastChannel: text("last_channel"), // email / linkedin / phone / other
     touchCount: integer("touch_count").notNull().default(0),
+    emailUnsubscribed: boolean("email_unsubscribed").notNull().default(false),
+    notInterested: boolean("not_interested").notNull().default(false),
+    doNotContact: boolean("do_not_contact").notNull().default(false),
+    suppressionReason: text("suppression_reason"),
+    suppressionMarkedAt: timestamp("suppression_marked_at", { withTimezone: true }),
 
     // ── Reseller-funnel (migratie 0042) ──
     // Unieke deck-link per persoon + state-markeringen die de funnel-kolom

@@ -1,0 +1,17 @@
+{
+  "event_type": "lead_meeting_booked",
+  "timestamp": "2026-07-06T12:34:56.000Z",
+  "campaign_id": "camp_fixture_resellers_202607",
+  "campaign_name": "Reseller recruitment fixture",
+  "lead": {
+    "email": "fixture.partner@example.com",
+    "first_name": "Fixture",
+    "last_name": "Partner",
+    "company_name": "Fixture Agency"
+  },
+  "unibox_url": "https://app.instantly.ai/app/unibox/fixture",
+  "booking": {
+    "source": "calendly",
+    "starts_at": "2026-07-07T10:00:00.000Z"
+  }
+}
