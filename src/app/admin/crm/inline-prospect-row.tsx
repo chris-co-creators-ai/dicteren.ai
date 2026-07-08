@@ -108,7 +108,7 @@ export function InlineProspectRow({
       // Stad/branche zijn enrichment-velden: apart wegschrijven (zelfde route
       // als de inline-edit op bestaande rijen). Best-effort: de prospect
       // bestaat al, een enrichment-fout mag het toevoegen niet blokkeren.
-      const contactId: string | undefined = data.data?.contactId;
+      const contactId: string | undefined = data.contactId;
       if (contactId && (city.trim() || industry)) {
         await fetch(`/api/admin/crm/contacts/${contactId}/enrichment`, {
           method: "PATCH",

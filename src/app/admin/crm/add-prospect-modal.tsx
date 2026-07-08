@@ -169,7 +169,7 @@ function ManualForm({
     }
     // Stad/branche zijn enrichment-velden: apart wegschrijven (zelfde route
     // als de inline-edit in de grid). Best-effort — blokkeert het aanmaken niet.
-    const contactId: string | undefined = data.data?.contactId;
+    const contactId: string | undefined = data.contactId;
     if (contactId && (city.trim() || industry)) {
       await fetch(`/api/admin/crm/contacts/${contactId}/enrichment`, {
         method: "PATCH",

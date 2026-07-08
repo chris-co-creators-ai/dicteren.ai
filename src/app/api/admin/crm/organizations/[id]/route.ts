@@ -119,6 +119,16 @@ export async function PATCH(
     if (key in body) patch[key] = body[key];
   }
 
+  // nextActionAt komt als ISO-string uit de client; de timestamp-kolom verwacht
+  // een Date. Zonder coerce roept Drizzle's mapToDriverValue .toISOString() aan
+  // op een string → TypeError → 500 ("Wijziging niet opgeslagen"). Lege/ongeldige
+  // waarde → null.
+  if ("nextActionAt" in patch) {
+    const raw = patch.nextActionAt;
+    const d = raw ? new Date(raw as string) : null;
+    patch.nextActionAt = d && !Number.isNaN(d.getTime()) ? d : null;
+  }
+
   // FSM-gate: vooruit in de pijplijn mag alleen met de verplichte velden.
   if (typeof patch.status === "string") {
     const current = await getCrmOrganization(id);

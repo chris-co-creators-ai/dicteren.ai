@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   AtSign,
@@ -493,6 +494,7 @@ export function CrmView({
     (industryFilter ? 1 : 0) +
     (sizeFilter !== "all" ? 1 : 0) +
     (minScoreFilter ? 1 : 0);
+  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showColumnManager, setShowColumnManager] = useState(false);
   const [showCreateList, setShowCreateList] = useState(false);
@@ -1904,6 +1906,10 @@ export function CrmView({
           onCreated={(newId) => {
             setShowCreateList(false);
             setActiveListId(newId);
+            // De lijst-balk leest de server-prop `lists`; die ververst niet via
+            // fetchPeople. router.refresh() haalt de nieuwe lijst op zodat de tab
+            // meteen verschijnt (anders lijkt aanmaken mislukt + tabel loopt leeg).
+            router.refresh();
             refresh();
           }}
         />
