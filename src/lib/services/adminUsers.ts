@@ -13,7 +13,13 @@ import {
   authSession,
   authUser,
 } from "@/lib/db/auth-schema";
-import { affiliateReferrals, affiliates, licenses, subscriptions } from "@/lib/db/schema";
+import {
+  affiliateReferrals,
+  affiliates,
+  licenses,
+  subscriptions,
+  userAttribution,
+} from "@/lib/db/schema";
 
 const STAFF_ROLES = ["admin", "account_manager"] as const;
 
@@ -37,6 +43,10 @@ export type AdminUserRow = {
   latestLicenseType: "beta" | "consumer" | "team" | "partner" | null;
   hasAffiliateReferral: boolean;
   affiliateName: string | null;
+  /** First-touch campagne uit user_attribution — "google"/"cpc" bij Google Ads. */
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
   /** Actieve (niet-geannuleerde) abonnementen — voor de opzeg-actie in de dropdown. */
   activeSubscriptionId: string | null;
   activeSubscriptionCount: number;
@@ -200,8 +210,36 @@ export async function listAdminUsers(
     subsByUser.set(s.userId, arr);
   }
 
+  // 8. First-touch attributie (UTM/gclid) — bepaalt of iemand via een
+  //    advertentie binnenkwam. Faalt stil zolang de migratie nog niet draait.
+  const attrByUser = new Map<
+    string,
+    { source: string | null; medium: string | null; campaign: string | null }
+  >();
+  try {
+    const attrRows = await db
+      .select({
+        userId: userAttribution.userId,
+        source: userAttribution.utmSource,
+        medium: userAttribution.utmMedium,
+        campaign: userAttribution.utmCampaign,
+      })
+      .from(userAttribution)
+      .where(inArray(userAttribution.userId, ids));
+    for (const a of attrRows) {
+      attrByUser.set(a.userId, {
+        source: a.source,
+        medium: a.medium,
+        campaign: a.campaign,
+      });
+    }
+  } catch {
+    // Tabel bestaat nog niet in deze omgeving — geen attributie, wel een lijst.
+  }
+
   return users.map((u) => {
     const lic = latestByUserCorrect.get(u.id);
+    const attr = attrByUser.get(u.id);
     return {
       id: u.id,
       name: u.name,
@@ -220,6 +258,9 @@ export async function listAdminUsers(
       latestLicenseType: lic?.type ?? null,
       hasAffiliateReferral: refByUser.has(u.id),
       affiliateName: refByUser.get(u.id) ?? null,
+      utmSource: attr?.source ?? null,
+      utmMedium: attr?.medium ?? null,
+      utmCampaign: attr?.campaign ?? null,
       activeSubscriptionId: subsByUser.get(u.id)?.[0] ?? null,
       activeSubscriptionCount: subsByUser.get(u.id)?.length ?? 0,
     };

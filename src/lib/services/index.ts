@@ -328,3 +328,4 @@ export {
   type CommissionType,
   type AffiliateStatusValue,
 } from "./affiliate";
+export { recordAttribution } from "./attribution";

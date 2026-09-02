@@ -18,7 +18,8 @@ export type CustomerSourceKey =
   | "csv_import"
   | "lead_form"
   | "reseller_recruitment"
-  | "signal_triggered";
+  | "signal_triggered"
+  | "paid_ads";
 
 export type CustomerSourceMeta = {
   label: string;
@@ -36,7 +37,8 @@ export type CustomerSourceMeta = {
     | "Gift"
     | "Upload"
     | "FileText"
-    | "Zap";
+    | "Zap"
+    | "Megaphone";
 };
 
 export const CUSTOMER_SOURCE_BADGES: Record<CustomerSourceKey, CustomerSourceMeta> = {
@@ -52,6 +54,7 @@ export const CUSTOMER_SOURCE_BADGES: Record<CustomerSourceKey, CustomerSourceMet
   lead_form:          { label: "Lead-formulier",   color: "navy",   icon: "FileText" },
   reseller_recruitment: { label: "Reseller-werving", color: "purple", icon: "Users" },
   signal_triggered:   { label: "Via signaal",      color: "orange", icon: "Zap" },
+  paid_ads:           { label: "Advertentie",      color: "orange", icon: "Megaphone" },
 };
 
 export type CustomerSourceContext = {
@@ -78,11 +81,22 @@ export type CustomerSourceContext = {
   signalTriggered?: boolean;
   /** Soort signaal voor tooltip (new_vacancy / promotion / etc.) */
   signalKind?: string | null;
+  /** user_attribution.utm_source — "google" bij Google Ads. */
+  utmSource?: string | null;
+  /** user_attribution.utm_medium — "cpc" bij betaald zoeken. */
+  utmMedium?: string | null;
+  /** user_attribution.utm_campaign — komt in de tooltip te staan. */
+  utmCampaign?: string | null;
 };
 
 /** Bepaal de canonical source-key voor een klant.
  *  Precedence: partner > affiliate > admin-grant > signal-triggered >
- *  crm-org-source > trial > self-signup. */
+ *  crm-org-source > paid-ads > trial > self-signup.
+ *
+ *  paid_ads staat bewust ONDER crm-org-source: als een AM iemand heeft
+ *  gebeld telt dat zwaarder dan de advertentie waar hij ooit op klikte.
+ *  Maar het staat BOVEN trial/self-signup, want daar verfijnt het juist
+ *  waar die self-signup vandaan kwam. */
 export function deriveCustomerSource(
   ctx: CustomerSourceContext,
 ): { key: CustomerSourceKey; detail: string | null } {
@@ -100,6 +114,9 @@ export function deriveCustomerSource(
   }
   if (ctx.crmOrgSource) {
     return { key: ctx.crmOrgSource, detail: null };
+  }
+  if (ctx.utmMedium === "cpc" || ctx.utmSource === "google") {
+    return { key: "paid_ads", detail: ctx.utmCampaign ?? ctx.utmSource ?? null };
   }
   if (ctx.licenseType === "beta") {
     return { key: "trial", detail: null };

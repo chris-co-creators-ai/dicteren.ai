@@ -47,6 +47,9 @@ type User = {
   latestLicenseType: "beta" | "consumer" | "team" | "partner" | null;
   hasAffiliateReferral: boolean;
   affiliateName: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
   activeSubscriptionId: string | null;
   activeSubscriptionCount: number;
 };
@@ -350,6 +353,9 @@ export function UsersClient({ users }: Props) {
                       licenseType: u.latestLicenseType,
                       hasAffiliateReferral: u.hasAffiliateReferral,
                       affiliateName: u.affiliateName,
+                      utmSource: u.utmSource,
+                      utmMedium: u.utmMedium,
+                      utmCampaign: u.utmCampaign,
                     });
                     return <SourceBadge source={src.key} detail={src.detail} />;
                   })()}

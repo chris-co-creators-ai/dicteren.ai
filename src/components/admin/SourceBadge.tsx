@@ -9,6 +9,7 @@ import {
   FileText,
   Gift,
   Heart,
+  Megaphone,
   Phone,
   ShoppingCart,
   TrendingUp,
@@ -34,6 +35,7 @@ const ICONS = {
   Upload,
   FileText,
   Zap,
+  Megaphone,
 } as const;
 
 const CHIP_CLASS: Record<string, string> = {

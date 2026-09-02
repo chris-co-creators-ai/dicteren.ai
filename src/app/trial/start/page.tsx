@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Clock, Download, Mail } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { claimAndNotifyTrial } from "@/lib/services";
+import { claimAndNotifyTrial, recordAttribution } from "@/lib/services";
 import { CopyButtonClient } from "@/app/checkout/success/copy-button-client";
 import { ConversionPing } from "@/components/analytics/ConversionPing";
 
@@ -14,6 +14,10 @@ export default async function TrialStartPage() {
   if (!session?.user) {
     redirect("/auth/sign-up?next=/trial/start");
   }
+
+  // Leg vast waar deze klant vandaan kwam (Google Ads, e-mail, direct).
+  // Vóór de claim, zodat de bron ook vaststaat als de trial al gebruikt is.
+  await recordAttribution(session.user.id);
 
   // Claim trial + mail + audit-log in één service-call. Zelfde flow als
   // POST /api/license/trial — page rendert het resultaat inline.

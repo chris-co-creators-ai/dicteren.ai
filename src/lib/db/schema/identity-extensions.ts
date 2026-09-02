@@ -76,3 +76,29 @@ export type UserBilling = typeof userBilling.$inferSelect;
 export type NewUserBilling = typeof userBilling.$inferInsert;
 export type OrganizationBilling = typeof organizationBilling.$inferSelect;
 export type NewOrganizationBilling = typeof organizationBilling.$inferInsert;
+
+/**
+ * Campagne-attributie per gebruiker. Eén rij per auth.user.
+ *
+ * Gevuld door recordAttribution() bij de trial-claim, uit de dai_attrib-cookie
+ * die <SourceCapture /> na marketing-consent zet. De cookie is last-click;
+ * deze tabel bevriest wat erin stond toen de gebruiker zijn trial claimde.
+ */
+export const userAttribution = pgTable("user_attribution", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => authUsers.id, { onDelete: "cascade" }),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  utmTerm: text("utm_term"),
+  utmContent: text("utm_content"),
+  /** Google Ads click-id — sleutel voor offline conversie-import later. */
+  gclid: text("gclid"),
+  landingPath: text("landing_path"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type UserAttribution = typeof userAttribution.$inferSelect;
