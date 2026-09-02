@@ -49,7 +49,7 @@ function copyFor(info: LicenseInfo, t: TFunction): CopyVariant {
           }),
           body: t("lock.trialExpired.body", {
             defaultValue:
-              "We hopen dat je Dicteren.ai bevallen is. Koop een licentie om door te gaan — je instellingen en geschiedenis blijven bewaard.",
+              "We hopen dat Dicteren.ai je bevallen is. Kies een abonnement om verder te praten. Je instellingen en geschiedenis blijven bewaard.",
           }),
           primaryLabel: t("lock.trialExpired.primary", {
             defaultValue: "Bekijk de prijzen",

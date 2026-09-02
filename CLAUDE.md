@@ -31,8 +31,14 @@ bun run tauri dev          # dev-modus
 bun run tauri build        # productie-build
 bun run dev                # frontend-only (Vite)
 bun run lint / lint:fix    # ESLint frontend
-bun run format             # Prettier + cargo fmt
+bun run format             # Prettier + cargo fmt — LET OP: draait over de hele repo
+bun run test               # cargo test --lib (vanuit src-tauri/)
 ```
+
+`bun run format` herformatteert elk bestand in de tree, niet alleen wat jij wijzigde.
+Grote delen van de repo zijn niet prettier-conform, dus dit levert tientallen
+ongerelateerde bestanden in je diff op. Formatteer per bestand:
+`cargo fmt --manifest-path src-tauri/Cargo.toml` plus `bunx prettier --write <jouw bestanden>`.
 
 **Model-setup (dev):**
 
