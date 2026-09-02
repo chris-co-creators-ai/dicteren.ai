@@ -1306,7 +1306,7 @@ dependencies = [
 
 [[package]]
 name = "dicteren-ai"
-version = "0.8.6"
+version = "0.8.7"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
