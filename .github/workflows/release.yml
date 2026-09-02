@@ -1,6 +1,16 @@
 name: "Release"
 
-on: workflow_dispatch
+# workflow_dispatch alone is unusable here: GitHub only registers manual
+# workflows that live on the default branch, and the default branch is `main`
+# (the web platform), which has no .github/workflows at all. A tag trigger is
+# registered from whatever branch the tag points at, so releasing is:
+#
+#   git tag v0.8.7 && git push origin v0.8.7
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 jobs:
   create-release:
