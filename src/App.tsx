@@ -269,11 +269,9 @@ function App() {
       setLicenseGate(info.is_unlocked ? "unlocked" : "locked");
     };
 
-    commands
-      .getLicenseState()
-      .then(apply)
-      .catch((e) => console.warn("license state read failed", e));
-
+    // Listeners first, then the snapshot: the other order lets a slow
+    // getLicenseState() resolve after a fresh event and write stale state
+    // back over it.
     const listeners = Promise.all([
       listen<LicenseInfo>("license-updated", (event) => apply(event.payload)),
       // Emitted when a hotkey press is refused, so the lock screen is already
@@ -282,7 +280,13 @@ function App() {
         if (event.payload) apply(event.payload);
         else if (!cancelled) setLicenseGate("locked");
       }),
-    ]);
+    ]).then((unlisten) => {
+      commands
+        .getLicenseState()
+        .then(apply)
+        .catch((e) => console.warn("license state read failed", e));
+      return unlisten;
+    });
 
     return () => {
       cancelled = true;

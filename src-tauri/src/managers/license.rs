@@ -370,7 +370,12 @@ pub async fn fetch_status() -> Result<LicenseInfo> {
     let res = client.get(&url).bearer_auth(&token).send().await?;
     let status_code = res.status();
 
-    // 401 = our token is gone (activation revoked, device unknown). Wipe.
+    // A 401 only justifies wiping the token when the server says this
+    // activation is genuinely gone. Every other 401 is a server-side problem:
+    // a missing or rotated LICENSE_TOKEN_SECRET makes the server reject every
+    // token in existence, and wiping on that would force the entire installed
+    // base to re-enter their license code by hand. Fall back to the local
+    // token instead and let the next heartbeat recover.
     if status_code == reqwest::StatusCode::UNAUTHORIZED {
         let body: StatusResponse = res.json().await.unwrap_or(StatusResponse {
             success: false,
@@ -379,9 +384,19 @@ pub async fn fetch_status() -> Result<LicenseInfo> {
             error: None,
             code: None,
         });
-        log::warn!("License status 401 — wiping token. code={:?}", body.code);
-        delete_token().ok();
-        return Ok(LicenseInfo::unknown());
+        if matches!(
+            body.code.as_deref(),
+            Some("ACTIVATION_REVOKED" | "DEVICE_NOT_FOUND" | "LICENSE_NOT_FOUND")
+        ) {
+            log::warn!("License revoked server-side ({:?}) — wiping token", body.code);
+            delete_token().ok();
+            return Ok(LicenseInfo::unknown());
+        }
+        log::warn!(
+            "License status 401 with code={:?} — keeping token, using local state",
+            body.code
+        );
+        return Ok(offline_state());
     }
 
     let body: StatusResponse = res

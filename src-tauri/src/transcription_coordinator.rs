@@ -159,10 +159,14 @@ impl TranscriptionCoordinator {
     }
 }
 
-/// Every transcription trigger — hotkey, tray, CLI flag, Unix signal — passes
-/// through `start`, so this is the one place the license has to hold. The UI
-/// lock screen only covers the settings window, which is hidden most of the
-/// time; without this check an expired trial keeps dictating forever.
+/// Every *live* transcription trigger — hotkey, CLI flag, Unix signal — passes
+/// through `start`, so this is where the license has to hold. The UI lock
+/// screen only covers the settings window, which is hidden most of the time;
+/// without this check an expired trial keeps dictating forever.
+///
+/// Not the only door to the model: `commands::history::
+/// retry_history_entry_transcription` re-runs stored audio and checks the gate
+/// itself. Any new path to `TranscriptionManager::transcribe` must do the same.
 ///
 /// Fails closed: no gate in managed state means no transcription.
 fn license_allows(app: &AppHandle) -> bool {
@@ -182,31 +186,38 @@ fn license_allows(app: &AppHandle) -> bool {
 /// last heartbeat would otherwise keep a paying customer out for hours; this
 /// way the gate reopens within seconds of the refused press.
 fn deny_locked(app: &AppHandle, binding_id: &str) {
-    let info = app.try_state::<LicenseGate>().map(|gate| gate.snapshot());
+    let Some(gate) = app.try_state::<LicenseGate>() else {
+        return;
+    };
+    let info = gate.snapshot();
     warn!(
         "Transcription blocked for '{binding_id}': license locked (status={:?})",
-        info.as_ref().map(|i| &i.status)
+        info.status
     );
-    if let Err(e) = app.emit("license-locked", info) {
-        warn!("Failed to emit license-locked: {e}");
-    }
-    crate::show_main_window(app);
 
-    let should_refresh = app
-        .try_state::<LicenseGate>()
-        .is_some_and(|gate| gate.claim_refresh_slot());
-    if should_refresh {
-        let app = app.clone();
-        tauri::async_runtime::spawn(async move {
-            let fresh = crate::managers::license::current_state().await;
-            if let Some(gate) = app.try_state::<LicenseGate>() {
-                gate.set(fresh.clone());
-            }
-            if let Err(e) = app.emit("license-updated", fresh) {
-                warn!("Failed to emit license-updated: {e}");
-            }
-        });
+    // Throttled as one unit. Raising the window on every press would steal
+    // focus out of whatever the user is typing in, over and over.
+    if !gate.claim_refresh_slot() {
+        return;
     }
+
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = app.emit("license-locked", info) {
+            warn!("Failed to emit license-locked: {e}");
+        }
+        crate::show_main_window(&app);
+
+        // A renewal may have landed since the last heartbeat; re-check so a
+        // paying customer is not stuck until the next one.
+        let fresh = crate::managers::license::current_state().await;
+        if let Some(gate) = app.try_state::<LicenseGate>() {
+            gate.set(fresh.clone());
+        }
+        if let Err(e) = app.emit("license-updated", fresh) {
+            warn!("Failed to emit license-updated: {e}");
+        }
+    });
 }
 
 fn start(app: &AppHandle, stage: &mut Stage, binding_id: &str, hotkey_string: &str) {

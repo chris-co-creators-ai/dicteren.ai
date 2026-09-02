@@ -1,6 +1,7 @@
 use crate::actions::process_transcription_output;
 use crate::managers::{
     history::{HistoryManager, PaginatedHistory},
+    license::LicenseGate,
     transcription::TranscriptionManager,
 };
 use std::sync::Arc;
@@ -65,8 +66,16 @@ pub async fn retry_history_entry_transcription(
     app: AppHandle,
     history_manager: State<'_, Arc<HistoryManager>>,
     transcription_manager: State<'_, Arc<TranscriptionManager>>,
+    gate: State<'_, LicenseGate>,
     id: i64,
 ) -> Result<(), String> {
+    // Second door to the model, next to the hotkey path. The lock screen hides
+    // the History tab, but that is UI state — an expired license must not be
+    // able to re-run the model from here either.
+    if !gate.allows_transcription() {
+        return Err("Je licentie is niet actief.".to_string());
+    }
+
     let entry = history_manager
         .get_entry_by_id(id)
         .await

@@ -26,8 +26,8 @@ export const SubscriptionSettings: React.FC = () => {
 
   const refreshLicense = async () => {
     try {
-      const info = await commands.getLicenseState();
-      setLicense(info);
+      const result = await commands.refreshLicenseState();
+      if (result.status === "ok") setLicense(result.data);
     } catch (error) {
       console.error("Failed to read license state:", error);
     }
@@ -36,11 +36,20 @@ export const SubscriptionSettings: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Cached state first so the page paints immediately, then a server
+      // round-trip: plan label, discount and next-billing only exist in the
+      // server response, so the offline snapshot leaves them empty.
       try {
-        const info = await commands.getLicenseState();
-        if (!cancelled) setLicense(info);
+        const cached = await commands.getLicenseState();
+        if (!cancelled) setLicense(cached);
       } catch (error) {
         console.error("Failed to read license state:", error);
+      }
+      try {
+        const fresh = await commands.refreshLicenseState();
+        if (!cancelled && fresh.status === "ok") setLicense(fresh.data);
+      } catch (error) {
+        console.warn("Failed to refresh license state:", error);
       }
     })();
     return () => {
