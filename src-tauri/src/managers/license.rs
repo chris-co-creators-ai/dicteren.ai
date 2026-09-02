@@ -721,6 +721,72 @@ mod tests {
         assert!(!"DIC-CONS-ABCD-1234".starts_with(TRIAL_CODE_PREFIX));
     }
 
+    /// Mirrors what the server produces: base64url of `{json}.{hmac_hex}`.
+    /// Field names must match `web/src/lib/services/token.ts`.
+    fn fake_token(code: &str, status: &str, expires_at: &str) -> String {
+        let json = format!(
+            r#"{{"licenseId":"lic_1","licenseCode":"{code}","type":"consumer","status":"{status}","expiresAt":"{expires_at}","deviceFingerprint":"fp_abc","issuedAt":"2026-01-01T00:00:00Z"}}"#
+        );
+        URL_SAFE_NO_PAD.encode(format!("{json}.deadbeef").as_bytes())
+    }
+
+    /// The whole gate hangs off this decode. If it breaks, every paying
+    /// customer is locked out the moment they go offline.
+    #[test]
+    fn token_payload_decodes_server_shape() {
+        let token = fake_token("DIC-TRIAL-ABCD-1234", "trial", "2027-01-01T00:00:00Z");
+        let payload = decode_token_payload(&token).expect("server-shaped token must decode");
+        assert_eq!(payload.status, "trial");
+        assert_eq!(payload.expires_at.as_deref(), Some("2027-01-01T00:00:00Z"));
+        assert_eq!(payload.type_.as_deref(), Some("consumer"));
+        assert_eq!(
+            payload.license_code.as_deref(),
+            Some("DIC-TRIAL-ABCD-1234")
+        );
+    }
+
+    /// The payload itself contains dots: JS `toISOString()` emits milliseconds
+    /// (`2027-01-01T00:00:00.000Z`). Splitting on the FIRST dot would cut the
+    /// JSON in half; only the last dot separates payload from signature, and
+    /// the hex signature never contains one.
+    #[test]
+    fn token_payload_survives_dots_inside_the_json() {
+        let json = r#"{"licenseCode":"DIC-CONS-1","type":"consumer","status":"active","expiresAt":"2027-01-01T00:00:00.000Z"}"#;
+        let token = URL_SAFE_NO_PAD.encode(format!("{json}.deadbeef").as_bytes());
+        let payload = decode_token_payload(&token).expect("must decode");
+        assert_eq!(payload.status, "active");
+        assert_eq!(
+            payload.expires_at.as_deref(),
+            Some("2027-01-01T00:00:00.000Z")
+        );
+    }
+
+    /// And that millisecond form must still parse as a date, or every paid
+    /// license would read as "no expiry" and silently stay open.
+    #[test]
+    fn millisecond_iso_expiry_is_parsed() {
+        assert!(is_iso_in_past("2020-01-01T00:00:00.000Z"));
+        assert!(!is_iso_in_past("2099-01-01T00:00:00.000Z"));
+    }
+
+    #[test]
+    fn garbage_token_does_not_decode() {
+        assert!(decode_token_payload("not-base64!!").is_none());
+        assert!(decode_token_payload(&URL_SAFE_NO_PAD.encode(b"no-dot-here")).is_none());
+    }
+
+    /// A paid license with no expiry must stay open offline.
+    #[test]
+    fn decoded_paid_token_settles_unlocked() {
+        let token = fake_token("DIC-CONS-ABCD-1234", "active", "2099-01-01T00:00:00Z");
+        let payload = decode_token_payload(&token).unwrap();
+        let settled = settle(info(
+            parse_status(&payload.status),
+            payload.expires_at.as_deref(),
+        ));
+        assert!(settled.is_unlocked);
+    }
+
     /// Holding down a refused hotkey must not turn into a burst of status
     /// calls: the first press claims the slot, the rest are refused.
     #[test]
