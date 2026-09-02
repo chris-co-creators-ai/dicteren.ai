@@ -2,7 +2,10 @@ name: "test"
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    # The desktop app lives on `desktop-app`; `main` is the web platform and
+    # has no workflows at all. Pointing at main meant this never ran, which is
+    # how the Rust tests stayed broken for months without anyone noticing.
+    branches: [desktop-app]
     paths:
       - "src-tauri/**"
   pull_request:

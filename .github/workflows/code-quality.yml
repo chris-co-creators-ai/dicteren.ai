@@ -2,7 +2,8 @@ name: "code quality"
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    # See test.yml: the desktop app is on `desktop-app`, not `main`.
+    branches: [desktop-app]
     paths:
       - "src/**"
       - "package.json"
