@@ -939,7 +939,12 @@ discount_value: number | null;
 /** Status van Mollie subscription (`active`, `canceled`, ...). Null = geen sub. */
 subscription_status: string | null;
 /** Volgende incasso (ISO). Null = lifetime / geen sub. */
-next_billing_at: string | null }
+next_billing_at: string | null;
+/**
+ * True als de licentiecode een proefperiode is (`DIC-TRIAL-`). Bepaalt of
+ * het lock-scherm proefperiode-copy of verleng-copy toont.
+ */
+is_trial: boolean }
 export type LicenseStatus = 
 /**
  * No token in keychain — user must activate.

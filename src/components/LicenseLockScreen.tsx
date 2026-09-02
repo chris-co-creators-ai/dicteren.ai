@@ -19,7 +19,10 @@ interface CopyVariant {
 }
 
 function copyFor(info: LicenseInfo, t: TFunction): CopyVariant {
-  const isTrial = info.license_type === "beta";
+  // Trials are consumer licenses with a DIC-TRIAL- code; the backend reads the
+  // prefix off the signed token. The old check on license_type === "beta" never
+  // matched, so trial users got renewal copy instead of the pricing nudge.
+  const isTrial = info.is_trial;
 
   switch (info.status) {
     case "past_due":

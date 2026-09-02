@@ -15,3 +15,4 @@ De UI van de desktop-app: onboarding, settings, model-selector, de opname-overla
 - **Strict TS** (geen `any`), functionele componenten met hooks, Tailwind, alias `@/` → `./src/`.
 - **Klant-facing teksten** volgen dezelfde model-naamgeving als de web-copy: "Dicteren.ai V3", geen modelnaam in de UI.
 - `stores/settingsStore.ts` is de bron voor settings-state; verwijderde settings-velden laat `serde` aan de Rust-kant vallen, dus geen migratie nodig.
+- **Het lock-scherm spiegelt de licentie, het handhaaft hem niet.** De backend blokkeert transcriptie (zie `../src-tauri/CLAUDE.md`); dit venster is meestal verborgen en mag nooit de enige controle zijn. `App.tsx` luistert op `license-updated` en `license-locked` en doet zelf geen polling.

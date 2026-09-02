@@ -19,7 +19,7 @@ import LicenseLockScreen from "./components/LicenseLockScreen";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
-import { commands } from "@/bindings";
+import { commands, type LicenseInfo } from "@/bindings";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
 
 type OnboardingStep = "accessibility" | "license" | "model" | "done";
@@ -42,9 +42,7 @@ function App() {
   const [isReturningUser, setIsReturningUser] = useState(false);
   // Optimistic: onboarding gate-checks already happened, heartbeat may demote.
   const [licenseGate, setLicenseGate] = useState<LicenseGateStatus>("unlocked");
-  const [licenseInfo, setLicenseInfo] = useState<Awaited<
-    ReturnType<typeof commands.getLicenseState>
-  > | null>(null);
+  const [licenseInfo, setLicenseInfo] = useState<LicenseInfo | null>(null);
   const [currentSection, setCurrentSection] =
     useState<SidebarSection>("general");
   const { settings, updateSetting } = useSettings();
@@ -256,34 +254,39 @@ function App() {
     setOnboardingStep("done");
   };
 
-  // Background heartbeat: re-check license status every 24h while the app runs
-  // so refunds / past_due / revokes propagate without a restart.
+  // The backend owns license state: it seeds from the keychain at startup,
+  // re-checks with the server on its own thread, and blocks transcription when
+  // the gate is closed. This window only mirrors it — it spends most of its
+  // life hidden in the tray, so it can never be the thing that enforces.
   useEffect(() => {
     if (onboardingStep !== "done") return;
 
     let cancelled = false;
 
-    const tick = async () => {
-      try {
-        const info = await commands.refreshLicenseState();
-        if (cancelled) return;
-        if (info.status === "ok") {
-          setLicenseInfo(info.data);
-          if (!info.data.is_unlocked) {
-            setLicenseGate("locked");
-          }
-        }
-      } catch (e) {
-        console.warn("license heartbeat failed", e);
-      }
+    const apply = (info: LicenseInfo) => {
+      if (cancelled) return;
+      setLicenseInfo(info);
+      setLicenseGate(info.is_unlocked ? "unlocked" : "locked");
     };
 
-    // Initial check + interval.
-    void tick();
-    const id = window.setInterval(tick, 24 * 60 * 60 * 1000);
+    commands
+      .getLicenseState()
+      .then(apply)
+      .catch((e) => console.warn("license state read failed", e));
+
+    const listeners = Promise.all([
+      listen<LicenseInfo>("license-updated", (event) => apply(event.payload)),
+      // Emitted when a hotkey press is refused, so the lock screen is already
+      // up by the time the window is raised.
+      listen<LicenseInfo | null>("license-locked", (event) => {
+        if (event.payload) apply(event.payload);
+        else if (!cancelled) setLicenseGate("locked");
+      }),
+    ]);
+
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      void listeners.then((unlisten) => unlisten.forEach((fn) => fn()));
     };
   }, [onboardingStep]);
 

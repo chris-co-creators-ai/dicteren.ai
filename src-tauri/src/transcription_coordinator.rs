@@ -1,11 +1,12 @@
 use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
+use crate::managers::license::LicenseGate;
 use log::{debug, error, warn};
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 const DEBOUNCE: Duration = Duration::from_millis(30);
 
@@ -158,11 +159,65 @@ impl TranscriptionCoordinator {
     }
 }
 
+/// Every transcription trigger — hotkey, tray, CLI flag, Unix signal — passes
+/// through `start`, so this is the one place the license has to hold. The UI
+/// lock screen only covers the settings window, which is hidden most of the
+/// time; without this check an expired trial keeps dictating forever.
+///
+/// Fails closed: no gate in managed state means no transcription.
+fn license_allows(app: &AppHandle) -> bool {
+    match app.try_state::<LicenseGate>() {
+        Some(gate) => gate.allows_transcription(),
+        None => {
+            error!("LicenseGate missing from managed state — blocking transcription");
+            false
+        }
+    }
+}
+
+/// Surface the block instead of failing silently: a dead hotkey reads as a
+/// broken app. Raise the window so the lock screen explains what to do next.
+///
+/// Also re-checks with the server (throttled). A renewal that landed after the
+/// last heartbeat would otherwise keep a paying customer out for hours; this
+/// way the gate reopens within seconds of the refused press.
+fn deny_locked(app: &AppHandle, binding_id: &str) {
+    let info = app.try_state::<LicenseGate>().map(|gate| gate.snapshot());
+    warn!(
+        "Transcription blocked for '{binding_id}': license locked (status={:?})",
+        info.as_ref().map(|i| &i.status)
+    );
+    if let Err(e) = app.emit("license-locked", info) {
+        warn!("Failed to emit license-locked: {e}");
+    }
+    crate::show_main_window(app);
+
+    let should_refresh = app
+        .try_state::<LicenseGate>()
+        .is_some_and(|gate| gate.claim_refresh_slot());
+    if should_refresh {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let fresh = crate::managers::license::current_state().await;
+            if let Some(gate) = app.try_state::<LicenseGate>() {
+                gate.set(fresh.clone());
+            }
+            if let Err(e) = app.emit("license-updated", fresh) {
+                warn!("Failed to emit license-updated: {e}");
+            }
+        });
+    }
+}
+
 fn start(app: &AppHandle, stage: &mut Stage, binding_id: &str, hotkey_string: &str) {
     let Some(action) = ACTION_MAP.get(binding_id) else {
         warn!("No action in ACTION_MAP for '{binding_id}'");
         return;
     };
+    if is_transcribe_binding(binding_id) && !license_allows(app) {
+        deny_locked(app, binding_id);
+        return;
+    }
     action.start(app, binding_id, hotkey_string);
     if app
         .try_state::<Arc<AudioRecordingManager>>()

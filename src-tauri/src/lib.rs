@@ -84,7 +84,32 @@ fn build_console_filter() -> env_filter::Filter {
     builder.build()
 }
 
-fn show_main_window(app: &AppHandle) {
+/// How often the app re-checks the license with the server. Trial and
+/// subscription expiry are enforced locally from the token's `expiresAt`, so
+/// this interval only bounds how long a server-side event (refund, revoke,
+/// renewal) takes to land.
+const LICENSE_HEARTBEAT: std::time::Duration = std::time::Duration::from_secs(6 * 60 * 60);
+
+/// Keep the license gate fresh for the lifetime of the process. Runs on its
+/// own thread so it survives with the window hidden — the app spends most of
+/// its life in the tray, where no webview timer is guaranteed to fire.
+fn spawn_license_heartbeat(app: AppHandle) {
+    std::thread::spawn(move || loop {
+        tauri::async_runtime::block_on(async {
+            let Some(gate) = app.try_state::<managers::license::LicenseGate>() else {
+                log::error!("LicenseGate missing from managed state — heartbeat idle");
+                return;
+            };
+            let info = gate.refresh().await;
+            if let Err(e) = app.emit("license-updated", info) {
+                log::warn!("Failed to emit license-updated: {e}");
+            }
+        });
+        std::thread::sleep(LICENSE_HEARTBEAT);
+    });
+}
+
+pub(crate) fn show_main_window(app: &AppHandle) {
     if let Some(main_window) = app.get_webview_window("main") {
         if let Err(e) = main_window.unminimize() {
             log::error!("Failed to unminimize webview window: {}", e);
@@ -537,6 +562,10 @@ pub fn run(cli_args: CliArgs) {
             // Store the file log level in the atomic for the filter to use
             FILE_LOG_LEVEL.store(file_log_level.to_level_filter() as u8, Ordering::Relaxed);
             let app_handle = app.handle().clone();
+            // Seeded synchronously from the keychain, so the gate already
+            // holds when the first hotkey fires. The heartbeat refines it.
+            app.manage(managers::license::LicenseGate::new());
+            spawn_license_heartbeat(app_handle.clone());
             app.manage(TranscriptionCoordinator::new(app_handle.clone()));
 
             initialize_core_logic(&app_handle);
